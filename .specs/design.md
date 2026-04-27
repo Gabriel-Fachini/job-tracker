@@ -9,13 +9,15 @@ Aplicação web local (single-user) composta por três partes:
 - **Chrome Extension** — extensão Manifest V3 que se comunica com o app via REST API exposta pelo Next.js
 
 Serviços externos de runtime (rodando localmente na máquina do usuário):
+
 - **Ollama** em `localhost:11434` — serve o modelo Gemma para tarefas simples de IA
 - **tectonic** — compilador LaTeX instalado no sistema, invocado via `child_process`
 
 Serviço externo remoto:
+
 - **Anthropic API** — Claude para tarefas de IA de alta qualidade
 
-```
+```mermaid
 ┌─────────────────────────────────────────────────┐
 │                  localhost:3000                  │
 │                                                  │
@@ -46,21 +48,21 @@ Serviço externo remoto:
 
 ## 2. Stack Técnica
 
-| Camada | Tecnologia | Justificativa |
-|--------|-----------|---------------|
-| Framework | Next.js 15 (App Router) + TypeScript | Full-stack em repositório único, Server Actions eliminam API layer separado para o app |
-| Banco de dados | SQLite + Drizzle ORM | Local, zero configuração, type-safe, migrations declarativas |
-| Estilização | Tailwind CSS + shadcn/ui | Componentes acessíveis, customizáveis, sem overhead de design system próprio |
-| IA — alta qualidade | Anthropic API (claude-sonnet) | Extração de perfil, geração de LaTeX — tarefas que exigem qualidade máxima |
-| IA — local | Gemma 3 via Ollama | Extração de campos de vagas — tarefa repetitiva, zero custo, sem latência de rede |
-| PDF | tectonic (compilador LaTeX) | Compilador LaTeX moderno, auto-download de pacotes, sem instalação full texlive |
-| Extensão | Chrome Extension Manifest V3 | Padrão atual, suporte a service workers |
+| Camada              | Tecnologia                           | Justificativa                                                                          |
+| ------------------- | ------------------------------------ | -------------------------------------------------------------------------------------- |
+| Framework           | Next.js 15 (App Router) + TypeScript | Full-stack em repositório único, Server Actions eliminam API layer separado para o app |
+| Banco de dados      | SQLite + Drizzle ORM                 | Local, zero configuração, type-safe, migrations declarativas                           |
+| Estilização         | Tailwind CSS + shadcn/ui             | Componentes acessíveis, customizáveis, sem overhead de design system próprio           |
+| IA — alta qualidade | Anthropic API (claude-sonnet)        | Extração de perfil, geração de LaTeX — tarefas que exigem qualidade máxima             |
+| IA — local          | Gemma 3 via Ollama                   | Extração de campos de vagas — tarefa repetitiva, zero custo, sem latência de rede      |
+| PDF                 | tectonic (compilador LaTeX)          | Compilador LaTeX moderno, auto-download de pacotes, sem instalação full texlive        |
+| Extensão            | Chrome Extension Manifest V3         | Padrão atual, suporte a service workers                                                |
 
 ---
 
 ## 3. Estrutura de Pastas
 
-```
+```tree
 job-tracker/
 ├── src/
 │   ├── app/
@@ -268,7 +270,7 @@ export const resumes = sqliteTable('resumes', {
 
 ### Diagrama de Relacionamentos
 
-```
+```mermaid
 profile ──< profile_experiences ──< profile_experience_bullets
         ──< profile_skills
         ──< profile_projects
@@ -283,16 +285,16 @@ companies ──< jobs ──< applications ──< application_stages
 
 ## 5. Decisões Server vs Client
 
-| Operação | Onde roda | Justificativa |
-|----------|-----------|---------------|
-| Queries ao banco | Server (Server Action) | Drizzle/SQLite só roda server-side |
-| Extração de perfil via Claude | Server (Server Action) | API key não exposta ao client |
-| Extração de vaga via Ollama | Server (Server Action) | Ollama em localhost, chamado server-side |
-| Compilação LaTeX via tectonic | Server (Server Action) | `child_process` só disponível server-side |
-| Serving de PDF gerado | Server (Route Handler `GET /api/resumes/[id]`) | Leitura de arquivo do filesystem |
-| Recebimento de vaga da extensão | Server (Route Handler `POST /api/jobs`) | REST puro, extensão não usa Server Actions |
-| Estado do Kanban / UI interativa | Client | Estado local de drag-and-drop, atualiza via Server Action ao soltar |
-| Filtros e período do dashboard | Client | Filtros reativos sem round-trip ao servidor; dados já carregados |
+| Operação                         | Onde roda                                      | Justificativa                                                       |
+| -------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
+| Queries ao banco                 | Server (Server Action)                         | Drizzle/SQLite só roda server-side                                  |
+| Extração de perfil via Claude    | Server (Server Action)                         | API key não exposta ao client                                       |
+| Extração de vaga via Ollama      | Server (Server Action)                         | Ollama em localhost, chamado server-side                            |
+| Compilação LaTeX via tectonic    | Server (Server Action)                         | `child_process` só disponível server-side                           |
+| Serving de PDF gerado            | Server (Route Handler `GET /api/resumes/[id]`) | Leitura de arquivo do filesystem                                    |
+| Recebimento de vaga da extensão  | Server (Route Handler `POST /api/jobs`)        | REST puro, extensão não usa Server Actions                          |
+| Estado do Kanban / UI interativa | Client                                         | Estado local de drag-and-drop, atualiza via Server Action ao soltar |
+| Filtros e período do dashboard   | Client                                         | Filtros reativos sem round-trip ao servidor; dados já carregados    |
 
 ---
 
@@ -301,10 +303,12 @@ companies ──< jobs ──< applications ──< application_stages
 ### 6.1 Claude (Anthropic API) — Tarefas de Alta Qualidade
 
 **Casos de uso:**
+
 - Extração e estruturação do perfil a partir do currículo colado
 - Geração do arquivo `.tex` customizado para cada vaga
 
 **Client (`src/lib/ai/claude.ts`):**
+
 ```typescript
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -333,9 +337,11 @@ export async function callClaude(systemPrompt: string, userMessage: string): Pro
 ### 6.2 Gemma via Ollama — Tarefas Locais
 
 **Casos de uso:**
+
 - Extração de campos de vaga (título, stack, seniority, work model, salary) a partir do texto capturado pela extensão ou colado manualmente
 
 **Client (`src/lib/ai/ollama.ts`):**
+
 ```typescript
 export async function callOllama(prompt: string): Promise<string> {
   const response = await fetch('http://localhost:11434/api/generate', {
@@ -361,7 +367,7 @@ export async function callOllama(prompt: string): Promise<string> {
 
 ### Fluxo detalhado
 
-```
+```mermaid
 Server Action: generateResume(jobId, additionalInstructions?)
         │
         ├─ 1. Busca perfil completo do banco (todas as tabelas profile_*)
@@ -403,6 +409,7 @@ A extensão não pode usar Server Actions (são chamadas internas do Next.js). O
 ### `POST /api/jobs`
 
 **Request:**
+
 ```typescript
 {
   url: string;           // URL da página capturada
@@ -412,6 +419,7 @@ A extensão não pode usar Server Actions (são chamadas internas do Next.js). O
 ```
 
 **Processamento server-side:**
+
 1. Recebe o payload
 2. Chama Ollama para extrair campos estruturados do `rawContent`
 3. Cria ou encontra a empresa pelo nome
@@ -419,6 +427,7 @@ A extensão não pode usar Server Actions (são chamadas internas do Next.js). O
 5. Retorna a vaga criada
 
 **Response:**
+
 ```typescript
 {
   jobId: number;
@@ -460,7 +469,7 @@ A extensão não pode usar Server Actions (são chamadas internas do Next.js). O
 
 ### Fluxo da extensão
 
-```
+```mermaid
 Usuário clica no ícone da extensão
         │
         ▼
