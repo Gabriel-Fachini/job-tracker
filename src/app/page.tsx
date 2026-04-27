@@ -16,7 +16,7 @@ export default function Home() {
               Job Tracker
             </h1>
             <p className="text-base leading-7 text-muted-foreground sm:text-lg">
-              Base do projeto pronta com Next.js 15, Tailwind CSS v4 e
+              Base do projeto pronta com Next.js 16, Tailwind CSS v4 e
               shadcn/ui configurados para as proximas fases do app.
             </p>
           </div>

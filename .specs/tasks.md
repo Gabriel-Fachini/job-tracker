@@ -2,7 +2,7 @@
 
 ## Fase 1 — Setup
 
-- [ ] 1.1 Inicializar projeto Next.js 15 com TypeScript e App Router
+- [ ] 1.1 Inicializar projeto Next.js 16 com TypeScript e App Router
 - [ ] 1.2 Configurar Tailwind CSS
 - [ ] 1.3 Instalar e configurar shadcn/ui
 - [ ] 1.4 Instalar Drizzle ORM e better-sqlite3

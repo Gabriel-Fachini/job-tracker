@@ -50,7 +50,7 @@ Serviço externo remoto:
 
 | Camada              | Tecnologia                           | Justificativa                                                                          |
 | ------------------- | ------------------------------------ | -------------------------------------------------------------------------------------- |
-| Framework           | Next.js 15 (App Router) + TypeScript | Full-stack em repositório único, Server Actions eliminam API layer separado para o app |
+| Framework           | Next.js 16 (App Router) + TypeScript | Full-stack em repositório único, Server Actions eliminam API layer separado para o app |
 | Banco de dados      | SQLite + Drizzle ORM                 | Local, zero configuração, type-safe, migrations declarativas                           |
 | Estilização         | Tailwind CSS + shadcn/ui             | Componentes acessíveis, customizáveis, sem overhead de design system próprio           |
 | IA — alta qualidade | Anthropic API (claude-sonnet)        | Extração de perfil, geração de LaTeX — tarefas que exigem qualidade máxima             |

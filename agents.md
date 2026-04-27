@@ -39,7 +39,7 @@ O agente não deve fingir que o estado atual do código já representa o sistema
 
 As escolhas abaixo estão **fechadas** para este projeto e não devem ser rediscutidas por padrão:
 
-- `Next.js 15` com `App Router`
+- `Next.js 16` com `App Router`
 - `TypeScript`
 - `Tailwind CSS v4`
 - `shadcn/ui`
@@ -61,7 +61,8 @@ Hoje o repositório ainda está em estágio inicial. Ele já saiu do template pu
 
 Leituras importantes do estado atual:
 
-- existe `Next.js 15` com `App Router`;
+- existe `Next.js 16` com `App Router`;
+- o runtime local precisa atender ao requisito minimo do Next.js 16: `Node.js >= 20.9.0`;
 - existe configuração de `shadcn/ui` em `components.json`;
 - o projeto usa `package-lock.json`, então o padrão operacional é `npm`;
 - os scripts atuais em `package.json` ainda são mínimos;
