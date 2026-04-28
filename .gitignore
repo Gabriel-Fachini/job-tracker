@@ -33,6 +33,17 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# local app artifacts
+/job-tracker.db
+/job-tracker.db-shm
+/job-tracker.db-wal
+/uploads/**
+!/uploads/resumes/
+!/uploads/resumes/master/
+!/uploads/resumes/generated/
+!/uploads/resumes/master/.gitkeep
+!/uploads/resumes/generated/.gitkeep
+
 # vercel
 .vercel
 

@@ -2,19 +2,19 @@
 
 ## Fase 1 — Setup
 
-- [ ] 1.1 Inicializar projeto Next.js 16 com TypeScript e App Router
-- [ ] 1.2 Configurar Tailwind CSS
-- [ ] 1.3 Instalar e configurar shadcn/ui
-- [ ] 1.4 Instalar Drizzle ORM e better-sqlite3
-- [ ] 1.5 Criar `drizzle.config.ts` apontando para `./job-tracker.db`
-- [ ] 1.6 Criar `src/lib/db/schema.ts` com todas as tabelas definidas no System Design
-- [ ] 1.7 Rodar migration inicial e validar criação das tabelas
-- [ ] 1.8 Criar instância singleton do client SQLite em `src/lib/db/index.ts`
-- [ ] 1.9 Criar `.env.local` com todas as variáveis de ambiente
-- [ ] 1.10 Criar estrutura de pastas `uploads/resumes/master/` e `uploads/resumes/generated/`
-- [ ] 1.11 Configurar `next.config.ts` para permitir serving de arquivos da pasta `uploads/`
-- [ ] 1.12 Criar layout raiz com sidebar de navegação entre módulos
-- [ ] 1.13 Criar página raiz redirecionando para `/dashboard`
+- [x] 1.1 Inicializar projeto Next.js 16 com TypeScript e App Router
+- [x] 1.2 Configurar Tailwind CSS
+- [x] 1.3 Instalar e configurar shadcn/ui
+- [x] 1.4 Instalar Drizzle ORM e better-sqlite3
+- [x] 1.5 Criar `drizzle.config.ts` apontando para `./job-tracker.db`
+- [x] 1.6 Criar `src/lib/db/schema.ts` com todas as tabelas definidas no System Design
+- [x] 1.7 Rodar migration inicial e validar criação das tabelas
+- [x] 1.8 Criar instância singleton do client SQLite em `src/lib/db/index.ts`
+- [x] 1.9 Criar `.env.local` com todas as variáveis de ambiente
+- [x] 1.10 Criar estrutura de pastas `uploads/resumes/master/` e `uploads/resumes/generated/`
+- [x] 1.11 Configurar `next.config.ts` para permitir serving de arquivos da pasta `uploads/`
+- [x] 1.12 Criar layout raiz com sidebar de navegação entre módulos
+- [x] 1.13 Criar página raiz redirecionando para `/dashboard`
 
 ---
 
