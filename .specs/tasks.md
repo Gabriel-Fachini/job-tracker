@@ -22,10 +22,10 @@
 
 ### 2.1 Integração local com `ollama.cpp`
 
-- [ ] 2.1.1 Criar client do runtime local em `src/lib/ai/ollama.ts`
-- [ ] 2.1.2 Definir configuração mínima do modelo local (`OLLAMA_CPP_BASE_URL`, `OLLAMA_CPP_MODEL`)
-- [ ] 2.1.3 Criar função `extractProfileFromText(rawText: string)` que chama o modelo local e retorna JSON estruturado do perfil
-- [ ] 2.1.4 Validar e tipar o JSON retornado pelo modelo local contra o schema do banco
+- [x] 2.1.1 Criar client do runtime local em `src/lib/ai/ollama.ts`
+- [x] 2.1.2 Definir configuração mínima do modelo local (`OLLAMA_CPP_BASE_URL`, `OLLAMA_CPP_MODEL`)
+- [x] 2.1.3 Criar função `extractProfileFromText(rawText: string)` que chama o modelo local e retorna JSON estruturado do perfil
+- [x] 2.1.4 Validar e tipar o JSON retornado pelo modelo local contra o schema do banco
 
 ### 2.2 Comparação com GPT da OpenAI
 
