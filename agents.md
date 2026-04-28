@@ -47,8 +47,8 @@ As escolhas abaixo estão **fechadas** para este projeto e não devem ser redisc
 - `Server Actions` para fluxos internos do app
 - `Route Handlers` para integrações HTTP e casos que exigem endpoint explícito
 - `Drizzle ORM` com `SQLite` local em arquivo
-- `Ollama` para IA local
-- `Anthropic` para tarefas de IA de maior qualidade
+- runtime local com `ollama.cpp` como fonte principal de IA do produto
+- `OpenAI` apenas para comparação de outputs com modelos GPT nesta fase
 - `tectonic` para compilação LaTeX/PDF
 - `Chrome Extension` Manifest V3 para captura de vagas
 - gerenciador de pacotes padrão: `npm`
@@ -155,10 +155,11 @@ Para persistência local:
 
 ### 5. IA e automação
 
-- use `Ollama` para extração simples e repetitiva de dados de vaga;
-- use `Anthropic` para tarefas que exigem qualidade de texto ou raciocínio superior, como geração de currículo;
-- preserve a separação de responsabilidade entre esses provedores;
-- se um provider estiver indisponível, implemente fallback somente quando isso já estiver previsto no escopo ou melhorar a robustez sem mudar contrato.
+- use o runtime local baseado em `ollama.cpp` como fonte principal para extração e geração no produto;
+- trate a OpenAI, neste momento, como trilha comparativa de benchmark com modelos GPT, não como dependência principal do app;
+- preserve a separação entre fluxo principal do produto e fluxo auxiliar de comparação;
+- se a comparação com OpenAI estiver indisponível, o produto principal deve continuar coerente sem ela;
+- se o runtime local estiver indisponível, implemente fallback somente quando isso já estiver previsto no escopo ou quando o fluxo puder degradar para revisão manual sem quebrar o contrato.
 
 ### 6. Arquivos locais
 

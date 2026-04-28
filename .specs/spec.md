@@ -49,7 +49,8 @@ Base de conhecimento sobre o usuário que alimenta geração de currículos e ma
 
 **Regras:**
 - Todo campo editável após extração automática
-- Extração automática deve ser feita por IA de alta qualidade
+- Extração automática deve usar o runtime local principal baseado em `ollama.cpp`
+- Nesta fase, o sistema pode comparar a saída local com modelos GPT da OpenAI para benchmark, sem trocar a fonte principal de IA do produto
 
 ---
 
@@ -99,7 +100,7 @@ Base de conhecimento sobre o usuário que alimenta geração de currículos e ma
 **Regras:**
 - Descrição sempre salva localmente no momento do registro
 - Uma vaga pode existir sem candidatura associada (status `Interessante`)
-- Extração de campos de vaga deve ser feita por IA local (tarefa simples e repetitiva)
+- Extração de campos de vaga deve ser feita pela stack local baseada em `ollama.cpp`
 
 ---
 
@@ -141,7 +142,8 @@ Base de conhecimento sobre o usuário que alimenta geração de currículos e ma
 - O `.tex` gerado sempre salvo junto com o PDF (auditabilidade)
 - Nenhuma informação fabricada — só reorganização e ênfase do que existe no perfil
 - Usuário pode regenerar quantas vezes quiser com instruções diferentes
-- Geração de currículo deve ser feita por IA de alta qualidade
+- Geração de currículo deve usar a mesma fonte principal de IA local baseada em `ollama.cpp`
+- Comparações com modelos GPT da OpenAI servem para avaliar qualidade de output, não para substituir o fluxo principal do produto neste momento
 
 ---
 

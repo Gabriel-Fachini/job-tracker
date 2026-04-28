@@ -20,31 +20,40 @@
 
 ## Fase 2 — Módulo Perfil
 
-### 2.1 Integração Claude
+### 2.1 Integração local com `ollama.cpp`
 
-- [ ] 2.1.1 Instalar Anthropic SDK (`@anthropic-ai/sdk`)
-- [ ] 2.1.2 Criar client Claude em `src/lib/ai/claude.ts`
-- [ ] 2.1.3 Criar função `extractProfileFromText(rawText: string)` que chama Claude e retorna JSON estruturado do perfil
-- [ ] 2.1.4 Validar e tipar o JSON retornado pelo Claude contra o schema do banco
+- [ ] 2.1.1 Criar client do runtime local em `src/lib/ai/ollama.ts`
+- [ ] 2.1.2 Definir configuração mínima do modelo local (`OLLAMA_CPP_BASE_URL`, `OLLAMA_CPP_MODEL`)
+- [ ] 2.1.3 Criar função `extractProfileFromText(rawText: string)` que chama o modelo local e retorna JSON estruturado do perfil
+- [ ] 2.1.4 Validar e tipar o JSON retornado pelo modelo local contra o schema do banco
 
-### 2.2 Upload e extração
+### 2.2 Comparação com GPT da OpenAI
 
-- [ ] 2.2.1 Criar página `/profile`
-- [ ] 2.2.2 Criar componente de upload de PDF (currículo master)
-- [ ] 2.2.3 Criar Route Handler `POST /api/profile/upload` para receber o PDF, salvar em `uploads/resumes/master/` e extrair texto
-- [ ] 2.2.4 Criar Server Action `extractProfile(rawText)` que chama Claude e persiste o perfil estruturado no banco
-- [ ] 2.2.5 Exibir loading state durante extração
+- [ ] 2.2.1 Instalar OpenAI SDK (`openai`)
+- [ ] 2.2.2 Criar client OpenAI em `src/lib/ai/openai.ts`
+- [ ] 2.2.3 Criar utilitário `compareProfileExtraction(rawText: string)` que rode o mesmo input no fluxo local e em um modelo GPT da OpenAI
+- [ ] 2.2.4 Definir formato local de comparação para inspeção manual dos resultados (ex. JSON com input, output local, output OpenAI e observações)
+- [ ] 2.2.5 Garantir que a comparação seja opcional e não bloqueie o fluxo principal do produto
 
-### 2.3 Formulário de revisão
+### 2.3 Upload e extração
 
-- [ ] 2.3.1 Criar seção de identidade e contato (campos editáveis)
-- [ ] 2.3.2 Criar seção de experiências profissionais com lista de bullets editáveis por cargo
-- [ ] 2.3.3 Criar seção de habilidades com nível e categoria
-- [ ] 2.3.4 Criar seção de projetos pessoais
-- [ ] 2.3.5 Criar seção de formação acadêmica
-- [ ] 2.3.6 Criar seção de preferências (modelo de trabalho, tipo de empresa, valores)
-- [ ] 2.3.7 Criar Server Action `updateProfile(data)` para persistir edições
-- [ ] 2.3.8 Permitir adicionar/remover experiências, bullets, habilidades e projetos manualmente
+- [ ] 2.3.1 Criar página `/profile`
+- [ ] 2.3.2 Criar componente de upload de PDF (currículo master)
+- [ ] 2.3.3 Criar Route Handler `POST /api/profile/upload` para receber o PDF, salvar em `uploads/resumes/master/` e extrair texto
+- [ ] 2.3.4 Criar Server Action `extractProfile(rawText)` que chama o modelo local e persiste o perfil estruturado no banco
+- [ ] 2.3.5 Permitir acionar comparação opcional com OpenAI após a extração principal
+- [ ] 2.3.6 Exibir loading state durante extração
+
+### 2.4 Formulário de revisão
+
+- [ ] 2.4.1 Criar seção de identidade e contato (campos editáveis)
+- [ ] 2.4.2 Criar seção de experiências profissionais com lista de bullets editáveis por cargo
+- [ ] 2.4.3 Criar seção de habilidades com nível e categoria
+- [ ] 2.4.4 Criar seção de projetos pessoais
+- [ ] 2.4.5 Criar seção de formação acadêmica
+- [ ] 2.4.6 Criar seção de preferências (modelo de trabalho, tipo de empresa, valores)
+- [ ] 2.4.7 Criar Server Action `updateProfile(data)` para persistir edições
+- [ ] 2.4.8 Permitir adicionar/remover experiências, bullets, habilidades e projetos manualmente
 
 ---
 
@@ -62,9 +71,9 @@
 
 - [ ] 3.2.1 Criar página `/jobs` com listagem e filtros por status
 - [ ] 3.2.2 Criar página `/jobs/new` com textarea para colar descrição + formulário de campos
-- [ ] 3.2.3 Instalar client Ollama em `src/lib/ai/ollama.ts`
-- [ ] 3.2.4 Criar Server Action `extractJobFields(rawText)` que chama Ollama
-- [ ] 3.2.5 Implementar fallback: se Ollama indisponível, exibir campos em branco sem quebrar o fluxo
+- [ ] 3.2.3 Reusar client local baseado em `ollama.cpp` em `src/lib/ai/ollama.ts`
+- [ ] 3.2.4 Criar Server Action `extractJobFields(rawText)` que chama o modelo local
+- [ ] 3.2.5 Implementar fallback: se o runtime local indisponível, exibir campos em branco sem quebrar o fluxo
 - [ ] 3.2.6 Criar página `/jobs/[id]` com detalhes da vaga e descrição completa salva
 - [ ] 3.2.7 Criar Server Actions: `createJob`, `updateJob`, `deleteJob`
 - [ ] 3.2.8 Ao criar vaga, salvar descrição completa no banco independentemente dos outros campos
@@ -83,7 +92,7 @@
 ### 4.2 Geração via IA
 
 - [ ] 4.2.1 Criar Server Action `generateResume(jobId, additionalInstructions?)` com o fluxo completo descrito no System Design
-- [ ] 4.2.2 Criar prompt de sistema para Claude que instrui geração de `.tex` completo a partir do perfil e descrição da vaga
+- [ ] 4.2.2 Criar prompt de sistema para o modelo local que instrui geração de `.tex` completo a partir do perfil e descrição da vaga
 - [ ] 4.2.3 Definir convenção de nomes dos arquivos gerados: `{slug-empresa}-{slug-vaga}-{timestamp}`
 - [ ] 4.2.4 Salvar `.tex` e `.pdf` em `uploads/resumes/generated/{slug}/`
 - [ ] 4.2.5 Persistir registro na tabela `resumes` com paths e prompt usado
@@ -173,7 +182,7 @@
 
 - [ ] 7.3.1 Criar `src/app/api/jobs/route.ts` com handler `POST`
 - [ ] 7.3.2 Receber payload `{ url, rawContent, companyName? }`
-- [ ] 7.3.3 Chamar Ollama para extrair campos estruturados do `rawContent`
+- [ ] 7.3.3 Chamar o runtime local baseado em `ollama.cpp` para extrair campos estruturados do `rawContent`
 - [ ] 7.3.4 Criar ou localizar empresa pelo nome extraído
 - [ ] 7.3.5 Persistir vaga com status `interesting`
 - [ ] 7.3.6 Retornar `{ jobId, job, extractionConfidence }` conforme contrato do System Design

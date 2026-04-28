@@ -10,12 +10,12 @@ Aplicação web local (single-user) composta por três partes:
 
 Serviços externos de runtime (rodando localmente na máquina do usuário):
 
-- **Ollama** em `localhost:11434` — serve o modelo Gemma para tarefas simples de IA
+- **Runtime local com `ollama.cpp`** em `localhost:11434` — fonte principal de IA do produto para extração e geração
 - **tectonic** — compilador LaTeX instalado no sistema, invocado via `child_process`
 
 Serviço externo remoto:
 
-- **Anthropic API** — Claude para tarefas de IA de alta qualidade
+- **OpenAI API** — usada apenas para comparação de outputs com modelos GPT durante esta fase do projeto
 
 ```mermaid
 ┌─────────────────────────────────────────────────┐
@@ -36,8 +36,8 @@ Serviço externo remoto:
 └───────────────────────────────────────────────┘─┘
          │                    │              │
          ▼                    ▼              ▼
-  localhost:11434      tectonic CLI    api.anthropic.com
-     (Ollama)          (via exec)       (Claude API)
+  localhost:11434      tectonic CLI      api.openai.com
+   (ollama.cpp)        (via exec)     (benchmark GPT)
 
 ┌──────────────────┐
 │ Chrome Extension │──── HTTP POST ────► localhost:3000/api/jobs
@@ -53,8 +53,8 @@ Serviço externo remoto:
 | Framework           | Next.js 16 (App Router) + TypeScript | Full-stack em repositório único, Server Actions eliminam API layer separado para o app |
 | Banco de dados      | SQLite + Drizzle ORM                 | Local, zero configuração, type-safe, migrations declarativas                           |
 | Estilização         | Tailwind CSS + shadcn/ui             | Componentes acessíveis, customizáveis, sem overhead de design system próprio           |
-| IA — alta qualidade | Anthropic API (claude-sonnet)        | Extração de perfil, geração de LaTeX — tarefas que exigem qualidade máxima             |
-| IA — local          | Gemma 3 via Ollama                   | Extração de campos de vagas — tarefa repetitiva, zero custo, sem latência de rede      |
+| IA — principal      | Modelo local via `ollama.cpp`        | Fonte principal do produto para extração de perfil, extração de vagas e geração textual |
+| IA — comparação     | OpenAI API (modelos GPT)             | Benchmark pontual de qualidade com o mesmo input, sem virar dependência primária        |
 | PDF                 | tectonic (compilador LaTeX)          | Compilador LaTeX moderno, auto-download de pacotes, sem instalação full texlive        |
 | Extensão            | Chrome Extension Manifest V3         | Padrão atual, suporte a service workers                                                |
 
@@ -87,8 +87,9 @@ job-tracker/
 │   │   │   ├── migrations/           # arquivos de migration gerados
 │   │   │   └── index.ts              # instância do client SQLite
 │   │   ├── ai/
-│   │   │   ├── claude.ts             # client Anthropic API
-│   │   │   └── ollama.ts             # client Ollama local
+│   │   │   ├── ollama.ts             # client do runtime local baseado em ollama.cpp
+│   │   │   ├── openai.ts             # client OpenAI usado só para comparação
+│   │   │   └── comparison.ts         # orquestra comparação lado a lado entre outputs
 │   │   └── latex/
 │   │       └── compiler.ts           # wrapper tectonic via child_process
 │   └── server/
@@ -111,7 +112,7 @@ job-tracker/
 │   └── popup/                        # UI do popup
 ├── drizzle.config.ts
 ├── next.config.ts
-└── .env.local                        # ANTHROPIC_API_KEY, DATABASE_URL, UPLOADS_PATH
+└── .env.local                        # DATABASE_URL, UPLOADS_PATH, OLLAMA_CPP_BASE_URL, OPENAI_API_KEY
 ```
 
 ---
@@ -288,8 +289,9 @@ companies ──< jobs ──< applications ──< application_stages
 | Operação                         | Onde roda                                      | Justificativa                                                       |
 | -------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
 | Queries ao banco                 | Server (Server Action)                         | Drizzle/SQLite só roda server-side                                  |
-| Extração de perfil via Claude    | Server (Server Action)                         | API key não exposta ao client                                       |
-| Extração de vaga via Ollama      | Server (Server Action)                         | Ollama em localhost, chamado server-side                            |
+| Extração de perfil via modelo local | Server (Server Action)                      | Runtime local roda em localhost, chamado server-side                |
+| Comparação com GPT da OpenAI        | Server (Server Action)                      | API key não exposta ao client; fluxo auxiliar de benchmark          |
+| Extração de vaga via modelo local   | Server (Server Action)                      | Runtime local em localhost, chamado server-side                     |
 | Compilação LaTeX via tectonic    | Server (Server Action)                         | `child_process` só disponível server-side                           |
 | Serving de PDF gerado            | Server (Route Handler `GET /api/resumes/[id]`) | Leitura de arquivo do filesystem                                    |
 | Recebimento de vaga da extensão  | Server (Route Handler `POST /api/jobs`)        | REST puro, extensão não usa Server Actions                          |
@@ -300,55 +302,24 @@ companies ──< jobs ──< applications ──< application_stages
 
 ## 6. Integração com IA
 
-### 6.1 Claude (Anthropic API) — Tarefas de Alta Qualidade
+### 6.1 Modelo local via `ollama.cpp` — Fonte principal do produto
 
 **Casos de uso:**
 
 - Extração e estruturação do perfil a partir do currículo colado
 - Geração do arquivo `.tex` customizado para cada vaga
-
-**Client (`src/lib/ai/claude.ts`):**
-
-```typescript
-import Anthropic from '@anthropic-ai/sdk';
-
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
-export async function callClaude(systemPrompt: string, userMessage: string): Promise<string> {
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 4096,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userMessage }],
-  });
-
-  const block = message.content.find(b => b.type === 'text');
-  if (!block || block.type !== 'text') throw new Error('No text response from Claude');
-  return block.text;
-}
-```
-
-**Contrato de resposta esperado:** JSON estruturado (perfil) ou string LaTeX (currículo). O system prompt instrui o modelo a retornar apenas o formato esperado, sem prose adicional.
-
----
-
-### 6.2 Gemma via Ollama — Tarefas Locais
-
-**Casos de uso:**
-
-- Extração de campos de vaga (título, stack, seniority, work model, salary) a partir do texto capturado pela extensão ou colado manualmente
+- Extração de campos de vaga a partir do texto capturado pela extensão ou colado manualmente
 
 **Client (`src/lib/ai/ollama.ts`):**
 
 ```typescript
-export async function callOllama(prompt: string): Promise<string> {
-  const response = await fetch('http://localhost:11434/api/generate', {
+export async function callLocalLlm(prompt: string, system?: string): Promise<string> {
+  const response = await fetch(`${process.env.OLLAMA_CPP_BASE_URL}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'gemma3',
+      model: process.env.OLLAMA_CPP_MODEL,
+      system,
       prompt,
       stream: false,
     }),
@@ -359,7 +330,43 @@ export async function callOllama(prompt: string): Promise<string> {
 }
 ```
 
-**Fallback:** se Ollama não estiver rodando (conexão recusada), o app exibe os campos em branco para preenchimento manual, sem quebrar o fluxo.
+**Contrato de resposta esperado:** JSON estruturado (perfil/vaga) ou string LaTeX (currículo). O system prompt instrui o modelo a retornar apenas o formato esperado, sem prose adicional.
+
+---
+
+### 6.2 OpenAI GPT — Comparação de outputs
+
+**Casos de uso:**
+
+- Rodar o mesmo input do fluxo principal em um modelo GPT da OpenAI
+- Comparar aderência estrutural e qualidade textual do output local contra o output remoto
+- Apoiar decisão futura de prompt, modelo local e critérios de qualidade
+
+**Client (`src/lib/ai/openai.ts`):**
+
+```typescript
+import OpenAI from 'openai';
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+export async function callOpenAiForComparison(systemPrompt: string, userMessage: string): Promise<string> {
+  const response = await client.responses.create({
+    model: process.env.OPENAI_COMPARISON_MODEL ?? 'gpt-4.1',
+    input: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage },
+    ],
+  });
+
+  return response.output_text;
+}
+```
+
+**Regra:** OpenAI entra como trilha comparativa, opcional e desligável. O fluxo principal do produto continua funcional sem ela.
+
+**Fallback:** se o runtime local não estiver rodando (conexão recusada), o app deve falhar de forma explícita nos fluxos que dependem de IA principal ou, quando o fluxo permitir, exibir campos em branco para preenchimento manual sem quebrar a operação.
 
 ---
 
@@ -372,8 +379,8 @@ Server Action: generateResume(jobId, additionalInstructions?)
         │
         ├─ 1. Busca perfil completo do banco (todas as tabelas profile_*)
         ├─ 2. Busca descrição da vaga (jobs.description)
-        ├─ 3. Chama Claude com perfil + descrição + instruções adicionais
-        │      └─ Claude retorna string com conteúdo .tex completo
+        ├─ 3. Chama o modelo local com perfil + descrição + instruções adicionais
+        │      └─ Runtime local retorna string com conteúdo .tex completo
         ├─ 4. Salva o .tex em uploads/resumes/generated/{slug}/{timestamp}.tex
         ├─ 5. Executa: tectonic {arquivo.tex} --outdir {dir}
         │      └─ via child_process.execFile (timeout: 30s)
@@ -421,7 +428,7 @@ A extensão não pode usar Server Actions (são chamadas internas do Next.js). O
 **Processamento server-side:**
 
 1. Recebe o payload
-2. Chama Ollama para extrair campos estruturados do `rawContent`
+2. Chama o runtime local para extrair campos estruturados do `rawContent`
 3. Cria ou encontra a empresa pelo nome
 4. Salva a vaga com status `interesting`
 5. Retorna a vaga criada
@@ -439,7 +446,7 @@ A extensão não pode usar Server Actions (são chamadas internas do Next.js). O
     workModel?: string;
     // ...
   };
-  extractionConfidence: 'high' | 'low'; // 'low' se Ollama indisponível
+  extractionConfidence: 'high' | 'low'; // 'low' se a extração local falhar e exigir revisão manual
 }
 ```
 
@@ -495,10 +502,12 @@ O popup da extensão exibe os campos extraídos para revisão antes de confirmar
 
 ```bash
 # .env.local
-ANTHROPIC_API_KEY=sk-ant-...
 DATABASE_URL=./job-tracker.db
 UPLOADS_PATH=./uploads
-OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_CPP_BASE_URL=http://localhost:11434
+OLLAMA_CPP_MODEL=qwen3:latest
+OPENAI_API_KEY=sk-...
+OPENAI_COMPARISON_MODEL=gpt-4.1
 TECTONIC_PATH=tectonic   # ou path absoluto se não estiver no PATH
 ```
 
@@ -507,9 +516,9 @@ TECTONIC_PATH=tectonic   # ou path absoluto se não estiver no PATH
 ## 11. Ordem de Desenvolvimento
 
 1. **Setup** — Next.js + Drizzle + SQLite + shadcn/ui + migrations iniciais
-2. **Módulo Perfil** — upload PDF + extração via Claude + formulário de revisão
+2. **Módulo Perfil** — upload PDF + extração via runtime local + comparação opcional com OpenAI + formulário de revisão
 3. **Módulo Empresas + Vagas** — CRUD completo, registro manual
-4. **Geração de currículo** — integração Claude + tectonic + serving do PDF
+4. **Geração de currículo** — integração local + tectonic + serving do PDF
 5. **Módulo Candidaturas** — Kanban + timeline de etapas
 6. **Dashboard + Analytics** — queries de funil + gráficos
 7. **Extensão Chrome** — captura + POST /api/jobs + popup de revisão
