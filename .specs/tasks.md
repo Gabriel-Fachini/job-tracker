@@ -29,11 +29,11 @@
 
 ### 2.2 Comparação com GPT da OpenAI
 
-- [ ] 2.2.1 Instalar OpenAI SDK (`openai`)
-- [ ] 2.2.2 Criar client OpenAI em `src/lib/ai/openai.ts`
-- [ ] 2.2.3 Criar utilitário `compareProfileExtraction(rawText: string)` que rode o mesmo input no fluxo local e em um modelo GPT da OpenAI
-- [ ] 2.2.4 Definir formato local de comparação para inspeção manual dos resultados (ex. JSON com input, output local, output OpenAI e observações)
-- [ ] 2.2.5 Garantir que a comparação seja opcional e não bloqueie o fluxo principal do produto
+- [x] 2.2.1 Instalar OpenAI SDK (`openai`)
+- [x] 2.2.2 Criar client OpenAI em `src/lib/ai/openai.ts`
+- [x] 2.2.3 Criar utilitário `compareProfileExtraction(rawText: string)` que rode o mesmo input no fluxo local e em um modelo GPT da OpenAI
+- [x] 2.2.4 Definir formato local de comparação para inspeção manual dos resultados (ex. JSON com input, output local, output OpenAI e observações)
+- [x] 2.2.5 Garantir que a comparação seja opcional e não bloqueie o fluxo principal do produto
 
 ### 2.3 Upload e extração
 

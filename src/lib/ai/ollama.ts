@@ -1,5 +1,3 @@
-import "server-only";
-
 const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
 const DEFAULT_OLLAMA_MODEL = "qwen3:latest";
 
@@ -11,6 +9,58 @@ const SKILL_CATEGORIES = [
   "tool",
   "soft-skill",
 ] as const;
+const WORK_MODEL_ALIASES: Record<string, WorkModelPreference> = {
+  remote: "remote",
+  remoto: "remote",
+  remota: "remote",
+  hybrid: "hybrid",
+  hibrido: "hybrid",
+  hibrida: "hybrid",
+  "hybrid/remote": "hybrid",
+  onsite: "onsite",
+  on_site: "onsite",
+  presencial: "onsite",
+};
+const SKILL_LEVEL_ALIASES: Record<string, SkillLevel> = {
+  beginner: "beginner",
+  high: "advanced",
+  basic: "beginner",
+  junior: "beginner",
+  entry_level: "beginner",
+  entrylevel: "beginner",
+  iniciante: "beginner",
+  basico: "beginner",
+  básico: "beginner",
+  intermediate: "intermediate",
+  mid: "intermediate",
+  medium: "intermediate",
+  pleno: "intermediate",
+  intermediario: "intermediate",
+  intermediário: "intermediate",
+  advanced: "advanced",
+  senior: "advanced",
+  avancado: "advanced",
+  avançado: "advanced",
+  expert: "expert",
+  especialista: "expert",
+};
+const SKILL_CATEGORY_ALIASES: Record<string, SkillCategory> = {
+  language: "language",
+  linguagem: "language",
+  linguagens: "language",
+  framework: "framework",
+  frameworks: "framework",
+  tool: "tool",
+  tools: "tool",
+  ferramenta: "tool",
+  ferramentas: "tool",
+  "soft-skill": "soft-skill",
+  softskill: "soft-skill",
+  softskills: "soft-skill",
+  "soft skill": "soft-skill",
+  "soft skills": "soft-skill",
+  comportamental: "soft-skill",
+};
 
 type WorkModelPreference = (typeof WORK_MODEL_PREFERENCES)[number];
 type SkillLevel = (typeof SKILL_LEVELS)[number];
@@ -67,6 +117,9 @@ type CallLocalLlmOptions = {
   system?: string;
   format?: "json" | JsonObject;
   timeoutMs?: number;
+  think?: boolean;
+  generationOptions?: JsonObject;
+  keepAlive?: string | number;
 };
 
 type OllamaGenerateResponse = {
@@ -142,15 +195,19 @@ export async function callLocalLlm(
         prompt,
         system: options.system,
         format: options.format,
+        think: options.think,
         stream: false,
+        options: options.generationOptions,
+        keep_alive: options.keepAlive,
       }),
       signal: controller.signal,
       cache: "no-store",
     });
 
     if (!response.ok) {
+      const errorBody = await response.text();
       throw new OllamaRequestError(
-        `Local model request failed with status ${response.status}.`,
+        `Local model request failed with status ${response.status} for model "${model}". ${errorBody}`.trim(),
       );
     }
 
@@ -190,6 +247,7 @@ export async function callLocalLlm(
 
 export async function extractProfileFromText(
   rawText: string,
+  options: { timeoutMs?: number } = {},
 ): Promise<ExtractedProfile> {
   const cleanedText = rawText.trim();
 
@@ -201,17 +259,23 @@ export async function extractProfileFromText(
 
   const response = await callLocalLlm(cleanedText, {
     system: PROFILE_EXTRACTION_SYSTEM_PROMPT,
-    format: "json",
+    format: PROFILE_EXTRACTION_JSON_SCHEMA,
+    timeoutMs: options.timeoutMs,
+    think: false,
+    generationOptions: {
+      temperature: 0,
+    },
   });
 
-  return validateExtractedProfile(parseJsonResponse(response));
+  return parseExtractedProfileResponse(response);
 }
 
-const PROFILE_EXTRACTION_SYSTEM_PROMPT = `
+export const PROFILE_EXTRACTION_SYSTEM_PROMPT = `
 You extract a professional profile from resume text.
 Return only valid JSON with no markdown, comments, or extra prose.
 Use null for unknown scalar fields and [] for unknown lists.
 Do not invent facts that are not grounded in the provided resume text.
+Thinking is disabled for this task. Do not output any reasoning trace.
 
 Return this exact shape:
 {
@@ -271,6 +335,141 @@ Return this exact shape:
 }
 `.trim();
 
+export const PROFILE_EXTRACTION_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["profile", "experiences", "skills", "projects", "education"],
+  properties: {
+    profile: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "fullName",
+        "email",
+        "phone",
+        "linkedin",
+        "github",
+        "location",
+        "workModelPreference",
+        "notes",
+        "masterResumePath",
+      ],
+      properties: {
+        fullName: { type: "string" },
+        email: { type: ["string", "null"] },
+        phone: { type: ["string", "null"] },
+        linkedin: { type: ["string", "null"] },
+        github: { type: ["string", "null"] },
+        location: { type: ["string", "null"] },
+        workModelPreference: {
+          type: ["string", "null"],
+          enum: [...WORK_MODEL_PREFERENCES, null],
+        },
+        notes: { type: ["string", "null"] },
+        masterResumePath: { type: "null" },
+      },
+    },
+    experiences: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "company",
+          "role",
+          "startDate",
+          "endDate",
+          "isCurrent",
+          "description",
+          "bullets",
+        ],
+        properties: {
+          company: { type: "string" },
+          role: { type: "string" },
+          startDate: { type: "string" },
+          endDate: { type: ["string", "null"] },
+          isCurrent: { type: "boolean" },
+          description: { type: ["string", "null"] },
+          bullets: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["content", "tags"],
+              properties: {
+                content: { type: "string" },
+                tags: {
+                  type: "array",
+                  items: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    skills: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "level", "yearsExperience", "category"],
+        properties: {
+          name: { type: "string" },
+          level: {
+            type: ["string", "null"],
+            enum: [...SKILL_LEVELS, null],
+          },
+          yearsExperience: { type: ["integer", "null"] },
+          category: {
+            type: ["string", "null"],
+            enum: [...SKILL_CATEGORIES, null],
+          },
+        },
+      },
+    },
+    projects: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "description", "stack", "url", "impact"],
+        properties: {
+          name: { type: "string" },
+          description: { type: ["string", "null"] },
+          stack: {
+            type: "array",
+            items: { type: "string" },
+          },
+          url: { type: ["string", "null"] },
+          impact: { type: ["string", "null"] },
+        },
+      },
+    },
+    education: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["institution", "degree", "field", "startDate", "endDate"],
+        properties: {
+          institution: { type: "string" },
+          degree: { type: ["string", "null"] },
+          field: { type: ["string", "null"] },
+          startDate: { type: ["string", "null"] },
+          endDate: { type: ["string", "null"] },
+        },
+      },
+    },
+  },
+} satisfies JsonObject;
+
+export function parseExtractedProfileResponse(
+  rawResponse: string,
+): ExtractedProfile {
+  return validateExtractedProfile(parseJsonResponse(rawResponse));
+}
+
 function parseJsonResponse(rawResponse: string): JsonObject {
   const normalizedResponse = rawResponse.trim();
   const withoutCodeFence = normalizedResponse
@@ -301,7 +500,9 @@ function parseJsonResponse(rawResponse: string): JsonObject {
   );
 }
 
-function validateExtractedProfile(value: JsonObject): ExtractedProfile {
+export function validateExtractedProfile(
+  value: JsonObject,
+): ExtractedProfile {
   const profile = getRecord(value, "profile");
 
   return {
@@ -316,6 +517,7 @@ function validateExtractedProfile(value: JsonObject): ExtractedProfile {
         profile,
         "workModelPreference",
         WORK_MODEL_PREFERENCES,
+        WORK_MODEL_ALIASES,
       ),
       notes: getOptionalString(profile, "notes"),
       masterResumePath: getOptionalString(profile, "masterResumePath"),
@@ -348,9 +550,14 @@ function validateExtractedProfile(value: JsonObject): ExtractedProfile {
 
       return {
         name: getRequiredString(skill, "name"),
-        level: getOptionalEnum(skill, "level", SKILL_LEVELS),
+        level: getOptionalEnum(skill, "level", SKILL_LEVELS, SKILL_LEVEL_ALIASES),
         yearsExperience: getOptionalInteger(skill, "yearsExperience"),
-        category: getOptionalEnum(skill, "category", SKILL_CATEGORIES),
+        category: getOptionalEnum(
+          skill,
+          "category",
+          SKILL_CATEGORIES,
+          SKILL_CATEGORY_ALIASES,
+        ),
       };
     }),
     projects: getArray(value, "projects").map((item, index) => {
@@ -466,11 +673,45 @@ function getOptionalInteger(source: JsonObject, key: string): number | null {
   }
 
   if (typeof value === "number" && Number.isInteger(value)) {
-    return value;
+    return value <= 0 ? null : value;
   }
 
-  if (typeof value === "string" && /^-?\d+$/.test(value.trim())) {
-    return Number.parseInt(value, 10);
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    const normalized = normalizeLooseScalar(trimmed);
+
+    if (
+      normalized === "" ||
+      [
+        "n_a",
+        "na",
+        "none",
+        "null",
+        "nil",
+        "unknown",
+        "desconhecido",
+        "not_specified",
+        "unspecified",
+        "nao_informado",
+        "não_informado",
+        "not_informed",
+        "-",
+      ].includes(normalized)
+    ) {
+      return null;
+    }
+
+    if (/^-?\d+$/.test(trimmed)) {
+      const parsed = Number.parseInt(trimmed, 10);
+      return parsed <= 0 ? null : parsed;
+    }
+
+    const leadingInteger = trimmed.match(/-?\d+/);
+
+    if (leadingInteger) {
+      const parsed = Number.parseInt(leadingInteger[0], 10);
+      return parsed <= 0 ? null : parsed;
+    }
   }
 
   throw new ProfileExtractionError(`${key} must be an integer or null.`);
@@ -518,6 +759,7 @@ function getOptionalEnum<const T extends readonly string[]>(
   source: JsonObject,
   key: string,
   allowedValues: T,
+  aliases?: Record<string, T[number]>,
 ): T[number] | null {
   const value = getOptionalString(source, key);
 
@@ -525,11 +767,40 @@ function getOptionalEnum<const T extends readonly string[]>(
     return null;
   }
 
-  if (!allowedValues.includes(value)) {
+  const normalizedValue = normalizeEnumValue(value, aliases);
+
+  if (allowedValues.includes(normalizedValue as T[number])) {
+    return normalizedValue as T[number];
+  }
+
+  if (!allowedValues.includes(value as T[number])) {
     throw new ProfileExtractionError(
       `${key} must be one of: ${allowedValues.join(", ")}.`,
     );
   }
 
   return value as T[number];
+}
+
+function normalizeEnumValue(
+  value: string,
+  aliases?: Record<string, string>,
+): string {
+  if (!aliases) {
+    return value;
+  }
+
+  const normalizedKey = normalizeLooseScalar(value);
+
+  return aliases[normalizedKey] ?? value;
+}
+
+function normalizeLooseScalar(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[./]/g, "_")
+    .replace(/\s+/g, "_");
 }
