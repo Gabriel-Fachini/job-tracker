@@ -95,7 +95,7 @@ A extração vive em código, sem entidade de banco para plataformas. A arquitet
 
 ### 4.2 Registro de candidatura — Formulário
 
-- [ ] 4.2.1 Criar página `/applications/new` com campo de URL (fluxo principal) e área para colar descrição (fluxo alternativo)
+- [ ] 4.2.1 Criar página `/applications/new` com campo de URL (fluxo principal) e área para colar descrição (fluxo alternativo)****
 - [ ] 4.2.2 Após extração, exibir formulário com campos pré-preenchidos para revisão
 - [ ] 4.2.3 Criar Server Action `createApplication(data)` que persiste candidatura com todos os campos de vaga embutidos
 - [ ] 4.2.4 Salvar descrição completa no campo `description` da candidatura, independentemente dos outros campos

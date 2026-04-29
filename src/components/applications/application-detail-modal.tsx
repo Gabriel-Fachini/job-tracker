@@ -90,7 +90,7 @@ export function ApplicationDetailModal({
 
   return (
     <Dialog open={!!application} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex max-h-[92vh] flex-col gap-0 p-0 sm:max-w-xl">
+      <DialogContent className="flex max-h-[92vh] flex-col gap-0 p-0 sm:max-w-3xl">
         {/* Header */}
         <DialogHeader className="shrink-0 border-b border-border/50 px-6 pb-5 pt-6">
           <div className="flex flex-col gap-3">

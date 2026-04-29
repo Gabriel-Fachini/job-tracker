@@ -15,6 +15,13 @@
       "when": 1777423361704,
       "tag": "0001_jobs_mvp_trim",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1777437846064,
+      "tag": "0002_careful_smiling_tiger",
+      "breakpoints": true
     }
   ]
 }

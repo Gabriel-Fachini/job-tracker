@@ -10,6 +10,8 @@ export const profile = sqliteTable("profile", {
   github: text("github"),
   location: text("location"),
   workModelPreference: text("work_model_preference"),
+  companyTypePreference: text("company_type_preference"),
+  valuesPreference: text("values_preference"),
   notes: text("notes"),
   masterResumePath: text("master_resume_path"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
