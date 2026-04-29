@@ -2,11 +2,10 @@
 
 ## 1. Visão Geral da Arquitetura
 
-Aplicação web local (single-user) composta por três partes:
+Aplicação web local (single-user) composta por:
 
 - **Web App** — Next.js rodando em `localhost:3000`, serve UI e executa lógica server-side via Server Actions e Route Handlers
 - **SQLite** — banco de dados local em arquivo único na raiz do projeto
-- **Chrome Extension** — extensão Manifest V3 que se comunica com o app via REST API exposta pelo Next.js
 
 Serviços externos de runtime (rodando localmente na máquina do usuário):
 
@@ -17,7 +16,7 @@ Serviço externo remoto:
 
 - **OpenAI API** — usada apenas para comparação de outputs com modelos GPT durante esta fase do projeto
 
-```mermaid
+```
 ┌─────────────────────────────────────────────────┐
 │                  localhost:3000                  │
 │                                                  │
@@ -38,10 +37,11 @@ Serviço externo remoto:
          ▼                    ▼              ▼
   localhost:11434      tectonic CLI      api.openai.com
    (ollama.cpp)        (via exec)     (benchmark GPT)
-
-┌──────────────────┐
-│ Chrome Extension │──── HTTP POST ────► localhost:3000/api/jobs
-└──────────────────┘
+         │
+         ▼
+  APIs públicas de plataformas
+  (Gupy, Greenhouse, Lever...)
+  + fetch genérico como fallback
 ```
 
 ---
@@ -55,8 +55,9 @@ Serviço externo remoto:
 | Estilização         | Tailwind CSS + shadcn/ui             | Componentes acessíveis, customizáveis, sem overhead de design system próprio           |
 | IA — principal      | Modelo local via `ollama.cpp`        | Fonte principal do produto para extração de perfil, extração de vagas e geração textual |
 | IA — comparação     | OpenAI API (modelos GPT)             | Benchmark pontual de qualidade com o mesmo input, sem virar dependência primária        |
+| Scraping — APIs     | `fetch` nativo (Node.js)             | Plataformas com API pública (Gupy, Greenhouse, Lever): dados estruturados direto, sem parsing |
+| Scraping — genérico | `fetch` + `cheerio`                  | Plataformas sem API: extrai texto do HTML; IA processa os campos                       |
 | PDF                 | tectonic (compilador LaTeX)          | Compilador LaTeX moderno, auto-download de pacotes, sem instalação full texlive        |
-| Extensão            | Chrome Extension Manifest V3         | Padrão atual, suporte a service workers                                                |
 
 ---
 
@@ -66,16 +67,15 @@ Serviço externo remoto:
 job-tracker/
 ├── src/
 │   ├── app/
-│   │   ├── (app)/                    # grupo de rotas autenticadas (layout compartilhado)
+│   │   ├── (app)/                    # grupo de rotas com layout compartilhado (sidebar)
 │   │   │   ├── dashboard/
 │   │   │   ├── profile/
 │   │   │   ├── companies/
-│   │   │   ├── jobs/
-│   │   │   ├── applications/
-│   │   │   └── resumes/
+│   │   │   └── applications/         # listagem (kanban) + /[id] (detalhes + currículos gerados)
 │   │   ├── api/
-│   │   │   └── jobs/
-│   │   │       └── route.ts          # REST endpoint exclusivo para a extensão Chrome
+│   │   │   └── resumes/
+│   │   │       └── [id]/
+│   │   │           └── route.ts      # GET — serving do PDF gerado
 │   │   ├── layout.tsx
 │   │   └── page.tsx                  # redireciona para /dashboard
 │   ├── components/
@@ -90,30 +90,35 @@ job-tracker/
 │   │   │   ├── ollama.ts             # client do runtime local baseado em ollama.cpp
 │   │   │   ├── openai.ts             # client OpenAI usado só para comparação
 │   │   │   └── comparison.ts         # orquestra comparação lado a lado entre outputs
+│   │   ├── scraper/
+│   │   │   ├── index.ts              # entry point: detecta plataforma e delega ao extrator correto
+│   │   │   ├── registry.ts           # mapeia domínio → função extratora
+│   │   │   ├── platforms/
+│   │   │   │   ├── gupy.ts           # API client: api.gupy.io/api/v1/jobs/{id}
+│   │   │   │   ├── greenhouse.ts     # API client: boards-api.greenhouse.io/...
+│   │   │   │   ├── lever.ts          # API client: api.lever.co/v0/postings/...
+│   │   │   │   └── generic.ts        # fetch + cheerio → texto bruto → IA extrai campos
+│   │   │   └── types.ts              # ExtractedJob — contrato comum de saída
 │   │   └── latex/
 │   │       └── compiler.ts           # wrapper tectonic via child_process
 │   └── server/
 │       └── actions/                  # Server Actions por módulo
 │           ├── profile.ts
 │           ├── companies.ts
-│           ├── jobs.ts
-│           ├── applications.ts
-│           └── resumes.ts
+│           ├── applications.ts       # inclui scrapeAndExtractJob e createApplication
+│           └── resumes.ts            # geração de currículo (tex + pdf) vinculada à candidatura
 ├── uploads/
 │   └── resumes/
 │       ├── master/                   # currículo PDF original do usuário
 │       └── generated/                # {slug-empresa}-{slug-vaga}-{timestamp}/
 │           ├── *.pdf
 │           └── *.tex
-├── extension/                        # Chrome Extension (Manifest V3)
-│   ├── manifest.json
-│   ├── background.ts                 # service worker
-│   ├── content.ts                    # content script (captura DOM)
-│   └── popup/                        # UI do popup
 ├── drizzle.config.ts
 ├── next.config.ts
-└── .env.local                        # DATABASE_URL, UPLOADS_PATH, OLLAMA_CPP_BASE_URL, OPENAI_API_KEY
+└── .env.local
 ```
+
+> **Nota:** não existe rota `/resumes`. O histórico de currículos gerados é exibido dentro de `/applications/[id]`.
 
 ---
 
@@ -205,31 +210,28 @@ export const companies = sqliteTable('companies', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 });
 
-// === VAGAS ===
+// === CANDIDATURAS ===
+// Os dados da vaga ficam embutidos na candidatura.
+// Não existe tabela separada de vagas.
 
-export const jobs = sqliteTable('jobs', {
+export const applications = sqliteTable('applications', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  companyId: integer('company_id').references(() => companies.id),
-  title: text('title').notNull(),
+
+  // --- dados da vaga ---
+  companyId: integer('company_id').references(() => companies.id), // opcional
+  jobTitle: text('job_title').notNull(),
   seniority: text('seniority'),            // intern | junior | mid | senior | staff | lead
   stack: text('stack'),                    // JSON array
   workModel: text('work_model'),           // remote | hybrid | onsite
   salaryMin: integer('salary_min'),
   salaryMax: integer('salary_max'),
   sourceName: text('source_name'),         // linkedin | gupy | catho | company_site | other
-  sourceUrl: text('source_url'),
+  sourceUrl: text('source_url'),           // URL original da vaga
   description: text('description'),        // descrição completa salva localmente
   deadline: integer('deadline', { mode: 'timestamp' }),
-  status: text('status').notNull().default('interesting'), // interesting | applying | applied | discarded
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-});
 
-// === CANDIDATURAS ===
-
-export const applications = sqliteTable('applications', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  jobId: integer('job_id').notNull().references(() => jobs.id),
-  status: text('status').notNull().default('applied'), // applied | in_process | offer | approved | rejected | withdrawn
+  // --- dados do processo ---
+  status: text('status').notNull().default('interesting'), // interesting | applied | in_process | offer | approved | rejected | withdrawn
   recruiterName: text('recruiter_name'),
   recruiterContact: text('recruiter_contact'),
   trackingChannel: text('tracking_channel'), // email | platform | whatsapp | other
@@ -257,11 +259,12 @@ export const applicationStatusHistory = sqliteTable('application_status_history'
 });
 
 // === CURRÍCULOS GERADOS ===
+// Vinculados à candidatura. Exibidos dentro da página de detalhes da candidatura.
+// Não existe página /resumes separada.
 
 export const resumes = sqliteTable('resumes', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  applicationId: integer('application_id').references(() => applications.id),
-  jobId: integer('job_id').references(() => jobs.id), // pode existir sem candidatura
+  applicationId: integer('application_id').notNull().references(() => applications.id),
   pdfPath: text('pdf_path').notNull(),
   texPath: text('tex_path').notNull(),
   generationPrompt: text('generation_prompt'), // instruções adicionais do usuário
@@ -271,32 +274,32 @@ export const resumes = sqliteTable('resumes', {
 
 ### Diagrama de Relacionamentos
 
-```mermaid
+```
 profile ──< profile_experiences ──< profile_experience_bullets
         ──< profile_skills
         ──< profile_projects
         ──< profile_education
 
-companies ──< jobs ──< applications ──< application_stages
-                   │               └──< application_status_history
-                   └──< resumes ◄── applications
+companies ──< applications ──< application_stages
+                           └──< application_status_history
+                           └──< resumes
 ```
 
 ---
 
 ## 5. Decisões Server vs Client
 
-| Operação                         | Onde roda                                      | Justificativa                                                       |
-| -------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
-| Queries ao banco                 | Server (Server Action)                         | Drizzle/SQLite só roda server-side                                  |
-| Extração de perfil via modelo local | Server (Server Action)                      | Runtime local roda em localhost, chamado server-side                |
-| Comparação com GPT da OpenAI        | Server (Server Action)                      | API key não exposta ao client; fluxo auxiliar de benchmark          |
-| Extração de vaga via modelo local   | Server (Server Action)                      | Runtime local em localhost, chamado server-side                     |
-| Compilação LaTeX via tectonic    | Server (Server Action)                         | `child_process` só disponível server-side                           |
-| Serving de PDF gerado            | Server (Route Handler `GET /api/resumes/[id]`) | Leitura de arquivo do filesystem                                    |
-| Recebimento de vaga da extensão  | Server (Route Handler `POST /api/jobs`)        | REST puro, extensão não usa Server Actions                          |
-| Estado do Kanban / UI interativa | Client                                         | Estado local de drag-and-drop, atualiza via Server Action ao soltar |
-| Filtros e período do dashboard   | Client                                         | Filtros reativos sem round-trip ao servidor; dados já carregados    |
+| Operação                                  | Onde roda                                        | Justificativa                                                       |
+| ----------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------- |
+| Queries ao banco                          | Server (Server Action)                           | Drizzle/SQLite só roda server-side                                  |
+| Extração de perfil via modelo local       | Server (Server Action)                           | Runtime local roda em localhost, chamado server-side                |
+| Comparação com GPT da OpenAI              | Server (Server Action)                           | API key não exposta ao client; fluxo auxiliar de benchmark          |
+| Scraping de URL de vaga via Playwright    | Server (Server Action)                           | Playwright roda server-side; browser headless não disponível no client |
+| Extração de campos de vaga via modelo local | Server (Server Action)                         | Runtime local em localhost, chamado server-side                     |
+| Compilação LaTeX via tectonic             | Server (Server Action)                           | `child_process` só disponível server-side                           |
+| Serving de PDF gerado                     | Server (Route Handler `GET /api/resumes/[id]`)   | Leitura de arquivo do filesystem                                    |
+| Estado do Kanban / UI interativa          | Client                                           | Estado local de drag-and-drop, atualiza via Server Action ao soltar |
+| Filtros e período do dashboard            | Client                                           | Filtros reativos sem round-trip ao servidor; dados já carregados    |
 
 ---
 
@@ -307,8 +310,8 @@ companies ──< jobs ──< applications ──< application_stages
 **Casos de uso:**
 
 - Extração e estruturação do perfil a partir do currículo colado
-- Geração do arquivo `.tex` customizado para cada vaga
-- Extração de campos de vaga a partir do texto capturado pela extensão ou colado manualmente
+- Extração de campos de candidatura a partir de texto scrapeado ou colado manualmente
+- Geração do arquivo `.tex` customizado para cada candidatura
 
 **Client (`src/lib/ai/ollama.ts`):**
 
@@ -330,7 +333,7 @@ export async function callLocalLlm(prompt: string, system?: string): Promise<str
 }
 ```
 
-**Contrato de resposta esperado:** JSON estruturado (perfil/vaga) ou string LaTeX (currículo). O system prompt instrui o modelo a retornar apenas o formato esperado, sem prose adicional.
+**Contrato de resposta esperado:** JSON estruturado (perfil/candidatura) ou string LaTeX (currículo). O system prompt instrui o modelo a retornar apenas o formato esperado, sem prose adicional.
 
 ---
 
@@ -370,24 +373,143 @@ export async function callOpenAiForComparison(systemPrompt: string, userMessage:
 
 ---
 
-## 7. Geração de Currículo (LaTeX → PDF)
+## 7. Scraping de URL de Vaga
+
+**Objetivo:** o usuário cola a URL de uma vaga e o sistema extrai automaticamente o conteúdo para preencher os campos da candidatura, sem precisar de IA quando a plataforma já expõe uma API pública.
+
+### Arquitetura: Registry de plataformas
+
+A lógica de extração vive inteiramente em código. Não existe entidade de banco para plataformas — adicionar suporte a uma nova plataforma significa criar um arquivo em `platforms/` e uma linha no registry.
+
+**`src/lib/scraper/registry.ts`:**
+
+```typescript
+import { extractGupy }       from './platforms/gupy'
+import { extractGreenhouse } from './platforms/greenhouse'
+import { extractLever }      from './platforms/lever'
+import { extractGeneric }    from './platforms/generic'
+
+type Extractor = (url: string) => Promise<ExtractedJob>
+
+const REGISTRY: Record<string, Extractor> = {
+  'gupy.io':       extractGupy,
+  'greenhouse.io': extractGreenhouse,
+  'lever.co':      extractLever,
+}
+
+export function getExtractor(url: string): Extractor {
+  const domain = new URL(url).hostname.replace('www.', '')
+  const match = Object.keys(REGISTRY).find(d => domain.endsWith(d))
+  return match ? REGISTRY[match] : extractGeneric
+}
+```
+
+**`src/lib/scraper/index.ts` — entry point:**
+
+```typescript
+export async function scrapeAndExtract(url: string): Promise<ExtractedJob> {
+  const extractor = getExtractor(url)
+  return extractor(url)
+}
+```
+
+**`src/lib/scraper/types.ts` — contrato comum de saída:**
+
+```typescript
+export type ExtractedJob = {
+  jobTitle:     string | null
+  companyName:  string | null   // para localizar/criar empresa
+  seniority:    string | null
+  stack:        string[] | null
+  workModel:    string | null
+  salaryMin:    number | null
+  salaryMax:    number | null
+  description:  string | null   // sempre salvo se extraído
+  deadline:     string | null
+  sourceUrl:    string          // URL original, sempre presente
+  sourceName:   string          // nome da plataforma detectada (ex: 'gupy', 'generic')
+}
+```
+
+### Estratégias por plataforma
+
+**Plataformas com API pública** (`platforms/gupy.ts`, `greenhouse.ts`, `lever.ts`):
+
+```
+URL → extrair ID/slug da URL → GET na API pública → mapear JSON → ExtractedJob
+```
+
+Sem parsing de HTML, sem IA. Dados estruturados e limpos direto da fonte.
+
+Exemplo Gupy:
+```typescript
+// URL: https://empresa.gupy.io/jobs/12345
+// API:  https://api.gupy.io/api/v1/jobs/12345
+export async function extractGupy(url: string): Promise<ExtractedJob> {
+  const jobId = url.match(/\/jobs\/(\d+)/)?.[1]
+  const data = await fetch(`https://api.gupy.io/api/v1/jobs/${jobId}`).then(r => r.json())
+  return {
+    jobTitle:    data.name,
+    companyName: data.careerPageName,
+    description: data.description,
+    workModel:   data.workplaceType,
+    // ...
+  }
+}
+```
+
+**Fallback genérico** (`platforms/generic.ts`):
+
+```
+URL → fetch → cheerio extrai texto limpo → modelo local (ollama) extrai campos → ExtractedJob
+```
+
+Usado para qualquer plataforma não mapeada. Campos não encontrados pelo modelo retornam `null`.
+
+### Fluxo da Server Action
+
+```
+Server Action: scrapeAndExtractJob(url)
+        │
+        ├─ 1. Chama scrapeAndExtract(url) — delega ao extrator correto via registry
+        ├─ 2. Recebe ExtractedJob com campos preenchidos (null onde não encontrou)
+        ├─ 3. Se companyName presente, localiza ou cria a empresa no banco
+        └─ 4. Retorna ExtractedJob para a UI exibir o formulário de revisão
+```
+
+**Fallback de erro:** se o extrator falhar (URL inacessível, timeout, resposta inválida), a Server Action retorna `ExtractedJob` com todos os campos `null` e `sourceUrl` preenchida — o usuário preenche manualmente sem quebrar o fluxo.
+
+### Plataformas suportadas (MVP)
+
+| Plataforma | Estratégia | Notas |
+|---|---|---|
+| Gupy | API pública | Cobre grande parte do mercado BR |
+| Greenhouse | API pública | Comum em empresas internacionais |
+| Lever | API pública | Comum em empresas internacionais |
+| Qualquer outra | fetch + cheerio + IA | Fallback genérico |
+
+---
+
+## 8. Geração de Currículo (LaTeX → PDF)
 
 ### Fluxo detalhado
 
-```mermaid
-Server Action: generateResume(jobId, additionalInstructions?)
+```
+Server Action: generateResume(applicationId, additionalInstructions?)
         │
         ├─ 1. Busca perfil completo do banco (todas as tabelas profile_*)
-        ├─ 2. Busca descrição da vaga (jobs.description)
+        ├─ 2. Busca descrição da candidatura (applications.description)
         ├─ 3. Chama o modelo local com perfil + descrição + instruções adicionais
         │      └─ Runtime local retorna string com conteúdo .tex completo
         ├─ 4. Salva o .tex em uploads/resumes/generated/{slug}/{timestamp}.tex
         ├─ 5. Executa: tectonic {arquivo.tex} --outdir {dir}
         │      └─ via child_process.execFile (timeout: 30s)
         ├─ 6. Verifica se o .pdf foi gerado no outdir
-        ├─ 7. Salva registro na tabela resumes
+        ├─ 7. Salva registro na tabela resumes (vinculado à applicationId)
         └─ 8. Retorna { pdfPath, texPath, resumeId }
 ```
+
+O currículo gerado aparece na seção de currículos da página `/applications/[id]`. Não existe rota `/resumes`.
 
 ### Wrapper tectonic (`src/lib/latex/compiler.ts`)
 
@@ -407,98 +529,13 @@ export async function compileLaTeX(texPath: string, outDir: string): Promise<str
 }
 ```
 
----
+### Route Handler para serving do PDF
 
-## 8. API REST (Exclusiva para a Extensão Chrome)
-
-A extensão não pode usar Server Actions (são chamadas internas do Next.js). O único endpoint REST exposto é para recebimento de vagas.
-
-### `POST /api/jobs`
-
-**Request:**
-
-```typescript
-{
-  url: string;           // URL da página capturada
-  rawContent: string;    // texto extraído do DOM pela extensão
-  companyName?: string;  // se a extensão conseguir identificar
-}
-```
-
-**Processamento server-side:**
-
-1. Recebe o payload
-2. Chama o runtime local para extrair campos estruturados do `rawContent`
-3. Cria ou encontra a empresa pelo nome
-4. Salva a vaga com status `interesting`
-5. Retorna a vaga criada
-
-**Response:**
-
-```typescript
-{
-  jobId: number;
-  job: {
-    title: string;
-    company: string;
-    seniority?: string;
-    stack?: string[];
-    workModel?: string;
-    // ...
-  };
-  extractionConfidence: 'high' | 'low'; // 'low' se a extração local falhar e exigir revisão manual
-}
-```
-
-**Autenticação:** nenhuma (app local, single-user). A extensão não precisa de token.
+`GET /api/resumes/[id]` — lê o `pdfPath` do banco e serve o arquivo.
 
 ---
 
-## 9. Chrome Extension
-
-### Manifest V3
-
-```json
-{
-  "manifest_version": 3,
-  "name": "Job Tracker",
-  "permissions": ["activeTab", "scripting"],
-  "host_permissions": ["http://localhost:3000/*"],
-  "action": { "default_popup": "popup/index.html" },
-  "background": { "service_worker": "background.js" },
-  "content_scripts": [{
-    "matches": ["<all_urls>"],
-    "js": ["content.js"],
-    "run_at": "document_idle"
-  }]
-}
-```
-
-### Fluxo da extensão
-
-```mermaid
-Usuário clica no ícone da extensão
-        │
-        ▼
-content.js extrai: document.title, location.href, innerText relevante
-        │
-        ▼
-Envia para background.js via chrome.runtime.sendMessage
-        │
-        ▼
-background.js faz POST http://localhost:3000/api/jobs
-        │
-        ├─ Sucesso → abre popup com campos pré-preenchidos para revisão
-        └─ Erro (app não rodando) → popup mostra mensagem de erro
-```
-
-### Popup
-
-O popup da extensão exibe os campos extraídos para revisão antes de confirmar. É uma página HTML simples (sem framework) que se comunica com o background via `chrome.runtime.sendMessage`.
-
----
-
-## 10. Variáveis de Ambiente
+## 9. Variáveis de Ambiente
 
 ```bash
 # .env.local
@@ -513,12 +550,11 @@ TECTONIC_PATH=tectonic   # ou path absoluto se não estiver no PATH
 
 ---
 
-## 11. Ordem de Desenvolvimento
+## 10. Ordem de Desenvolvimento
 
 1. **Setup** — Next.js + Drizzle + SQLite + shadcn/ui + migrations iniciais
-2. **Módulo Perfil** — upload PDF + extração via runtime local + comparação opcional com OpenAI + formulário de revisão
-3. **Módulo Empresas + Vagas** — CRUD completo, registro manual
-4. **Geração de currículo** — integração local + tectonic + serving do PDF
-5. **Módulo Candidaturas** — Kanban + timeline de etapas
+2. **Módulo Perfil** — upload PDF + extração via runtime local + formulário de revisão
+3. **Módulo Empresas** — CRUD
+4. **Módulo Candidaturas** — registro (URL scraping com registry + manual), Kanban, timeline de etapas
+5. **Geração de currículo** — integração local + tectonic + serving do PDF dentro da candidatura
 6. **Dashboard + Analytics** — queries de funil + gráficos
-7. **Extensão Chrome** — captura + POST /api/jobs + popup de revisão

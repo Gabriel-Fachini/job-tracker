@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Database, FolderOpenDot } from "lucide-react";
+
 
 import { appNavigation } from "@/lib/navigation";
 import {
@@ -18,6 +18,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 
 export function AppSidebar() {
@@ -86,30 +87,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              tooltip="Base local com SQLite + Drizzle"
-            >
-              <Database />
-              <span className="truncate group-data-[collapsible=icon]:hidden">
-                SQLite local
-              </span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              tooltip="Uploads e PDFs ficam na pasta local do projeto"
-            >
-              <FolderOpenDot />
-              <span className="truncate group-data-[collapsible=icon]:hidden">
-                Arquivos em uploads/
-              </span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <SidebarTrigger className="self-start" />
       </SidebarFooter>
     </Sidebar>
   );

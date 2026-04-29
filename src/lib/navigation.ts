@@ -1,7 +1,5 @@
 import {
-  BriefcaseBusiness,
   Building2,
-  FileText,
   LayoutDashboard,
   UserRound,
   Waypoints,
@@ -39,24 +37,10 @@ export const appNavigation: AppNavigationItem[] = [
     phase: "Fase 3",
   },
   {
-    href: "/jobs",
-    label: "Vagas",
-    summary: "Registro local de oportunidades e descricoes.",
-    icon: BriefcaseBusiness,
-    phase: "Fase 3",
-  },
-  {
     href: "/applications",
     label: "Candidaturas",
     summary: "Board e timeline do processo seletivo.",
     icon: Waypoints,
     phase: "Fase 5",
-  },
-  {
-    href: "/resumes",
-    label: "Curriculos",
-    summary: "Geracao e historico de PDFs personalizados.",
-    icon: FileText,
-    phase: "Fase 4",
   },
 ];
