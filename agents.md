@@ -138,6 +138,8 @@ Use `shadcn/ui` como base de componentes.
 
 - preserve os aliases definidos em `components.json`;
 - prefira compor em cima de componentes `ui/` em vez de reinventar primitives;
+- toda string visível ao usuário deve estar em **português brasileiro**;
+- mantenha identificadores, nomes de arquivos, nomes de funções, tipos e convenções internas de código em inglês;
 - trate `dark mode` como o **único** tema do produto;
 - novas telas, componentes e tokens não devem depender de alternância light/dark;
 - se encontrar suporte legado a tema claro, trate isso como estado transitório e não como contrato a preservar;

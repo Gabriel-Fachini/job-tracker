@@ -123,9 +123,70 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-[17px] leading-7 text-foreground;
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer components {
+  .markdown-content {
+    @apply text-sm leading-7 text-foreground;
+  }
+
+  .markdown-content > * + * {
+    @apply mt-4;
+  }
+
+  .markdown-content h1,
+  .markdown-content h2,
+  .markdown-content h3,
+  .markdown-content h4 {
+    @apply font-heading font-semibold tracking-tight text-foreground;
+  }
+
+  .markdown-content h1 {
+    @apply text-2xl;
+  }
+
+  .markdown-content h2 {
+    @apply text-xl;
+  }
+
+  .markdown-content h3 {
+    @apply text-lg;
+  }
+
+  .markdown-content ul {
+    @apply list-disc pl-5;
+  }
+
+  .markdown-content ol {
+    @apply list-decimal pl-5;
+  }
+
+  .markdown-content li + li {
+    @apply mt-1;
+  }
+
+  .markdown-content a {
+    @apply text-foreground underline underline-offset-4;
+  }
+
+  .markdown-content code {
+    @apply rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em];
+  }
+
+  .markdown-content pre {
+    @apply overflow-x-auto rounded-lg border border-border bg-background px-4 py-3;
+  }
+
+  .markdown-content pre code {
+    @apply bg-transparent p-0;
+  }
+
+  .markdown-content blockquote {
+    @apply border-l-2 border-border pl-4 text-muted-foreground;
   }
 }

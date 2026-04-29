@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
       "./job-tracker.db-wal",
     ],
   },
-  serverExternalPackages: ["better-sqlite3"],
+  serverExternalPackages: ["better-sqlite3", "pdfjs-dist"],
   turbopack: {
     root: projectRoot,
   },

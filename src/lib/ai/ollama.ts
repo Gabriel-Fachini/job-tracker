@@ -1,5 +1,12 @@
+import { execFile } from "node:child_process";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { promisify } from "node:util";
+
 const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
-const DEFAULT_OLLAMA_MODEL = "qwen3:latest";
+const DEFAULT_OLLAMA_MODEL = "gemma4:e4b";
+const DEFAULT_LOCAL_LLM_TIMEOUT_MS = 240_000;
+const execFileAsync = promisify(execFile);
 
 const WORK_MODEL_PREFERENCES = ["remote", "hybrid", "onsite"] as const;
 const SKILL_LEVELS = ["beginner", "intermediate", "advanced", "expert"] as const;
@@ -125,6 +132,7 @@ type CallLocalLlmOptions = {
 type OllamaGenerateResponse = {
   response?: unknown;
   error?: unknown;
+  done_reason?: unknown;
 };
 
 export class OllamaConfigurationError extends Error {
@@ -181,7 +189,7 @@ export async function callLocalLlm(
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(),
-    options.timeoutMs ?? 30_000,
+    options.timeoutMs ?? DEFAULT_LOCAL_LLM_TIMEOUT_MS,
   );
 
   try {
@@ -198,7 +206,7 @@ export async function callLocalLlm(
         think: options.think,
         stream: false,
         options: options.generationOptions,
-        keep_alive: options.keepAlive,
+        keep_alive: options.keepAlive ?? 0,
       }),
       signal: controller.signal,
       cache: "no-store",
@@ -215,7 +223,7 @@ export async function callLocalLlm(
 
     if (typeof data.response !== "string" || !data.response.trim()) {
       throw new OllamaRequestError(
-        "Local model response did not include a valid response string.",
+        "O modelo local não retornou uma resposta textual válida.",
       );
     }
 
@@ -227,21 +235,81 @@ export async function callLocalLlm(
 
     if (error instanceof Error && error.name === "AbortError") {
       throw new OllamaRequestError(
-        "Local model request timed out after waiting for the response.",
+        "O modelo local excedeu o tempo limite de 3 minutos para responder.",
       );
     }
 
     if (error instanceof Error) {
       throw new OllamaRequestError(
-        `Failed to reach the local model runtime: ${error.message}`,
+        `Falha ao acessar o runtime do modelo local: ${error.message}`,
       );
     }
 
     throw new OllamaRequestError(
-      "Failed to reach the local model runtime for an unknown reason.",
+      "Falha ao acessar o runtime do modelo local por um motivo desconhecido.",
     );
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+export async function unloadLocalLlm(): Promise<void> {
+  const { baseUrl, model } = getOllamaConfig();
+
+  try {
+    const response = await fetch(`${baseUrl}/api/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        prompt: "",
+        stream: false,
+        keep_alive: 0,
+      }),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new OllamaRequestError(
+        `Falha ao desalocar o modelo local com status ${response.status} para o modelo "${model}". ${errorBody}`.trim(),
+      );
+    }
+
+    const data = (await response.json()) as OllamaGenerateResponse;
+
+    if (data.done_reason !== "unload") {
+      throw new OllamaRequestError(
+        `A API do Ollama respondeu sem confirmar o descarregamento do modelo "${model}".`,
+      );
+    }
+  } catch (error) {
+    try {
+      await execFileAsync("ollama", ["stop", model]);
+      return;
+    } catch (stopError) {
+      if (error instanceof OllamaRequestError) {
+        throw error;
+      }
+
+      if (error instanceof Error) {
+        throw new OllamaRequestError(
+          `Falha ao desalocar o modelo local: ${error.message}`,
+        );
+      }
+
+      if (stopError instanceof Error) {
+        throw new OllamaRequestError(
+          `Falha ao desalocar o modelo local por API e por CLI: ${stopError.message}`,
+        );
+      }
+
+      throw new OllamaRequestError(
+        "Falha ao desalocar o modelo local por um motivo desconhecido.",
+      );
+    }
   }
 }
 
@@ -253,31 +321,47 @@ export async function extractProfileFromText(
 
   if (!cleanedText) {
     throw new ProfileExtractionError(
-      "Cannot extract a profile from an empty text input.",
+      "Não é possível extrair um perfil a partir de um texto vazio.",
     );
   }
 
-  const response = await callLocalLlm(cleanedText, {
-    system: PROFILE_EXTRACTION_SYSTEM_PROMPT,
-    format: PROFILE_EXTRACTION_JSON_SCHEMA,
-    timeoutMs: options.timeoutMs,
-    think: false,
-    generationOptions: {
-      temperature: 0,
-    },
-  });
+  try {
+    const response = await callLocalLlm(cleanedText, {
+      system: PROFILE_EXTRACTION_SYSTEM_PROMPT,
+      format: PROFILE_EXTRACTION_JSON_SCHEMA,
+      timeoutMs: options.timeoutMs ?? DEFAULT_LOCAL_LLM_TIMEOUT_MS,
+      think: false,
+      generationOptions: {
+        temperature: 0,
+      },
+    });
 
-  return parseExtractedProfileResponse(response);
+    await logRawProfileExtractionOutput(response);
+    return parseExtractedProfileResponse(response);
+  } finally {
+    try {
+      await unloadLocalLlm();
+    } catch (error) {
+      console.warn("Falha ao desalocar o modelo local ao final da extração.", error);
+    }
+  }
 }
 
 export const PROFILE_EXTRACTION_SYSTEM_PROMPT = `
-You extract a professional profile from resume text.
-Return only valid JSON with no markdown, comments, or extra prose.
-Use null for unknown scalar fields and [] for unknown lists.
-Do not invent facts that are not grounded in the provided resume text.
-Thinking is disabled for this task. Do not output any reasoning trace.
+Voce extrai um perfil profissional a partir do texto de um curriculo.
+Retorne apenas JSON valido, sem markdown, comentarios ou texto extra.
+Use null para campos escalares desconhecidos e [] para listas desconhecidas.
+Nao invente fatos que nao estejam sustentados pelo curriculo fornecido.
+O raciocinio deve permanecer desabilitado. Nao exponha nenhuma cadeia de pensamento.
+Seja exaustivo em vez de conciso ao extrair experiencia profissional.
+Preserve o maximo possivel de detalhes concretos do curriculo.
+Para cada experiencia, capture empresa, cargo, datas, descricao e cada bullet de conquista ou responsabilidade que puder ser identificado.
+Nao resuma varios bullets em uma descricao generica se o curriculo trouxer mais detalhes.
+Se uma secao tiver detalhes ricos, preserve esses detalhes na saida estruturada.
+O curriculo pode estar em portugues brasileiro. Preserve nomes proprios e trate a secao de educacao com a mesma atencao das demais secoes.
+Se houver formacao, nao retorne placeholders como N/A. Extraia instituicao, grau, area e a melhor data possivel, usando null apenas quando o dado realmente nao puder ser inferido.
 
-Return this exact shape:
+Retorne exatamente este shape:
 {
   "profile": {
     "fullName": "string",
@@ -496,7 +580,7 @@ function parseJsonResponse(rawResponse: string): JsonObject {
   }
 
   throw new ProfileExtractionError(
-    "Local model did not return a valid JSON object for profile extraction.",
+    "O modelo local não retornou um JSON válido para a extração do perfil.",
   );
 }
 
@@ -602,7 +686,7 @@ function isRecord(value: unknown): value is JsonObject {
 
 function getNestedRecord(value: unknown, path: string): JsonObject {
   if (!isRecord(value)) {
-    throw new ProfileExtractionError(`${path} must be an object.`);
+    throw new ProfileExtractionError(`${path} deve ser um objeto.`);
   }
 
   return value;
@@ -620,7 +704,7 @@ function getArray(source: JsonObject, key: string): unknown[] {
   }
 
   if (!Array.isArray(value)) {
-    throw new ProfileExtractionError(`${key} must be an array.`);
+    throw new ProfileExtractionError(`${key} deve ser uma lista.`);
   }
 
   return value;
@@ -630,7 +714,7 @@ function getRequiredString(source: JsonObject, key: string): string {
   const value = source[key];
 
   if (typeof value !== "string" || !value.trim()) {
-    throw new ProfileExtractionError(`${key} must be a non-empty string.`);
+    throw new ProfileExtractionError(`${key} deve ser uma string não vazia.`);
   }
 
   return value.trim();
@@ -644,7 +728,7 @@ function getOptionalString(source: JsonObject, key: string): string | null {
   }
 
   if (typeof value !== "string") {
-    throw new ProfileExtractionError(`${key} must be a string or null.`);
+    throw new ProfileExtractionError(`${key} deve ser uma string ou null.`);
   }
 
   const trimmed = value.trim();
@@ -659,7 +743,7 @@ function getOptionalBoolean(source: JsonObject, key: string): boolean | null {
   }
 
   if (typeof value !== "boolean") {
-    throw new ProfileExtractionError(`${key} must be a boolean or null.`);
+    throw new ProfileExtractionError(`${key} deve ser um boolean ou null.`);
   }
 
   return value;
@@ -714,7 +798,7 @@ function getOptionalInteger(source: JsonObject, key: string): number | null {
     }
   }
 
-  throw new ProfileExtractionError(`${key} must be an integer or null.`);
+  throw new ProfileExtractionError(`${key} deve ser um inteiro ou null.`);
 }
 
 function getStringArray(source: JsonObject, key: string): string[] {
@@ -723,7 +807,7 @@ function getStringArray(source: JsonObject, key: string): string[] {
   return values.map((value, index) => {
     if (typeof value !== "string" || !value.trim()) {
       throw new ProfileExtractionError(
-        `${key}[${index}] must be a non-empty string.`,
+        `${key}[${index}] deve ser uma string não vazia.`,
       );
     }
 
@@ -733,12 +817,15 @@ function getStringArray(source: JsonObject, key: string): string[] {
 
 function getRequiredDateLike(source: JsonObject, key: string): string {
   const value = getRequiredString(source, key);
+  const normalized = normalizeDateLike(value, false, "start");
 
-  if (!/^\d{4}-\d{2}$/.test(value)) {
-    throw new ProfileExtractionError(`${key} must use the YYYY-MM format.`);
+  if (!normalized) {
+    throw new ProfileExtractionError(
+      `${key} deve usar ou ser convertível para o formato YYYY-MM.`,
+    );
   }
 
-  return value;
+  return normalized;
 }
 
 function getOptionalDateLike(source: JsonObject, key: string): string | null {
@@ -748,11 +835,13 @@ function getOptionalDateLike(source: JsonObject, key: string): string | null {
     return null;
   }
 
-  if (!/^\d{4}-\d{2}$/.test(value)) {
-    throw new ProfileExtractionError(`${key} must use the YYYY-MM format.`);
+  const normalized = normalizeDateLike(value, true, "end");
+
+  if (normalized === null) {
+    return null;
   }
 
-  return value;
+  return normalized;
 }
 
 function getOptionalEnum<const T extends readonly string[]>(
@@ -775,7 +864,7 @@ function getOptionalEnum<const T extends readonly string[]>(
 
   if (!allowedValues.includes(value as T[number])) {
     throw new ProfileExtractionError(
-      `${key} must be one of: ${allowedValues.join(", ")}.`,
+      `${key} deve ser um destes valores: ${allowedValues.join(", ")}.`,
     );
   }
 
@@ -803,4 +892,211 @@ function normalizeLooseScalar(value: string): string {
     .replace(/\p{Diacritic}/gu, "")
     .replace(/[./]/g, "_")
     .replace(/\s+/g, "_");
+}
+
+function normalizeDateLike(
+  value: string,
+  allowCurrentAsNull: boolean,
+  rangeSide: "start" | "end",
+): string | null {
+  const trimmed = value.trim();
+  const normalizedText = trimmed
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
+  const normalizedScalar = normalizeLooseScalar(trimmed);
+
+  if (
+    allowCurrentAsNull &&
+    [
+      "n_a",
+      "na",
+      "none",
+      "null",
+      "nil",
+      "unknown",
+      "desconhecido",
+      "not_specified",
+      "unspecified",
+      "nao_informado",
+      "não_informado",
+      "not_informed",
+      "-",
+      "sem_informacao",
+      "sem_data",
+    ].includes(normalizedScalar)
+  ) {
+    return null;
+  }
+
+  if (
+    allowCurrentAsNull &&
+    [
+      "current",
+      "present",
+      "atual",
+      "presente",
+      "ongoing",
+      "hoje",
+      "momento_atual",
+      "ate_o_momento",
+      "ate_momento",
+      "ate_atual",
+      "atualmente",
+      "current_role",
+      "current_position",
+    ].includes(normalizedScalar)
+  ) {
+    return null;
+  }
+
+  if (
+    allowCurrentAsNull &&
+    /(atual|presente|present|current|ongoing|atualmente)/i.test(normalizedText)
+  ) {
+    return null;
+  }
+
+  if (/^\d{4}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (/^\d{4}\/\d{2}$/.test(trimmed)) {
+    return trimmed.replace("/", "-");
+  }
+
+  const directMonthYear = trimmed.match(/\b(\d{2})[/-](\d{4})\b/);
+  if (directMonthYear) {
+    const month = directMonthYear[1];
+    const year = directMonthYear[2];
+
+    if (Number(month) >= 1 && Number(month) <= 12) {
+      return `${year}-${month}`;
+    }
+  }
+
+  const yearMonthAnywhere = trimmed.match(/\b(\d{4})[/-](\d{2})\b/);
+  if (yearMonthAnywhere) {
+    const year = yearMonthAnywhere[1];
+    const month = yearMonthAnywhere[2];
+
+    if (Number(month) >= 1 && Number(month) <= 12) {
+      return `${year}-${month}`;
+    }
+  }
+
+  const dateRangeMatch = trimmed.match(
+    /\s(?:-|–|—|ate|até|to)\s/i,
+  );
+
+  if (dateRangeMatch) {
+    const parts = trimmed
+      .split(/\s(?:-|–|—|ate|até|to)\s/i)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    if (parts.length >= 2) {
+      const targetPart =
+        rangeSide === "start" ? parts[0] : parts[parts.length - 1];
+
+      if (targetPart) {
+        const normalizedTargetPart = normalizeDateLike(
+          targetPart,
+          allowCurrentAsNull,
+          rangeSide,
+        );
+
+        if (normalizedTargetPart !== null) {
+          return normalizedTargetPart;
+        }
+
+        if (allowCurrentAsNull) {
+          return null;
+        }
+      }
+    }
+  }
+
+  const monthNames: Record<string, string> = {
+    jan: "01",
+    janeiro: "01",
+    january: "01",
+    fev: "02",
+    fevereiro: "02",
+    feb: "02",
+    february: "02",
+    mar: "03",
+    março: "03",
+    marco: "03",
+    march: "03",
+    abr: "04",
+    abril: "04",
+    apr: "04",
+    april: "04",
+    mai: "05",
+    maio: "05",
+    may: "05",
+    jun: "06",
+    junho: "06",
+    june: "06",
+    jul: "07",
+    julho: "07",
+    july: "07",
+    ago: "08",
+    agosto: "08",
+    aug: "08",
+    august: "08",
+    set: "09",
+    setembro: "09",
+    sep: "09",
+    september: "09",
+    out: "10",
+    outubro: "10",
+    oct: "10",
+    october: "10",
+    nov: "11",
+    novembro: "11",
+    november: "11",
+    dez: "12",
+    dezembro: "12",
+    dec: "12",
+    december: "12",
+  };
+
+  const monthTextMatch =
+    normalizedText.match(
+      /\b([a-zç]{3,12})\s+de\s+(\d{4})\b|\b([a-zç]{3,12})\s+(\d{4})\b/,
+    ) ?? null;
+
+  if (monthTextMatch) {
+    const monthToken = monthTextMatch[1] ?? monthTextMatch[3];
+    const yearToken = monthTextMatch[2] ?? monthTextMatch[4];
+    const month = monthToken ? monthNames[monthToken] : undefined;
+
+    if (month && yearToken) {
+      return `${yearToken}-${month}`;
+    }
+  }
+
+  const yearOnlyMatch = trimmed.match(/\b(19|20)\d{2}\b/);
+  if (yearOnlyMatch) {
+    return `${yearOnlyMatch[0]}-01`;
+  }
+
+  return null;
+}
+
+async function logRawProfileExtractionOutput(rawOutput: string) {
+  try {
+    const logDirectory = path.join(process.cwd(), "tmp", "logs");
+    await mkdir(logDirectory, { recursive: true });
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    await writeFile(
+      path.join(logDirectory, `profile-extraction-raw-output-${timestamp}.txt`),
+      rawOutput,
+    );
+  } catch (error) {
+    console.warn("Falha ao gravar o output bruto da extração de perfil.", error);
+  }
 }

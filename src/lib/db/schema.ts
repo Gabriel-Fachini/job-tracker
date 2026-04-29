@@ -95,17 +95,15 @@ export const companies = sqliteTable("companies", {
 
 export const jobs = sqliteTable("jobs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  companyId: integer("company_id").references(() => companies.id),
+  company: text("company"),
   title: text("title").notNull(),
   seniority: text("seniority"),
-  stack: text("stack"),
   workModel: text("work_model"),
   salaryMin: integer("salary_min"),
   salaryMax: integer("salary_max"),
   sourceName: text("source_name"),
   sourceUrl: text("source_url"),
   description: text("description"),
-  deadline: integer("deadline", { mode: "timestamp" }),
   status: text("status").notNull().default("interesting"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
@@ -214,15 +212,9 @@ export const profileEducationRelations = relations(
   }),
 );
 
-export const companiesRelations = relations(companies, ({ many }) => ({
-  jobs: many(jobs),
-}));
+export const companiesRelations = relations(companies, () => ({}));
 
-export const jobsRelations = relations(jobs, ({ one, many }) => ({
-  company: one(companies, {
-    fields: [jobs.companyId],
-    references: [companies.id],
-  }),
+export const jobsRelations = relations(jobs, ({ many }) => ({
   applications: many(applications),
   resumes: many(resumes),
 }));
