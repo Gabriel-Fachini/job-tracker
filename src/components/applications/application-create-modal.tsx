@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import { Waypoints } from "lucide-react";
+import Link from "next/link";
+import { Building2, Waypoints } from "lucide-react";
 
 import { createApplication } from "@/server/actions/applications";
 import { applicationStatusOptions } from "@/lib/applications";
@@ -28,8 +29,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type ApplicationCreateModalProps = {
+  companies: Array<{
+    id: number;
+    name: string;
+  }>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
@@ -38,6 +45,7 @@ const controlClassName =
   "h-10 w-full rounded-xl border border-border/70 bg-background/70 px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 export function ApplicationCreateModal({
+  companies,
   open,
   onOpenChange,
 }: ApplicationCreateModalProps) {
@@ -55,6 +63,7 @@ export function ApplicationCreateModal({
   }, [state, onOpenChange]);
 
   const hasError = state && !state.success;
+  const hasCompanies = companies.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -78,8 +87,14 @@ export function ApplicationCreateModal({
           >
             {hasError ? (
               <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                Não foi possível salvar. Revise os campos obrigatórios e a URL.
+                Não foi possível salvar. Revise os campos obrigatórios, incluindo a empresa selecionada, e a URL.
               </p>
+            ) : null}
+
+            {!hasCompanies ? (
+              <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+                Cadastre ao menos uma empresa antes de registrar uma candidatura.
+              </div>
             ) : null}
 
             <FieldGroup>
@@ -102,17 +117,30 @@ export function ApplicationCreateModal({
 
                 <Field>
                   <FieldLabel
-                    htmlFor="company"
+                    htmlFor="companyId"
                     className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
                   >
-                    Empresa
+                    Empresa *
                   </FieldLabel>
-                  <Input
-                    id="company"
-                    name="company"
-                    placeholder="Ex.: Nubank"
+                  <select
+                    id="companyId"
+                    name="companyId"
+                    required
+                    defaultValue=""
                     className={controlClassName}
-                  />
+                  >
+                    <option value="" disabled>
+                      Selecione uma empresa cadastrada
+                    </option>
+                    {companies.map((company) => (
+                      <option key={company.id} value={company.id}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
+                  <FieldDescription>
+                    A candidatura sempre precisa pertencer a uma empresa já cadastrada.
+                  </FieldDescription>
                 </Field>
 
                 <Field>
@@ -268,11 +296,22 @@ export function ApplicationCreateModal({
             <Button
               type="submit"
               form="application-create-form"
-              disabled={isPending}
+              disabled={isPending || !hasCompanies}
             >
               {isPending ? "Salvando..." : "Salvar candidatura"}
             </Button>
           </div>
+          {!hasCompanies ? (
+            <div className="mt-3 flex justify-end">
+              <Link
+                href="/companies/new"
+                className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "rounded-lg")}
+              >
+                <Building2 data-icon="inline-start" />
+                Cadastrar empresa primeiro
+              </Link>
+            </div>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

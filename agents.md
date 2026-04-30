@@ -178,6 +178,7 @@ O agente deve respeitar estes princípios:
 - o sistema é **single-user local**;
 - o foco é **mínimo atrito** no registro;
 - empresa, vaga, candidatura e perfil são as entidades centrais;
+- toda candidatura deve estar associada a uma empresa existente; entrada livre de empresa por string não é contrato válido do produto;
 - a descrição da vaga deve ser preservada localmente;
 - análise e dashboard servem para dar dados ao usuário, não para substituir seu julgamento;
 - itens fora do escopo do MVP não devem ser puxados para dentro sem pedido explícito.

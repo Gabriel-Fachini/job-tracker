@@ -97,6 +97,9 @@ export const companies = sqliteTable("companies", {
 
 export const jobs = sqliteTable("jobs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id")
+    .notNull()
+    .references(() => companies.id),
   company: text("company"),
   title: text("title").notNull(),
   seniority: text("seniority"),
@@ -214,9 +217,15 @@ export const profileEducationRelations = relations(
   }),
 );
 
-export const companiesRelations = relations(companies, () => ({}));
+export const companiesRelations = relations(companies, ({ many }) => ({
+  jobs: many(jobs),
+}));
 
-export const jobsRelations = relations(jobs, ({ many }) => ({
+export const jobsRelations = relations(jobs, ({ one, many }) => ({
+  company: one(companies, {
+    fields: [jobs.companyId],
+    references: [companies.id],
+  }),
   applications: many(applications),
   resumes: many(resumes),
 }));

@@ -3,7 +3,7 @@ import { Activity, GitMerge, Sparkles, Telescope } from "lucide-react";
 
 import { ApplicationsClient } from "@/components/applications/applications-client";
 import { db } from "@/lib/db";
-import { applications, jobs } from "@/lib/db/schema";
+import { applications, companies, jobs } from "@/lib/db/schema";
 
 export default async function ApplicationsPage() {
   const rows = db
@@ -15,7 +15,7 @@ export default async function ApplicationsPage() {
       createdAt: applications.createdAt,
       // job fields
       jobTitle: jobs.title,
-      company: jobs.company,
+      company: companies.name,
       description: jobs.description,
       sourceUrl: jobs.sourceUrl,
       sourceName: jobs.sourceName,
@@ -24,7 +24,17 @@ export default async function ApplicationsPage() {
     })
     .from(applications)
     .innerJoin(jobs, eq(applications.jobId, jobs.id))
+    .innerJoin(companies, eq(jobs.companyId, companies.id))
     .orderBy(desc(applications.createdAt))
+    .all();
+
+  const companyOptions = db
+    .select({
+      id: companies.id,
+      name: companies.name,
+    })
+    .from(companies)
+    .orderBy(companies.name)
     .all();
 
   const interestingCount = rows.filter((r) => r.status === "interesting").length;
@@ -106,7 +116,7 @@ export default async function ApplicationsPage() {
       <div className="h-px bg-border/40" />
 
       {/* Client section: toolbar + cards + modals */}
-      <ApplicationsClient items={rows} />
+      <ApplicationsClient items={rows} companies={companyOptions} />
     </div>
   );
 }

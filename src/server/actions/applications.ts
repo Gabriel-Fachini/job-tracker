@@ -3,8 +3,9 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+import { syncCompanyStatusForApplication } from "@/lib/company-links";
 import { db } from "@/lib/db";
-import { applications, jobs } from "@/lib/db/schema";
+import { applications, companies, jobs } from "@/lib/db/schema";
 import {
   isApplicationStatus,
   type ApplicationStatus,
@@ -19,7 +20,7 @@ import {
 } from "@/lib/jobs";
 
 type ApplicationFormFields = {
-  company: string;
+  companyId: string;
   title: string;
   description: string;
   sourceUrl: string;
@@ -53,11 +54,30 @@ export async function createApplication(
   }
 
   const now = new Date();
+  const companyId = Number(fields.companyId);
+
+  if (!Number.isInteger(companyId)) {
+    return { success: false, error: "validation" };
+  }
+
+  const selectedCompany = db
+    .select({
+      id: companies.id,
+      name: companies.name,
+    })
+    .from(companies)
+    .where(eq(companies.id, companyId))
+    .get();
+
+  if (!selectedCompany) {
+    return { success: false, error: "validation" };
+  }
 
   const jobResult = db
     .insert(jobs)
     .values({
-      company: fields.company || null,
+      companyId: selectedCompany.id,
+      company: selectedCompany.name,
       title: fields.title,
       description: fields.description,
       sourceUrl: fields.sourceUrl || null,
@@ -82,7 +102,10 @@ export async function createApplication(
     .returning({ id: applications.id })
     .get();
 
+  syncCompanyStatusForApplication(appResult.id);
+
   revalidatePath("/applications");
+  revalidatePath("/companies");
   return { success: true, id: appResult.id };
 }
 
@@ -95,12 +118,15 @@ export async function updateApplicationStatus(
     .where(eq(applications.id, applicationId))
     .run();
 
+  syncCompanyStatusForApplication(applicationId);
+
   revalidatePath("/applications");
+  revalidatePath("/companies");
 }
 
 function readFields(formData: FormData): ApplicationFormFields {
   return {
-    company: String(formData.get("company") ?? "").trim(),
+    companyId: String(formData.get("companyId") ?? "").trim(),
     title: String(formData.get("title") ?? "").trim(),
     description: String(formData.get("description") ?? "").trim(),
     sourceUrl: String(formData.get("sourceUrl") ?? "").trim(),

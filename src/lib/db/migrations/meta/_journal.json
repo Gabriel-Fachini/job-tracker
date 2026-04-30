@@ -22,6 +22,20 @@
       "when": 1777437846064,
       "tag": "0002_careful_smiling_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1777475826859,
+      "tag": "0003_companies_phase3",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1777497810021,
+      "tag": "0004_applications_require_company",
+      "breakpoints": true
     }
   ]
 }

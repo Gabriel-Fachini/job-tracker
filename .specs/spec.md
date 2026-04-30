@@ -75,7 +75,7 @@ Base de conhecimento sobre o usuário que alimenta geração de currículos e ma
 **Objetivo:** Registrar uma oportunidade e rastrear o relacionamento com ela do início ao fim, com timeline auditável. A candidatura carrega tanto os dados da vaga quanto o histórico do processo seletivo.
 
 **Dados da vaga (embutidos na candidatura):**
-- Empresa associada (referência à entidade Empresa, opcional)
+- Empresa associada (referência obrigatória à entidade Empresa)
 - Título da vaga, senioridade, stack exigida
 - Modelo de trabalho (remoto / híbrido / presencial)
 - Faixa salarial
@@ -107,6 +107,7 @@ Base de conhecimento sobre o usuário que alimenta geração de currículos e ma
 3. Usuário revisa e salva
 
 **Regras:**
+- Toda candidatura deve estar associada a uma empresa já cadastrada
 - Descrição sempre salva localmente no momento do registro
 - Uma candidatura pode existir no status `Interessante` sem ter sido aplicada ainda
 - Toda mudança de status registra timestamp automaticamente

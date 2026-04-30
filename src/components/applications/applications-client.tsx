@@ -42,6 +42,10 @@ type ApplicationListItem = {
 };
 
 type ApplicationsClientProps = {
+  companies: Array<{
+    id: number;
+    name: string;
+  }>;
   items: ApplicationListItem[];
 };
 
@@ -142,7 +146,7 @@ function ApplicationCard({
   );
 }
 
-export function ApplicationsClient({ items }: ApplicationsClientProps) {
+export function ApplicationsClient({ companies, items }: ApplicationsClientProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const [detailApp, setDetailApp] = useState<ApplicationDetailData | null>(null);
 
@@ -228,6 +232,7 @@ export function ApplicationsClient({ items }: ApplicationsClientProps) {
 
       {/* Modals */}
       <ApplicationCreateModal
+        companies={companies}
         open={createOpen}
         onOpenChange={setCreateOpen}
       />

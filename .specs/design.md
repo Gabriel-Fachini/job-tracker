@@ -218,7 +218,7 @@ export const applications = sqliteTable('applications', {
   id: integer('id').primaryKey({ autoIncrement: true }),
 
   // --- dados da vaga ---
-  companyId: integer('company_id').references(() => companies.id), // opcional
+  companyId: integer('company_id').notNull().references(() => companies.id), // obrigatório
   jobTitle: text('job_title').notNull(),
   seniority: text('seniority'),            // intern | junior | mid | senior | staff | lead
   stack: text('stack'),                    // JSON array

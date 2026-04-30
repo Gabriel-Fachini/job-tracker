@@ -47,24 +47,24 @@
 
 ### 2.4 Formulário de revisão
 
-- [ ] 2.4.1 Criar seção de identidade e contato (campos editáveis)
-- [ ] 2.4.2 Criar seção de experiências profissionais com lista de bullets editáveis por cargo
-- [ ] 2.4.3 Criar seção de habilidades com nível e categoria
-- [ ] 2.4.4 Criar seção de projetos pessoais
-- [ ] 2.4.5 Criar seção de formação acadêmica
-- [ ] 2.4.6 Criar seção de preferências (modelo de trabalho, tipo de empresa, valores)
-- [ ] 2.4.7 Criar Server Action `updateProfile(data)` para persistir edições
-- [ ] 2.4.8 Permitir adicionar/remover experiências, bullets, habilidades e projetos manualmente
+- [x] 2.4.1 Criar seção de identidade e contato (campos editáveis)
+- [x] 2.4.2 Criar seção de experiências profissionais com lista de bullets editáveis por cargo
+- [x] 2.4.3 Criar seção de habilidades com nível e categoria
+- [x] 2.4.4 Criar seção de projetos pessoais
+- [x] 2.4.5 Criar seção de formação acadêmica
+- [x] 2.4.6 Criar seção de preferências (modelo de trabalho, tipo de empresa, valores)
+- [x] 2.4.7 Criar Server Action `updateProfile(data)` para persistir edições
+- [x] 2.4.8 Permitir adicionar/remover experiências, bullets, habilidades e projetos manualmente
 
 ---
 
 ## Fase 3 — Módulo Empresas
 
-- [ ] 3.1 Criar página `/companies` com listagem em tabela
-- [ ] 3.2 Criar página `/companies/new` com formulário de cadastro
-- [ ] 3.3 Criar página `/companies/[id]` com detalhes e candidaturas associadas
-- [ ] 3.4 Criar Server Actions: `createCompany`, `updateCompany`, `deleteCompany`
-- [ ] 3.5 Implementar atualização automática de status da empresa quando candidatura associada muda de status
+- [x] 3.1 Criar página `/companies` com listagem em tabela
+- [x] 3.2 Criar página `/companies/new` com formulário de cadastro
+- [x] 3.3 Criar página `/companies/[id]` com detalhes e candidaturas associadas
+- [x] 3.4 Criar Server Actions: `createCompany`, `updateCompany`, `deleteCompany`
+- [x] 3.5 Implementar atualização automática de status da empresa quando candidatura associada muda de status
 
 ---
 
@@ -77,6 +77,7 @@
 A extração vive em código, sem entidade de banco para plataformas. A arquitetura é um registry TypeScript que mapeia domínio → extrator. Adicionar nova plataforma = novo arquivo + uma linha no registry.
 
 **Plataformas com suporte no MVP:**
+
 - **Gupy** → API pública (`api.gupy.io/api/v1/jobs/{id}`) — sem IA, dados estruturados direto
 - **Greenhouse** → API pública (`boards-api.greenhouse.io/...`) — sem IA, dados estruturados direto
 - **Lever** → API pública (`api.lever.co/v0/postings/...`) — sem IA, dados estruturados direto
@@ -95,8 +96,8 @@ A extração vive em código, sem entidade de banco para plataformas. A arquitet
 
 ### 4.2 Registro de candidatura — Formulário
 
-- [ ] 4.2.1 Criar página `/applications/new` com campo de URL (fluxo principal) e área para colar descrição (fluxo alternativo)****
-- [ ] 4.2.2 Após extração, exibir formulário com campos pré-preenchidos para revisão
+- [x] 4.2.1 Criar página `/applications/new` com campo de URL (fluxo principal) e área para colar descrição (fluxo alternativo)****
+- [ ] 4.2.2 Após extração, exibir formulário com campos pré-preenchidos para revisão, incluindo seleção obrigatória de empresa já cadastrada
 - [ ] 4.2.3 Criar Server Action `createApplication(data)` que persiste candidatura com todos os campos de vaga embutidos
 - [ ] 4.2.4 Salvar descrição completa no campo `description` da candidatura, independentemente dos outros campos
 
