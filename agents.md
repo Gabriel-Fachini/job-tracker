@@ -143,6 +143,7 @@ Use `shadcn/ui` como base de componentes.
 - trate `dark mode` como o **único** tema do produto;
 - novas telas, componentes e tokens não devem depender de alternância light/dark;
 - se encontrar suporte legado a tema claro, trate isso como estado transitório e não como contrato a preservar;
+- em `Candidaturas`, a visão de detalhes vive por padrão em um modal deep-linkável em `/applications?applicationId=...`; não crie uma página dedicada de detalhes sem pedido explícito;
 - mantenha acessibilidade, navegação por teclado e estados de loading/erro visíveis;
 - evite UI genérica demais quando estiver construindo telas novas, mas preserve consistência com o que já existe no projeto.
 

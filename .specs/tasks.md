@@ -97,9 +97,9 @@ A extração vive em código, sem entidade de banco para plataformas. A arquitet
 ### 4.2 Registro de candidatura — Formulário
 
 - [x] 4.2.1 Criar página `/applications/new` com campo de URL (fluxo principal) e área para colar descrição (fluxo alternativo)****
-- [ ] 4.2.2 Após extração, exibir formulário com campos pré-preenchidos para revisão, incluindo seleção obrigatória de empresa já cadastrada
-- [ ] 4.2.3 Criar Server Action `createApplication(data)` que persiste candidatura com todos os campos de vaga embutidos
-- [ ] 4.2.4 Salvar descrição completa no campo `description` da candidatura, independentemente dos outros campos
+- [x] 4.2.2 Após extração, exibir formulário com campos pré-preenchidos para revisão, incluindo seleção obrigatória de empresa já cadastrada
+- [x] 4.2.3 Criar Server Action `createApplication(data)` que persiste candidatura com todos os campos de vaga embutidos
+- [x] 4.2.4 Salvar descrição completa no campo `description` da candidatura, independentemente dos outros campos
 
 ### 4.3 Listagem — Board Kanban
 
@@ -111,15 +111,16 @@ A extração vive em código, sem entidade de banco para plataformas. A arquitet
 
 ### 4.4 Detalhes da candidatura
 
-- [ ] 4.4.1 Criar página `/applications/[id]` com detalhes completos
-- [ ] 4.4.2 Exibir dados da vaga: título, empresa, descrição completa, stack, salário, modelo de trabalho, URL original
-- [ ] 4.4.3 Criar componente de timeline de etapas (label + data + notas)
-- [ ] 4.4.4 Implementar adição de nova etapa via formulário inline
-- [ ] 4.4.5 Criar Server Actions: `createApplicationStage`, `updateApplicationStage`, `deleteApplicationStage`
-- [ ] 4.4.6 Criar seção de contatos de RH (nome, cargo, email, LinkedIn)
-- [ ] 4.4.7 Criar campo de canal de acompanhamento
+- [x] 4.4.1 Criar modal de detalhes deep-linkável em `/applications?applicationId=` com detalhes completos
+- [x] 4.4.2 Exibir dados da vaga: título, empresa, descrição completa, stack, salário, modelo de trabalho, URL original
+- [x] 4.4.3 Criar componente de timeline de etapas (label + data + notas)
+- [x] 4.4.4 Implementar adição de nova etapa via formulário inline
+- [x] 4.4.5 Criar Server Actions: `createApplicationStage`, `updateApplicationStage`, `deleteApplicationStage`
+- [ ] ~~ 4.4.6 Criar seção de contatos de RH (nome, cargo, email, LinkedIn) ~~
+- [ ] ~~ 4.4.7 Criar campo de canal de acompanhamento ~~
 - [ ] 4.4.8 Criar Server Action `updateApplication(id, data)` para edição dos campos da candidatura
-- [ ] 4.4.9 Exibir seção de currículos gerados para esta candidatura (lista com link para download do PDF)
+- [ ] 4.4.9 Exibir seção de currículo gerado para esta candidatura (link para o caminho do arquivo PDF)
+- [x] 4.4.10 Criar seção manual para registrar o currículo usado na candidatura, incluindo estado explícito de "sem currículo"
 
 ---
 
@@ -142,7 +143,7 @@ A extração vive em código, sem entidade de banco para plataformas. A arquitet
 
 ### 5.3 UI de geração (dentro da candidatura)
 
-- [ ] 5.3.1 Criar componente de geração acessível a partir da página `/applications/[id]`
+- [ ] 5.3.1 Criar componente de geração acessível a partir do modal de detalhes em `/applications`
 - [ ] 5.3.2 Adicionar campo de instruções adicionais (textarea opcional)
 - [ ] 5.3.3 Implementar loading state síncrono durante geração e compilação
 - [ ] 5.3.4 Criar Route Handler `GET /api/resumes/[id]/pdf` para serving do arquivo PDF gerado

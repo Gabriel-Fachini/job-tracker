@@ -71,7 +71,7 @@ job-tracker/
 │   │   │   ├── dashboard/
 │   │   │   ├── profile/
 │   │   │   ├── companies/
-│   │   │   └── applications/         # listagem (kanban) + /[id] (detalhes + currículos gerados)
+│   │   │   └── applications/         # listagem (kanban) + modal deep-linkável `?applicationId=` (detalhes + currículos gerados)
 │   │   ├── api/
 │   │   │   └── resumes/
 │   │   │       └── [id]/
@@ -118,7 +118,7 @@ job-tracker/
 └── .env.local
 ```
 
-> **Nota:** não existe rota `/resumes`. O histórico de currículos gerados é exibido dentro de `/applications/[id]`.
+> **Nota:** não existe rota `/resumes`. O histórico de currículos gerados é exibido dentro do modal de detalhes em `/applications?applicationId=...`.
 
 ---
 
@@ -235,6 +235,9 @@ export const applications = sqliteTable('applications', {
   recruiterName: text('recruiter_name'),
   recruiterContact: text('recruiter_contact'),
   trackingChannel: text('tracking_channel'), // email | platform | whatsapp | other
+  usedResumeStatus: text('used_resume_status').notNull().default('unknown'), // unknown | uploaded | empty
+  usedResumePath: text('used_resume_path'),  // PDF manual efetivamente enviado na candidatura
+  usedResumeOriginalFilename: text('used_resume_original_filename'),
   notes: text('notes'),
   appliedAt: integer('applied_at', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
@@ -509,7 +512,7 @@ Server Action: generateResume(applicationId, additionalInstructions?)
         └─ 8. Retorna { pdfPath, texPath, resumeId }
 ```
 
-O currículo gerado aparece na seção de currículos da página `/applications/[id]`. Não existe rota `/resumes`.
+O currículo gerado aparece na seção de currículos do modal de detalhes em `/applications?applicationId=...`. Não existe rota `/resumes`.
 
 ### Wrapper tectonic (`src/lib/latex/compiler.ts`)
 

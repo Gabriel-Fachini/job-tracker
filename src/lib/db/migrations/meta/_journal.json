@@ -43,6 +43,13 @@
       "when": 1777525200000,
       "tag": "0005_remove_interesting_application_status",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1777602000000,
+      "tag": "0006_application_used_resume_tracking",
+      "breakpoints": true
     }
   ]
 }

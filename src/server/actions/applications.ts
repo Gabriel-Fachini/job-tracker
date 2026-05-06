@@ -7,6 +7,7 @@ import { syncCompanyStatusForApplication } from "@/lib/company-links";
 import { db } from "@/lib/db";
 import {
   applications,
+  applicationStages,
   applicationStatusHistory,
   companies,
   jobs,
@@ -40,6 +41,16 @@ type ApplicationFormFields = {
 type CreateResult =
   | { success: true; id: number }
   | { success: false; error: string };
+
+type MutationResult =
+  | { success: true }
+  | { success: false; error: "not_found" | "validation" };
+
+type ApplicationStageFields = {
+  label: string;
+  date: string;
+  notes: string;
+};
 
 export async function createApplication(
   _prev: CreateResult | null,
@@ -178,6 +189,175 @@ export async function updateApplicationStatus(
   return { success: true };
 }
 
+export async function createApplicationStage(
+  applicationId: number,
+  formData: FormData,
+): Promise<MutationResult> {
+  if (!Number.isInteger(applicationId)) {
+    return { success: false, error: "validation" };
+  }
+
+  const current = db
+    .select({ id: applications.id })
+    .from(applications)
+    .where(eq(applications.id, applicationId))
+    .get();
+
+  if (!current) {
+    return { success: false, error: "not_found" };
+  }
+
+  const fields = readApplicationStageFields(formData);
+  const stageDate = parseStageDate(fields.date);
+
+  if (!fields.label || !stageDate) {
+    return { success: false, error: "validation" };
+  }
+
+  const now = new Date();
+
+  db.transaction((tx) => {
+    tx.insert(applicationStages)
+      .values({
+        applicationId,
+        label: fields.label,
+        date: stageDate,
+        notes: fields.notes || null,
+        createdAt: now,
+      })
+      .run();
+
+    tx.update(applications)
+      .set({ updatedAt: now })
+      .where(eq(applications.id, applicationId))
+      .run();
+  });
+
+  revalidatePath("/applications");
+
+  return { success: true };
+}
+
+export async function updateApplicationStage(
+  stageId: number,
+  formData: FormData,
+): Promise<MutationResult> {
+  if (!Number.isInteger(stageId)) {
+    return { success: false, error: "validation" };
+  }
+
+  const current = db
+    .select({
+      id: applicationStages.id,
+      applicationId: applicationStages.applicationId,
+    })
+    .from(applicationStages)
+    .where(eq(applicationStages.id, stageId))
+    .get();
+
+  if (!current) {
+    return { success: false, error: "not_found" };
+  }
+
+  const fields = readApplicationStageFields(formData);
+  const stageDate = parseStageDate(fields.date);
+
+  if (!fields.label || !stageDate) {
+    return { success: false, error: "validation" };
+  }
+
+  const now = new Date();
+
+  db.transaction((tx) => {
+    tx.update(applicationStages)
+      .set({
+        label: fields.label,
+        date: stageDate,
+        notes: fields.notes || null,
+      })
+      .where(eq(applicationStages.id, stageId))
+      .run();
+
+    tx.update(applications)
+      .set({ updatedAt: now })
+      .where(eq(applications.id, current.applicationId))
+      .run();
+  });
+
+  revalidatePath("/applications");
+
+  return { success: true };
+}
+
+export async function deleteApplicationStage(
+  stageId: number,
+): Promise<MutationResult> {
+  if (!Number.isInteger(stageId)) {
+    return { success: false, error: "validation" };
+  }
+
+  const current = db
+    .select({
+      id: applicationStages.id,
+      applicationId: applicationStages.applicationId,
+    })
+    .from(applicationStages)
+    .where(eq(applicationStages.id, stageId))
+    .get();
+
+  if (!current) {
+    return { success: false, error: "not_found" };
+  }
+
+  const now = new Date();
+
+  db.transaction((tx) => {
+    tx.delete(applicationStages)
+      .where(eq(applicationStages.id, stageId))
+      .run();
+
+    tx.update(applications)
+      .set({ updatedAt: now })
+      .where(eq(applications.id, current.applicationId))
+      .run();
+  });
+
+  revalidatePath("/applications");
+
+  return { success: true };
+}
+
+export async function updateApplicationNotes(
+  applicationId: number,
+  notes: string,
+): Promise<MutationResult> {
+  if (!Number.isInteger(applicationId)) {
+    return { success: false, error: "validation" };
+  }
+
+  const current = db
+    .select({ id: applications.id })
+    .from(applications)
+    .where(eq(applications.id, applicationId))
+    .get();
+
+  if (!current) {
+    return { success: false, error: "not_found" };
+  }
+
+  db.update(applications)
+    .set({
+      notes: notes.trim() || null,
+      updatedAt: new Date(),
+    })
+    .where(eq(applications.id, applicationId))
+    .run();
+
+  revalidatePath("/applications");
+
+  return { success: true };
+}
+
 function readFields(formData: FormData): ApplicationFormFields {
   return {
     companyId: String(formData.get("companyId") ?? "").trim(),
@@ -188,6 +368,14 @@ function readFields(formData: FormData): ApplicationFormFields {
     workModel: String(formData.get("workModel") ?? "").trim(),
     seniority: String(formData.get("seniority") ?? "").trim(),
     status: String(formData.get("status") ?? "").trim(),
+    notes: String(formData.get("notes") ?? "").trim(),
+  };
+}
+
+function readApplicationStageFields(formData: FormData): ApplicationStageFields {
+  return {
+    label: String(formData.get("label") ?? "").trim(),
+    date: String(formData.get("date") ?? "").trim(),
     notes: String(formData.get("notes") ?? "").trim(),
   };
 }
@@ -206,4 +394,18 @@ function normalizeSeniority(value: string): Seniority | null {
 
 function normalizeSourceName(value: string): SourceName | null {
   return isSourceName(value) ? value : null;
+}
+
+function parseStageDate(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+
+  const parsed = new Date(`${value}T12:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed;
 }

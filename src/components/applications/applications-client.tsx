@@ -13,6 +13,7 @@ import {
   useSpring,
 } from "@react-spring/web";
 import { useDrag } from "@use-gesture/react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Building2,
   MapPin,
@@ -26,6 +27,7 @@ import {
 import {
   ApplicationDetailModal,
   type ApplicationDetailData,
+  type ApplicationStageData,
 } from "@/components/applications/application-detail-modal";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { Button } from "@/components/ui/button";
@@ -67,7 +69,12 @@ type ApplicationListItem = {
   seniority: string | null;
   appliedAt: Date | null;
   createdAt: Date;
+  updatedAt: Date;
+  usedResumeStatus: string;
+  usedResumePath: string | null;
+  usedResumeOriginalFilename: string | null;
   notes: string | null;
+  stages: ApplicationStageData[];
 };
 
 type ApplicationsClientProps = {
@@ -216,8 +223,37 @@ function buildApplicationDetail(item: ApplicationListItem): ApplicationDetailDat
     seniority: item.seniority,
     appliedAt: item.appliedAt,
     createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    usedResumeStatus: item.usedResumeStatus,
+    usedResumePath: item.usedResumePath,
+    usedResumeOriginalFilename: item.usedResumeOriginalFilename,
     notes: item.notes,
+    stages: item.stages,
   };
+}
+
+function findApplicationById(
+  board: BoardState,
+  applicationId: number,
+): ApplicationListItem | null {
+  for (const items of Object.values(board)) {
+    const match = items.find((item) => item.id === applicationId);
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
+}
+
+function parseSelectedApplicationId(value: string | null): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isInteger(parsed) ? parsed : null;
 }
 
 function DraggableApplicationCard({
@@ -293,9 +329,18 @@ function DraggableApplicationCard({
       {...bindDrag()}
     >
       <Card
+        role="button"
+        tabIndex={0}
+        aria-haspopup="dialog"
         onClick={onOpenDetails}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onOpenDetails();
+          }
+        }}
         className={cn(
-          "border border-border/60 bg-card/92 pt-0 transition-shadow duration-200 cursor-grab",
+          "cursor-grab border border-border/60 bg-card/92 pt-0 transition-shadow duration-200 outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70",
           isDragging
             ? "cursor-grabbing shadow-[0_28px_96px_rgba(0,0,0,0.5)] ring-1 ring-amber-300/30"
             : "hover:shadow-[0_12px_36px_rgba(0,0,0,0.22)]",
@@ -341,11 +386,11 @@ function DraggableApplicationCard({
             ) : null}
             {sourceNameLabel ? (
               <span className="inline-flex items-center rounded-full border border-sky-400/20 bg-sky-400/8 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-sky-300/80">
-              {sourceNameLabel}
-            </span>
-          ) : null}
-        </div>
-      </CardContent>
+                {sourceNameLabel}
+              </span>
+            ) : null}
+          </div>
+        </CardContent>
       </Card>
     </animated.div>
   );
@@ -477,8 +522,10 @@ function KanbanColumn({
 
 export function ApplicationsClient({ companies, items }: ApplicationsClientProps) {
   const reducedMotion = Boolean(useReducedMotion());
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [createOpen, setCreateOpen] = useState(false);
-  const [detailApp, setDetailApp] = useState<ApplicationDetailData | null>(null);
   const [board, setBoard] = useState(() => createBoard(items));
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [activeColumn, setActiveColumn] = useState<ApplicationStatus | null>(null);
@@ -487,14 +534,28 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
   const [isSavingMove, startSavingMove] = useReactTransition();
   const dragSnapshotRef = useRef<BoardState>(createBoard(items));
 
-  function handleOpenDetails(item: ApplicationListItem) {
-    setDetailApp(buildApplicationDetail(item));
+  function setApplicationQuery(applicationId: number | null) {
+    const nextParams = new URLSearchParams(searchParams.toString());
+
+    if (applicationId === null) {
+      nextParams.delete("applicationId");
+    } else {
+      nextParams.set("applicationId", String(applicationId));
+    }
+
+    const nextUrl = nextParams.size
+      ? `${pathname}?${nextParams.toString()}`
+      : pathname;
+
+    router.push(nextUrl, { scroll: false });
   }
 
-  function updateDetailStatus(applicationId: number, status: ApplicationStatus) {
-    setDetailApp((current) =>
-      current && current.id === applicationId ? { ...current, status } : current,
-    );
+  function handleOpenDetails(item: ApplicationListItem) {
+    setApplicationQuery(item.id);
+  }
+
+  function handleCloseDetails() {
+    setApplicationQuery(null);
   }
 
   function handleDragStart(item: ApplicationListItem) {
@@ -523,7 +584,6 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
     const nextBoard = moveCard(snapshot, item.id, targetStatus);
 
     setBoard(nextBoard);
-    updateDetailStatus(item.id, targetStatus);
     setActiveColumn(null);
     setActiveDragId(null);
     setDragOriginStatus(null);
@@ -533,7 +593,6 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
 
       if (!result.success) {
         setBoard(snapshot);
-        updateDetailStatus(item.id, item.status);
         setFeedback({
           tone: "danger",
           message:
@@ -548,6 +607,17 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
       });
     });
   }
+
+  const selectedApplicationId = parseSelectedApplicationId(
+    searchParams.get("applicationId"),
+  );
+  const selectedApplication =
+    selectedApplicationId === null
+      ? null
+      : findApplicationById(board, selectedApplicationId);
+  const detailApp = selectedApplication
+    ? buildApplicationDetail(selectedApplication)
+    : null;
 
   const totalCount = items.length;
 
@@ -648,7 +718,7 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
       />
       <ApplicationDetailModal
         application={detailApp}
-        onClose={() => setDetailApp(null)}
+        onClose={handleCloseDetails}
       />
     </>
   );

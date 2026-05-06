@@ -1,10 +1,11 @@
-import { desc, eq } from "drizzle-orm";
+import { Suspense } from "react";
+import { asc, desc, eq } from "drizzle-orm";
 import { Activity, GitMerge, Sparkles, Telescope } from "lucide-react";
 
 import { ApplicationsClient } from "@/components/applications/applications-client";
 import { normalizeApplicationStatus } from "@/lib/applications";
 import { db } from "@/lib/db";
-import { applications, companies, jobs } from "@/lib/db/schema";
+import { applications, applicationStages, companies, jobs } from "@/lib/db/schema";
 
 export default async function ApplicationsPage() {
   const rows = db
@@ -12,8 +13,12 @@ export default async function ApplicationsPage() {
       id: applications.id,
       status: applications.status,
       notes: applications.notes,
+      usedResumeStatus: applications.usedResumeStatus,
+      usedResumePath: applications.usedResumePath,
+      usedResumeOriginalFilename: applications.usedResumeOriginalFilename,
       appliedAt: applications.appliedAt,
       createdAt: applications.createdAt,
+      updatedAt: applications.updatedAt,
       // job fields
       jobTitle: jobs.title,
       company: companies.name,
@@ -29,12 +34,33 @@ export default async function ApplicationsPage() {
     .orderBy(desc(applications.createdAt))
     .all();
 
+  const stageRows = db
+    .select({
+      id: applicationStages.id,
+      applicationId: applicationStages.applicationId,
+      label: applicationStages.label,
+      date: applicationStages.date,
+      notes: applicationStages.notes,
+      createdAt: applicationStages.createdAt,
+    })
+    .from(applicationStages)
+    .orderBy(asc(applicationStages.date), asc(applicationStages.createdAt))
+    .all();
+
+  const stagesByApplication = new Map<number, typeof stageRows>();
+  for (const stage of stageRows) {
+    const current = stagesByApplication.get(stage.applicationId) ?? [];
+    current.push(stage);
+    stagesByApplication.set(stage.applicationId, current);
+  }
+
   const items = rows.map((row) => ({
     ...row,
     status: normalizeApplicationStatus(row.status),
+    stages: stagesByApplication.get(row.id) ?? [],
   }));
   const boardKey = items
-    .map((item) => `${item.id}:${item.createdAt.getTime()}`)
+    .map((item) => `${item.id}:${item.updatedAt.getTime()}`)
     .join("|");
 
   const companyOptions = db
@@ -125,7 +151,15 @@ export default async function ApplicationsPage() {
       <div className="h-px bg-border/40" />
 
       {/* Client section: toolbar + cards + modals */}
-      <ApplicationsClient key={boardKey} items={items} companies={companyOptions} />
+      <Suspense
+        fallback={
+          <div className="rounded-3xl border border-border/50 bg-card/40 px-5 py-10 text-sm text-muted-foreground">
+            Carregando board de candidaturas...
+          </div>
+        }
+      >
+        <ApplicationsClient key={boardKey} items={items} companies={companyOptions} />
+      </Suspense>
     </div>
   );
 }

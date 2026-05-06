@@ -87,6 +87,7 @@ Base de conhecimento sobre o usuário que alimenta geração de currículos e ma
 - **Status** (para o board Kanban): `Aplicado | Em Processo | Oferta | Aprovado | Rejeitado | Desistiu`
 - **Etapas** (string livre, dentro de "Em Processo"): ex. "Triagem RH", "Teste técnico", "Entrevista com CTO" — cada etapa tem data e notas
 - Data de cada mudança de status (registrada automaticamente)
+- Currículo efetivamente enviado nesta candidatura pode ser registrado manualmente ou marcado explicitamente como "sem currículo"
 - Currículos gerados para esta candidatura (listados na página de detalhes)
 - Contatos de RH (nome, cargo, email, LinkedIn)
 - Canal de acompanhamento (email, plataforma, WhatsApp)
