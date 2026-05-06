@@ -1,5 +1,4 @@
 export const applicationStatusOptions = [
-  { value: "interesting", label: "Interessante" },
   { value: "applied", label: "Aplicada" },
   { value: "in_process", label: "Em processo" },
   { value: "offer", label: "Oferta" },
@@ -21,8 +20,20 @@ export function isApplicationStatus(
   return applicationStatusOptions.some((o) => o.value === value);
 }
 
+export function normalizeApplicationStatus(
+  value: string | null | undefined,
+): ApplicationStatus {
+  if (value === "interesting") {
+    return "applied";
+  }
+
+  return value && isApplicationStatus(value) ? value : "applied";
+}
+
 export function getApplicationStatusLabel(value: string | null | undefined) {
-  return value && isApplicationStatus(value)
-    ? applicationStatusLabelMap[value]
-    : null;
+  if (!value) {
+    return null;
+  }
+
+  return applicationStatusLabelMap[normalizeApplicationStatus(value)];
 }

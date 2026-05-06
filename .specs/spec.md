@@ -84,7 +84,7 @@ Base de conhecimento sobre o usuário que alimenta geração de currículos e ma
 - Prazo de aplicação
 
 **Dados do processo:**
-- **Status** (para o board Kanban): `Interessante | Aplicado | Em Processo | Oferta | Aprovado | Rejeitado | Desistiu`
+- **Status** (para o board Kanban): `Aplicado | Em Processo | Oferta | Aprovado | Rejeitado | Desistiu`
 - **Etapas** (string livre, dentro de "Em Processo"): ex. "Triagem RH", "Teste técnico", "Entrevista com CTO" — cada etapa tem data e notas
 - Data de cada mudança de status (registrada automaticamente)
 - Currículos gerados para esta candidatura (listados na página de detalhes)
@@ -109,7 +109,7 @@ Base de conhecimento sobre o usuário que alimenta geração de currículos e ma
 **Regras:**
 - Toda candidatura deve estar associada a uma empresa já cadastrada
 - Descrição sempre salva localmente no momento do registro
-- Uma candidatura pode existir no status `Interessante` sem ter sido aplicada ainda
+- Uma candidatura pode ser registrada diretamente como `Aplicado` ou em qualquer etapa posterior já conhecida do processo
 - Toda mudança de status registra timestamp automaticamente
 - Etapas são livres por design — cada empresa tem seu próprio processo
 - Extração de campos deve ser feita pela stack local baseada em `ollama.cpp`

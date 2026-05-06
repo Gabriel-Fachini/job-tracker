@@ -153,7 +153,7 @@ export function ApplicationCreateModal({
                   <select
                     id="status"
                     name="status"
-                    defaultValue="interesting"
+                    defaultValue="applied"
                     className={controlClassName}
                   >
                     {applicationStatusOptions.map((o) => (

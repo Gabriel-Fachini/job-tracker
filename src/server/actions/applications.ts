@@ -5,8 +5,14 @@ import { revalidatePath } from "next/cache";
 
 import { syncCompanyStatusForApplication } from "@/lib/company-links";
 import { db } from "@/lib/db";
-import { applications, companies, jobs } from "@/lib/db/schema";
 import {
+  applications,
+  applicationStatusHistory,
+  companies,
+  jobs,
+} from "@/lib/db/schema";
+import {
+  normalizeApplicationStatus,
   isApplicationStatus,
   type ApplicationStatus,
 } from "@/lib/applications";
@@ -82,7 +88,7 @@ export async function createApplication(
       description: fields.description,
       sourceUrl: fields.sourceUrl || null,
       sourceName: normalizeSourceName(fields.sourceName),
-      status: "interesting",
+      status: "applied",
       workModel: normalizeWorkModel(fields.workModel),
       seniority: normalizeSeniority(fields.seniority),
       createdAt: now,
@@ -112,16 +118,64 @@ export async function createApplication(
 export async function updateApplicationStatus(
   applicationId: number,
   status: ApplicationStatus,
-): Promise<void> {
-  db.update(applications)
-    .set({ status, updatedAt: new Date() })
+): Promise<{ success: boolean; error?: "not_found" | "validation" }> {
+  if (!Number.isInteger(applicationId) || !isApplicationStatus(status)) {
+    return { success: false, error: "validation" };
+  }
+
+  const current = db
+    .select({
+      id: applications.id,
+      status: applications.status,
+      appliedAt: applications.appliedAt,
+    })
+    .from(applications)
     .where(eq(applications.id, applicationId))
-    .run();
+    .get();
+
+  if (!current) {
+    return { success: false, error: "not_found" };
+  }
+
+  if (current.status === status) {
+    return { success: true };
+  }
+
+  const now = new Date();
+  const updates: Partial<typeof applications.$inferInsert> & {
+    status: ApplicationStatus;
+    updatedAt: Date;
+  } = {
+    status,
+    updatedAt: now,
+  };
+
+  if (status === "applied" && !current.appliedAt) {
+    updates.appliedAt = now;
+  }
+
+  db.transaction((tx) => {
+    tx.update(applications)
+      .set(updates)
+      .where(eq(applications.id, applicationId))
+      .run();
+
+    tx.insert(applicationStatusHistory)
+      .values({
+        applicationId,
+        fromStatus: current.status,
+        toStatus: status,
+        changedAt: now,
+      })
+      .run();
+  });
 
   syncCompanyStatusForApplication(applicationId);
 
   revalidatePath("/applications");
   revalidatePath("/companies");
+
+  return { success: true };
 }
 
 function readFields(formData: FormData): ApplicationFormFields {
@@ -139,7 +193,7 @@ function readFields(formData: FormData): ApplicationFormFields {
 }
 
 function normalizeStatus(value: string): ApplicationStatus {
-  return isApplicationStatus(value) ? value : "interesting";
+  return normalizeApplicationStatus(value);
 }
 
 function normalizeWorkModel(value: string): WorkModel | null {

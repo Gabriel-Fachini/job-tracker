@@ -1,6 +1,6 @@
 import {
   applicationStatusOptions,
-  isApplicationStatus,
+  normalizeApplicationStatus,
   type ApplicationStatus,
 } from "@/lib/applications";
 
@@ -61,16 +61,12 @@ export function deriveCompanyStatus(
     return "blacklist";
   }
 
-  const statuses = rawStatuses.filter((status): status is ApplicationStatus =>
-    Boolean(status && isApplicationStatus(status)),
-  );
+  const statuses = rawStatuses
+    .filter((status): status is string => Boolean(status))
+    .map((status) => normalizeApplicationStatus(status));
 
   if (statuses.some((status) => activeApplicationStatuses.has(status))) {
     return "in_process";
-  }
-
-  if (statuses.includes("interesting")) {
-    return "monitoring";
   }
 
   if (statuses.length > 0) {

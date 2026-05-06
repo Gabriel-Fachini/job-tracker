@@ -103,11 +103,11 @@ A extração vive em código, sem entidade de banco para plataformas. A arquitet
 
 ### 4.3 Listagem — Board Kanban
 
-- [ ] 4.3.1 Criar página `/applications` com board Kanban
-- [ ] 4.3.2 Implementar colunas: `Interessante | Aplicado | Em Processo | Oferta | Aprovado | Rejeitado | Desistiu`
-- [ ] 4.3.3 Implementar drag-and-drop entre colunas (estado client-side)
-- [ ] 4.3.4 Ao soltar card em nova coluna, chamar Server Action `updateApplicationStatus(id, newStatus)`
-- [ ] 4.3.5 Server Action deve registrar entrada em `application_status_history` automaticamente
+- [x] 4.3.1 Criar página `/applications` com board Kanban
+- [x] 4.3.2 Implementar colunas: `Aplicado | Em Processo | Oferta | Aprovado | Rejeitado | Desistiu`
+- [x] 4.3.3 Implementar drag-and-drop entre colunas (estado client-side)
+- [x] 4.3.4 Ao soltar card em nova coluna, chamar Server Action `updateApplicationStatus(id, newStatus)`
+- [x] 4.3.5 Server Action deve registrar entrada em `application_status_history` automaticamente
 
 ### 4.4 Detalhes da candidatura
 

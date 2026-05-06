@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { Activity, GitMerge, Sparkles, Telescope } from "lucide-react";
 
 import { ApplicationsClient } from "@/components/applications/applications-client";
+import { normalizeApplicationStatus } from "@/lib/applications";
 import { db } from "@/lib/db";
 import { applications, companies, jobs } from "@/lib/db/schema";
 
@@ -28,6 +29,14 @@ export default async function ApplicationsPage() {
     .orderBy(desc(applications.createdAt))
     .all();
 
+  const items = rows.map((row) => ({
+    ...row,
+    status: normalizeApplicationStatus(row.status),
+  }));
+  const boardKey = items
+    .map((item) => `${item.id}:${item.createdAt.getTime()}`)
+    .join("|");
+
   const companyOptions = db
     .select({
       id: companies.id,
@@ -37,22 +46,14 @@ export default async function ApplicationsPage() {
     .orderBy(companies.name)
     .all();
 
-  const interestingCount = rows.filter((r) => r.status === "interesting").length;
-  const inProcessCount = rows.filter((r) => r.status === "in_process").length;
-  const appliedCount = rows.filter((r) => r.status === "applied").length;
-  const closedCount = rows.filter((r) =>
-    ["offer", "approved", "rejected", "withdrawn"].includes(r.status),
+  const appliedCount = items.filter((r) => r.status === "applied").length;
+  const inProcessCount = items.filter((r) => r.status === "in_process").length;
+  const offerCount = items.filter((r) => r.status === "offer").length;
+  const closedCount = items.filter((r) =>
+    ["approved", "rejected", "withdrawn"].includes(r.status),
   ).length;
 
   const statCards = [
-    {
-      label: "Interessantes",
-      count: interestingCount,
-      icon: Sparkles,
-      colorClass: "border-amber-400/20 bg-amber-400/8",
-      iconClass: "text-amber-300/80",
-      textClass: "text-amber-100",
-    },
     {
       label: "Aplicadas",
       count: appliedCount,
@@ -68,6 +69,14 @@ export default async function ApplicationsPage() {
       colorClass: "border-violet-400/20 bg-violet-400/8",
       iconClass: "text-violet-300/80",
       textClass: "text-violet-100",
+    },
+    {
+      label: "Ofertas",
+      count: offerCount,
+      icon: Sparkles,
+      colorClass: "border-emerald-300/20 bg-emerald-300/8",
+      iconClass: "text-emerald-200/80",
+      textClass: "text-emerald-100",
     },
     {
       label: "Finalizadas",
@@ -116,7 +125,7 @@ export default async function ApplicationsPage() {
       <div className="h-px bg-border/40" />
 
       {/* Client section: toolbar + cards + modals */}
-      <ApplicationsClient items={rows} companies={companyOptions} />
+      <ApplicationsClient key={boardKey} items={items} companies={companyOptions} />
     </div>
   );
 }

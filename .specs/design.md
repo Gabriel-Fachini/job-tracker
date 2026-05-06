@@ -231,7 +231,7 @@ export const applications = sqliteTable('applications', {
   deadline: integer('deadline', { mode: 'timestamp' }),
 
   // --- dados do processo ---
-  status: text('status').notNull().default('interesting'), // interesting | applied | in_process | offer | approved | rejected | withdrawn
+  status: text('status').notNull().default('applied'), // applied | in_process | offer | approved | rejected | withdrawn
   recruiterName: text('recruiter_name'),
   recruiterContact: text('recruiter_contact'),
   trackingChannel: text('tracking_channel'), // email | platform | whatsapp | other

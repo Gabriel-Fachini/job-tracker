@@ -5,8 +5,6 @@ import {
 } from "@/lib/applications";
 
 const statusClassNameMap: Record<ApplicationStatus, string> = {
-  interesting:
-    "border-amber-400/30 bg-amber-400/12 text-amber-100 ring-1 ring-amber-300/10",
   applied:
     "border-sky-400/30 bg-sky-400/12 text-sky-100 ring-1 ring-sky-300/10",
   in_process:
