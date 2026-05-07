@@ -1,11 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { MonitoringActionResult } from "@/server/actions/job-monitoring";
 import { cn } from "@/lib/utils";
+
+export type MonitoringProgressEvent = {
+  id: string;
+  timestamp: Date;
+  type: "company-start" | "link-done" | "company-done" | "error";
+  message: string;
+  detail?: string;
+};
 
 type MonitoringRunButtonProps = {
   action?: () => Promise<MonitoringActionResult>;
@@ -13,6 +21,25 @@ type MonitoringRunButtonProps = {
   pendingLabel: string;
   className?: string;
   useStream?: boolean;
+  onProgressChange?: (progress: MonitoringProgress) => void;
+};
+
+export type MonitoringProgress = {
+  isRunning: boolean;
+  currentCompany: string | null;
+  companyIndex: number;
+  totalCompanies: number;
+  linksProcessed: number;
+  linksTotal: number;
+  events: MonitoringProgressEvent[];
+  stats: {
+    leadsSaved: number;
+    reviewsSaved: number;
+    discarded: number;
+    failed: number;
+  };
+  result: MonitoringActionResult | null;
+  eventSource: EventSource | null;
 };
 
 export function MonitoringRunButton({
@@ -21,22 +48,69 @@ export function MonitoringRunButton({
   pendingLabel,
   className,
   useStream = false,
+  onProgressChange,
 }: MonitoringRunButtonProps) {
   const [isPending, startTransition] = useTransition();
-  const [result, setResult] = useState<MonitoringActionResult | null>(null);
-  const [currentCompany, setCurrentCompany] = useState<string | null>(null);
-  const [companyIndex, setCompanyIndex] = useState<number>(0);
-  const [totalCompanies, setTotalCompanies] = useState<number>(0);
-  const [linksProcessed, setLinksProcessed] = useState<number>(0);
-  const [linksTotal, setLinksTotal] = useState<number>(0);
+  const [progress, setProgress] = useState<MonitoringProgress>({
+    isRunning: false,
+    currentCompany: null,
+    companyIndex: 0,
+    totalCompanies: 0,
+    linksProcessed: 0,
+    linksTotal: 0,
+    events: [],
+    stats: {
+      leadsSaved: 0,
+      reviewsSaved: 0,
+      discarded: 0,
+      failed: 0,
+    },
+    result: null,
+    eventSource: null,
+  });
+
+  useEffect(() => {
+    onProgressChange?.(progress);
+  }, [progress, onProgressChange]);
+
+  function addEvent(
+    type: MonitoringProgressEvent["type"],
+    message: string,
+    detail?: string
+  ) {
+    setProgress((prev) => {
+      const newEvent: MonitoringProgressEvent = {
+        id: `${Date.now()}-${Math.random()}`,
+        timestamp: new Date(),
+        type,
+        message,
+        detail,
+      };
+      return {
+        ...prev,
+        events: [newEvent, ...prev.events].slice(0, 50), // Keep last 50 events
+      };
+    });
+  }
 
   function handleStreamStart() {
-    setCurrentCompany(null);
-    setCompanyIndex(0);
-    setTotalCompanies(0);
-    setLinksProcessed(0);
-    setLinksTotal(0);
-    setResult(null);
+    setProgress({
+      isRunning: true,
+      currentCompany: null,
+      companyIndex: 0,
+      totalCompanies: 0,
+      linksProcessed: 0,
+      linksTotal: 0,
+      events: [],
+      stats: {
+        leadsSaved: 0,
+        reviewsSaved: 0,
+        discarded: 0,
+        failed: 0,
+      },
+      result: null,
+      eventSource: null,
+    });
   }
 
   function handleStreamEvent(event: Record<string, unknown>) {
@@ -44,20 +118,53 @@ export function MonitoringRunButton({
 
     switch (type) {
       case "start":
-        setTotalCompanies(event.total as number);
+        setProgress((prev) => ({
+          ...prev,
+          totalCompanies: (event.total as number) || 0,
+        }));
         break;
+
       case "company-start":
-        setCurrentCompany(event.company as string);
-        setCompanyIndex((event.index as number) || 0);
-        setTotalCompanies((event.total as number) || 0);
-        setLinksProcessed(0);
-        setLinksTotal(0);
+        const company = event.company as string;
+        setProgress((prev) => ({
+          ...prev,
+          currentCompany: company,
+          companyIndex: (event.index as number) || 0,
+          totalCompanies: (event.total as number) || prev.totalCompanies,
+          linksProcessed: 0,
+          linksTotal: 0,
+        }));
+        addEvent("company-start", `Iniciando varredura em ${company}`);
         break;
+
       case "link-done":
-        setLinksProcessed((event.processed as number) || 0);
-        setLinksTotal((event.total as number) || 0);
+        const decision = event.decision as string;
+        const title = event.title as string;
+        setProgress((prev) => {
+          const newStats = { ...prev.stats };
+          if (decision === "interesting") newStats.leadsSaved += 1;
+          if (decision === "review") newStats.reviewsSaved += 1;
+          if (decision === "discarded") newStats.discarded += 1;
+
+          return {
+            ...prev,
+            linksProcessed: (event.processed as number) || 0,
+            linksTotal: (event.total as number) || 0,
+            stats: newStats,
+          };
+        });
+        addEvent(
+          "link-done",
+          `Vaga processada: ${title}`,
+          `Classificação: ${decision}`
+        );
         break;
+
       case "company-done":
+        const companyName = event.company as string;
+        addEvent("company-done", `Varredura em ${companyName} concluída`);
+        break;
+
       case "all-done":
         if (event.summary) {
           const summary = event.summary as {
@@ -68,51 +175,91 @@ export function MonitoringRunButton({
             discarded: number;
             failed: number;
           };
-          setResult({
-            success: true,
-            label: currentCompany || "radar completo",
-            ...summary,
-          });
+          setProgress((prev) => ({
+            ...prev,
+            isRunning: false,
+            result: {
+              success: true,
+              label: "radar completo",
+              ...summary,
+            },
+          }));
+          addEvent(
+            "company-done",
+            `Radar concluído: ${summary.leadsSaved} salvos, ${summary.reviewsSaved} para revisar`
+          );
         }
         break;
+
       case "error":
-        setResult({
-          success: false,
-          label: currentCompany || "radar",
-          linksFound: 0,
-          jobsParsed: 0,
-          leadsSaved: 0,
-          reviewsSaved: 0,
-          discarded: 0,
-          failed: 0,
-          error: event.message as string,
-        });
+        const errorMsg = event.message as string;
+        setProgress((prev) => ({
+          ...prev,
+          isRunning: false,
+          result: {
+            success: false,
+            label: prev.currentCompany || "radar",
+            linksFound: 0,
+            jobsParsed: 0,
+            leadsSaved: 0,
+            reviewsSaved: 0,
+            discarded: 0,
+            failed: 0,
+            error: errorMsg,
+          },
+        }));
+        addEvent("error", errorMsg);
         break;
     }
   }
 
   function handleStreamEnd() {
-    // Stream closed, UI already shows final state
+    setProgress((prev) => ({
+      ...prev,
+      isRunning: false,
+    }));
   }
 
   function handleStreamError() {
-    setResult({
-      success: false,
-      label: currentCompany || "radar",
-      linksFound: 0,
-      jobsParsed: 0,
-      leadsSaved: 0,
-      reviewsSaved: 0,
-      discarded: 0,
-      failed: 0,
-      error: "Conexão perdida durante a varredura.",
-    });
+    setProgress((prev) => ({
+      ...prev,
+      isRunning: false,
+      result: {
+        success: false,
+        label: prev.currentCompany || "radar",
+        linksFound: 0,
+        jobsParsed: 0,
+        leadsSaved: 0,
+        reviewsSaved: 0,
+        discarded: 0,
+        failed: 0,
+        error: "Conexão perdida durante a varredura.",
+      },
+    }));
+    addEvent("error", "Conexão perdida durante a varredura");
+  }
+
+  function handleCancel() {
+    if (progress.eventSource) {
+      progress.eventSource.close();
+      setProgress((prev) => ({
+        ...prev,
+        isRunning: false,
+        eventSource: null,
+      }));
+      addEvent("error", "Varredura cancelada pelo usuário");
+    }
   }
 
   function handleStreamClick() {
     handleStreamStart();
     startTransition(async () => {
       const eventSource = new EventSource("/api/monitoring/stream?type=all");
+
+      setProgress((prev) => ({
+        ...prev,
+        eventSource,
+      }));
 
       eventSource.onopen = () => {
         // Connected
@@ -130,6 +277,10 @@ export function MonitoringRunButton({
       eventSource.onerror = () => {
         handleStreamError();
         eventSource.close();
+        setProgress((prev) => ({
+          ...prev,
+          eventSource: null,
+        }));
       };
 
       // Wait for all-done event
@@ -145,6 +296,10 @@ export function MonitoringRunButton({
             if (data.type === "all-done" || data.type === "error") {
               handleStreamEnd();
               eventSource.close();
+              setProgress((prev) => ({
+                ...prev,
+                eventSource: null,
+              }));
               resolve();
             }
           } catch (error) {
@@ -158,10 +313,16 @@ export function MonitoringRunButton({
   function handleActionClick() {
     if (!action) return;
 
-    setResult(null);
+    setProgress((prev) => ({
+      ...prev,
+      result: null,
+    }));
     startTransition(async () => {
       const next = await action();
-      setResult(next);
+      setProgress((prev) => ({
+        ...prev,
+        result: next,
+      }));
     });
   }
 
@@ -170,11 +331,11 @@ export function MonitoringRunButton({
     if (!isRunning) return label;
 
     if (useStream) {
-      if (currentCompany) {
-        if (linksTotal > 0) {
-          return `${pendingLabel} - ${currentCompany} (${linksProcessed}/${linksTotal})`;
+      if (progress.currentCompany) {
+        if (progress.linksTotal > 0) {
+          return `${pendingLabel} - ${progress.currentCompany} (${progress.linksProcessed}/${progress.linksTotal})`;
         }
-        return `${pendingLabel} - ${currentCompany}`;
+        return `${pendingLabel} - ${progress.currentCompany}`;
       }
       return pendingLabel;
     }
@@ -183,35 +344,49 @@ export function MonitoringRunButton({
   })();
 
   const resultMessage = (() => {
-    if (!result) return null;
+    if (!progress.result) return null;
 
-    if (result.success) {
-      return `${result.label}: ${result.leadsSaved} leads salvos, ${result.reviewsSaved} para revisar, ${result.discarded} descartados${result.failed > 0 ? `, ${result.failed} com falha` : ""}.`;
+    if (progress.result.success) {
+      return `${progress.result.label}: ${progress.result.leadsSaved} leads salvos, ${progress.result.reviewsSaved} para revisar, ${progress.result.discarded} descartados${progress.result.failed > 0 ? `, ${progress.result.failed} com falha` : ""}.`;
     }
 
-    return result.error || "Não foi possível concluir a varredura.";
+    return progress.result.error || "Não foi possível concluir a varredura.";
   })();
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <Button
-        type="button"
-        onClick={useStream ? handleStreamClick : handleActionClick}
-        disabled={isRunning}
-        className={className}
-      >
-        <RefreshCw
-          data-icon="inline-start"
-          className={cn(isRunning && "animate-spin")}
-        />
-        {displayLabel}
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          onClick={useStream ? handleStreamClick : handleActionClick}
+          disabled={isRunning}
+          className={className}
+        >
+          <RefreshCw
+            data-icon="inline-start"
+            className={cn(isRunning && "animate-spin")}
+          />
+          {displayLabel}
+        </Button>
+
+        {isRunning && useStream && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleCancel}
+            className="rounded-lg"
+          >
+            Cancelar
+          </Button>
+        )}
+      </div>
 
       {resultMessage ? (
         <p
           className={cn(
             "text-xs text-muted-foreground",
-            !result?.success && "text-destructive",
+            !progress.result?.success && "text-destructive",
           )}
         >
           {resultMessage}

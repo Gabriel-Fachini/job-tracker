@@ -22,7 +22,8 @@ import { FormSubmitButton } from "@/components/companies/form-submit-button";
 import { LeadDetailModal } from "@/components/leads/lead-detail-modal";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
 import type { LeadListItem, LeadTab } from "@/components/leads/types";
-import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
+import { MonitoringRunButton, type MonitoringProgress } from "@/components/leads/monitoring-run-button";
+import { MonitoringProgressDisplay } from "@/components/leads/monitoring-progress-display";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -95,6 +96,9 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [createLead, setCreateLead] = useState<LeadListItem | null>(null);
+  const [monitoringProgress, setMonitoringProgress] = useState<MonitoringProgress | null>(
+    null
+  );
 
   const activeTab = normalizeLeadTab(searchParams.get("tab"));
   const filters = normalizeLeadFilters({
@@ -230,8 +234,28 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
             pendingLabel="Rodando radar..."
             className="h-11 rounded-xl bg-amber-300 px-6 text-zinc-950 hover:bg-amber-200"
             useStream
+            onProgressChange={setMonitoringProgress}
           />
         </div>
+
+        {monitoringProgress && (
+          <MonitoringProgressDisplay
+            isRunning={monitoringProgress.isRunning}
+            currentCompany={monitoringProgress.currentCompany}
+            companyIndex={monitoringProgress.companyIndex}
+            totalCompanies={monitoringProgress.totalCompanies}
+            linksProcessed={monitoringProgress.linksProcessed}
+            linksTotal={monitoringProgress.linksTotal}
+            events={monitoringProgress.events}
+            stats={monitoringProgress.stats}
+            onCancel={() => {
+              if (monitoringProgress.eventSource) {
+                monitoringProgress.eventSource.close();
+                setMonitoringProgress(null);
+              }
+            }}
+          />
+        )}
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard
