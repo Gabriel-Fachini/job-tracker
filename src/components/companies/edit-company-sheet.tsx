@@ -65,7 +65,6 @@ export function EditCompanySheet({
   canDelete,
 }: EditCompanySheetProps) {
   const [open, setOpen] = useState(hasValidationError || hasLinkedApplicationsError);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -86,10 +85,7 @@ export function EditCompanySheet({
           </SheetDescription>
         </SheetHeader>
 
-        <form
-          action={isDeleting ? deleteAction : action}
-          className="flex min-h-0 flex-1 flex-col overflow-hidden gap-0"
-        >
+        <form action={action} className="flex min-h-0 flex-1 flex-col overflow-hidden gap-0">
           <ScrollArea className="flex-1 min-h-0">
             <div className="flex flex-col gap-8 px-6 py-6">
               {hasValidationError ? (
@@ -266,27 +262,30 @@ export function EditCompanySheet({
             </div>
           </div>
 
-          <div className="shrink-0 border-t border-border/40 px-6 py-5">
-            {hasLinkedApplicationsError ? (
-              <p className="mb-3 text-sm text-amber-300/90">
-                Empresa com candidaturas vinculadas não pode ser excluída.
-              </p>
-            ) : null}
-            {!canDelete && !hasLinkedApplicationsError ? (
-              <p className="mb-3 text-xs text-muted-foreground">
-                Exclusão disponível apenas quando não há candidaturas vinculadas.
-              </p>
-            ) : null}
-            <button
-              type="submit"
-              onClick={() => setIsDeleting(true)}
+        </form>
+
+        <div className="shrink-0 border-t border-border/40 px-6 py-5">
+          {hasLinkedApplicationsError ? (
+            <p className="mb-3 text-sm text-amber-300/90">
+              Empresa com candidaturas vinculadas não pode ser excluída.
+            </p>
+          ) : null}
+          {!canDelete && !hasLinkedApplicationsError ? (
+            <p className="mb-3 text-xs text-muted-foreground">
+              Exclusão disponível apenas quando não há candidaturas vinculadas.
+            </p>
+          ) : null}
+          <form action={deleteAction} className="w-full">
+            <FormSubmitButton
+              pendingLabel="Excluindo..."
+              variant="destructive"
+              className="w-full rounded-xl"
               disabled={!canDelete}
-              className="w-full inline-flex h-10 items-center justify-center rounded-xl bg-destructive px-4 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Excluir empresa
-            </button>
-          </div>
-        </form>
+            </FormSubmitButton>
+          </form>
+        </div>
       </SheetContent>
     </Sheet>
   );

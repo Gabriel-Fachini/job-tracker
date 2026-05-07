@@ -5,7 +5,8 @@ import { desc, eq, inArray } from "drizzle-orm";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { extractProfileFromText, type ExtractedProfile } from "@/lib/ai/ollama";
+import { type ExtractedProfile } from "@/lib/ai/ollama";
+import { extractProfileWithOpenAi } from "@/lib/ai/openai";
 import { db } from "@/lib/db";
 import {
   profile,
@@ -115,7 +116,7 @@ export async function extractProfileDraft(
   }
 
   try {
-    const extractedProfile = await extractProfileFromText(rawText);
+    const extractedProfile = await extractProfileWithOpenAi(rawText);
 
     return {
       ok: true,
