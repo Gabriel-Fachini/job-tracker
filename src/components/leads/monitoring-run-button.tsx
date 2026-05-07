@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { useMonitoringProgress } from "@/components/leads/monitoring-progress-context";
+import { useMonitoringActions, useMonitoringProgress } from "@/components/leads/monitoring-progress-context";
 import type { MonitoringActionResult } from "@/server/actions/job-monitoring";
 import type { LeadListItem } from "@/components/leads/types";
 import { cn } from "@/lib/utils";
@@ -55,6 +55,7 @@ export function MonitoringRunButton({
 }: MonitoringRunButtonProps) {
   const [isPending, startTransition] = useTransition();
   const contextProgress = useMonitoringProgress();
+  const { startMonitoring, cancelMonitoring } = useMonitoringActions();
 
   const isRunning = contextProgress?.isRunning ?? isPending;
 
@@ -74,17 +75,7 @@ export function MonitoringRunButton({
   function handleClick() {
     if (!action) {
       if (useStream) {
-        startTransition(async () => {
-          const eventSource = new EventSource("/api/monitoring/stream?type=all");
-          await new Promise<void>((resolve) => {
-            const checkComplete = setInterval(() => {
-              if (eventSource.readyState === 2) {
-                clearInterval(checkComplete);
-                resolve();
-              }
-            }, 100);
-          });
-        });
+        startMonitoring();
       }
       return;
     }
@@ -107,12 +98,12 @@ export function MonitoringRunButton({
           {displayLabel}
         </Button>
 
-        {isRunning && contextProgress?.eventSource && (
+        {isRunning && (
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => contextProgress.eventSource?.close()}
+            onClick={cancelMonitoring}
             className="rounded-lg"
           >
             Cancelar

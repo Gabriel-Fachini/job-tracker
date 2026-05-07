@@ -1,7 +1,7 @@
 "use client";
 
 import type { KeyboardEvent, MouseEvent } from "react";
-import { startTransition, useMemo, useState, useTransition } from "react";
+import { startTransition, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -26,7 +26,7 @@ import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
 import type { LeadListItem, LeadTab } from "@/components/leads/types";
 import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
 import { MonitoringProgressDisplay } from "@/components/leads/monitoring-progress-display";
-import { useMonitoringProgress } from "@/components/leads/monitoring-progress-context";
+import { useMonitoringActions, useMonitoringProgress } from "@/components/leads/monitoring-progress-context";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -100,6 +100,13 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
   const [createLead, setCreateLead] = useState<LeadListItem | null>(null);
   const [showProgressDisplay, setShowProgressDisplay] = useState(true);
   const monitoringProgress = useMonitoringProgress();
+  const { cancelMonitoring } = useMonitoringActions();
+
+  useEffect(() => {
+    if (monitoringProgress?.isRunning) {
+      setShowProgressDisplay(true);
+    }
+  }, [monitoringProgress?.isRunning]);
   const [liveItems, setLiveItems] = useState<LeadListItem[]>(items);
 
   const activeTab = normalizeLeadTab(searchParams.get("tab"));
@@ -250,7 +257,7 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
             events={monitoringProgress.events}
             stats={monitoringProgress.stats}
             result={monitoringProgress.result}
-            onCancel={() => monitoringProgress.eventSource?.close()}
+            onCancel={cancelMonitoring}
             onDismiss={() => setShowProgressDisplay(false)}
           />
         )}
