@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { companies, jobLeads } from "@/lib/db/schema";
 import { getRecentLeadFeedbackSummary } from "@/lib/job-monitoring/feedback";
 import { runMonitoringForCompany } from "@/lib/job-monitoring";
+import { printRadarReport, type CompanyReportEntry } from "@/lib/job-monitoring/logger";
 import { isSeniority, isSourceName, isWorkModel } from "@/lib/jobs";
 import { getProfileSnapshot } from "@/lib/profile/queries";
 import type { ApplicationCreateResult } from "@/server/actions/applications";
@@ -132,12 +133,17 @@ export async function runAllCompaniesMonitoringStream(
 
   const profile = await getProfileSnapshot();
   const feedbackSummary = getRecentLeadFeedbackSummary();
+  const streamStart = Date.now();
+  const companyResults: CompanyReportEntry[] = [];
 
   for (const [index, company] of monitorableCompanies.entries()) {
+    const companyRunStart = Date.now();
     try {
       console.log("[job-monitoring] [action] run-all-stream-company-start", {
         companyId: company.id,
         companyName: company.name,
+        index: index + 1,
+        total: monitorableCompanies.length,
       });
 
       onEvent({
@@ -168,6 +174,13 @@ export async function runAllCompaniesMonitoringStream(
         },
       );
 
+      const companyRunMs = Date.now() - companyRunStart;
+      companyResults.push({
+        name: company.name,
+        summary: companySummary,
+        durationMs: companyRunMs,
+      });
+
       onEvent({
         type: "company-done",
         company: company.name,
@@ -181,6 +194,13 @@ export async function runAllCompaniesMonitoringStream(
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erro desconhecido";
+      const companyRunMs = Date.now() - companyRunStart;
+      companyResults.push({
+        name: company.name,
+        summary: emptySummary(),
+        durationMs: companyRunMs,
+      });
+
       console.log("[job-monitoring] [action] run-all-stream-company-failed", {
         companyId: company.id,
         companyName: company.name,
@@ -193,9 +213,28 @@ export async function runAllCompaniesMonitoringStream(
     }
   }
 
-  revalidateRadarViews();
-  onEvent({ type: "all-done", summary: emptySummary() });
-  console.log("[job-monitoring] [action] run-all-stream-finished");
+  // Print radar report
+  const totalStreamMs = Date.now() - streamStart;
+  printRadarReport(companyResults, totalStreamMs);
+
+  // Accumulate totals for all-done event
+  const accumulatedSummary = companyResults.reduce(
+    (acc, r) => ({
+      linksFound: acc.linksFound + r.summary.linksFound,
+      jobsParsed: acc.jobsParsed + r.summary.jobsParsed,
+      leadsSaved: acc.leadsSaved + r.summary.leadsSaved,
+      reviewsSaved: acc.reviewsSaved + r.summary.reviewsSaved,
+      discarded: acc.discarded + r.summary.discarded,
+      failed: acc.failed + r.summary.failed,
+    }),
+    { linksFound: 0, jobsParsed: 0, leadsSaved: 0, reviewsSaved: 0, discarded: 0, failed: 0 },
+  );
+
+  onEvent({ type: "all-done", summary: accumulatedSummary });
+  console.log("[job-monitoring] [action] run-all-stream-finished", {
+    companiesProcessed: monitorableCompanies.length,
+    durationMs: Date.now() - streamStart,
+  });
 }
 
 export async function runAllCompaniesMonitoring(): Promise<MonitoringActionResult> {

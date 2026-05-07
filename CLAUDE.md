@@ -40,6 +40,12 @@
 - Automatic daily backups at 03:00 via launchd (7 daily, 4 weekly, 3 monthly)
 - Restore with `npm run db:restore backups/daily/job-tracker-YYYY-MM-DD.db.gz`
 
+## Dev Server
+
+- App roda **sempre** na porta 3000 (usuário mantém processo ativo)
+- **Nunca** executar `npm run dev` para testar — server já está rodando
+- Se precisar verificar no browser e server não responder, peça ao usuário para iniciar antes de prosseguir
+
 ## Architecture Notes
 
 - No background processes yet (manual triggers only)

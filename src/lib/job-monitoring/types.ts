@@ -80,6 +80,7 @@ export type ClassificationContext = {
 export type MonitoringStreamEvent =
   | { type: "start"; total: number }
   | { type: "company-start"; company: string; index: number; total: number }
+  | { type: "link-processing"; company: string; title: string | null; processed: number; total: number }
   | { type: "link-done"; company: string; title: string; decision: JobLeadStatus; processed: number; total: number; lead?: LeadListItem }
   | { type: "company-done"; company: string; summary: MonitoringSummary }
   | { type: "all-done"; summary: MonitoringSummary }

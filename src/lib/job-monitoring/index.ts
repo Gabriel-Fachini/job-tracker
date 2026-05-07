@@ -4,6 +4,7 @@ import { formatJobDescriptionAsMarkdown } from "@/lib/ai/openai";
 import { classifyJobLead } from "./classification";
 import { discoverJobLinks } from "./discovery";
 import { extractJobDetail } from "./extraction";
+import { logMonitoringStep } from "./logger";
 import { upsertJobLead } from "./persistence";
 import type {
   ClassificationContext,
@@ -34,6 +35,8 @@ export async function runMonitoringForCompany(
   const upsertJobLeadFn = dependencies.upsertJobLeadFn ?? upsertJobLead;
   const onEvent = dependencies.onEvent;
 
+  const companyStart = Date.now();
+
   if (new URL(company.jobsBoardUrl).hostname.includes("linkedin.com")) {
     logMonitoringStep(company.name, "skip-linkedin-source", {
       jobsBoardUrl: company.jobsBoardUrl,
@@ -46,6 +49,7 @@ export async function runMonitoringForCompany(
     navigationMode: company.jobBoardNavigationMode,
   });
 
+  const discoveryStart = Date.now();
   const links = await discoverJobLinksFn(company);
   const summary: MonitoringSummary = {
     linksFound: links.length,
@@ -58,6 +62,7 @@ export async function runMonitoringForCompany(
 
   logMonitoringStep(company.name, "discovery-finished", {
     linksFound: links.length,
+    durationMs: Date.now() - discoveryStart,
   });
 
   // Phase 1: Extract + Classify in parallel with concurrency limit
@@ -69,9 +74,12 @@ export async function runMonitoringForCompany(
     error: string | null;
   };
 
+  let phase1Count = 0;
+
   const results = await Promise.allSettled(
     links.map((link, index) =>
       limit(async (): Promise<ProcessLinkResult> => {
+        try {
         logMonitoringStep(company.name, "processing-link", {
           current: index + 1,
           total: links.length,
@@ -80,6 +88,7 @@ export async function runMonitoringForCompany(
         });
 
         let job;
+        const extractStart = Date.now();
 
         try {
           job = await extractJobDetailFn(link.url);
@@ -87,6 +96,8 @@ export async function runMonitoringForCompany(
           logMonitoringStep(company.name, "extract-failed", {
             url: link.url,
             error: getErrorMessage(error),
+            errorStack: error instanceof Error ? error.stack : undefined,
+            durationMs: Date.now() - extractStart,
           });
           return { link, job: null, classification: null, error: getErrorMessage(error) };
         }
@@ -94,6 +105,7 @@ export async function runMonitoringForCompany(
         if (!job) {
           logMonitoringStep(company.name, "extract-empty", {
             url: link.url,
+            durationMs: Date.now() - extractStart,
           });
           return { link, job: null, classification: null, error: null };
         }
@@ -129,6 +141,7 @@ export async function runMonitoringForCompany(
           sourceName: job.sourceName,
           workModel: job.workModel,
           seniority: job.seniority,
+          durationMs: Date.now() - extractStart,
         });
 
         if (job.sourceName === "linkedin") {
@@ -140,6 +153,7 @@ export async function runMonitoringForCompany(
         }
 
         let classification;
+        const classifyStart = Date.now();
 
         try {
           classification = await classifyJobLeadFn(job, context);
@@ -148,6 +162,8 @@ export async function runMonitoringForCompany(
             url: job.sourceUrl,
             title: job.title,
             error: getErrorMessage(error),
+            errorStack: error instanceof Error ? error.stack : undefined,
+            durationMs: Date.now() - classifyStart,
           });
           return { link, job, classification: null, error: getErrorMessage(error) };
         }
@@ -158,9 +174,20 @@ export async function runMonitoringForCompany(
           decision: classification.decision,
           score: classification.score,
           reason: classification.reason,
+          durationMs: Date.now() - classifyStart,
         });
 
         return { link, job, classification, error: null };
+        } finally {
+          phase1Count += 1;
+          onEvent?.({
+            type: "link-processing",
+            company: company.name,
+            title: link.text,
+            processed: phase1Count,
+            total: links.length,
+          });
+        }
       })
     )
   );
@@ -206,6 +233,7 @@ export async function runMonitoringForCompany(
 
     summary.jobsParsed += 1;
 
+    const upsertStart = Date.now();
     const upsertResult = upsertJobLeadFn({
       companyId: company.id,
       title: job.title ?? link.text ?? "Vaga monitorada",
@@ -226,6 +254,9 @@ export async function runMonitoringForCompany(
       title: job.title ?? link.text ?? "Vaga monitorada",
       status: classification.decision,
       score: classification.score,
+      leadId: upsertResult.id,
+      isNew: upsertResult.created,
+      durationMs: Date.now() - upsertStart,
     });
 
     summary.leadsSaved += 1;
@@ -247,7 +278,10 @@ export async function runMonitoringForCompany(
     }
   }
 
-  logMonitoringStep(company.name, "company-run-finished", summary);
+  logMonitoringStep(company.name, "company-run-finished", {
+    ...summary,
+    durationMs: Date.now() - companyStart,
+  });
 
   return summary;
 }
@@ -330,14 +364,6 @@ function emptySummary(): MonitoringSummary {
     discarded: 0,
     failed: 0,
   };
-}
-
-function logMonitoringStep(
-  companyName: string,
-  step: string,
-  payload: Record<string, unknown>,
-) {
-  console.log(`[job-monitoring] [${companyName}] ${step}`, payload);
 }
 
 function getErrorMessage(error: unknown) {

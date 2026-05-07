@@ -130,8 +130,8 @@ export function MonitoringProgressDisplay({
 
         <CardContent className="space-y-4">
 
-          {/* Current Action - Animated */}
-          {currentEvent && (
+          {/* Current Action - only while running */}
+          {isRunning && currentEvent && (
             <Card className="border-border/60 bg-card/50">
               <CardContent className="pt-4">
                 <div className="animate-fade-in-up">
@@ -141,38 +141,20 @@ export function MonitoringProgressDisplay({
             </Card>
           )}
 
-          {/* Progress Bars */}
-          {isRunning && companyIndex > 0 && (
-            <div className="space-y-2">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Empresas: {companyIndex}/{totalCompanies}
-                </p>
-                <div className="h-2 w-full rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all"
-                    style={{
-                      width: `${(companyIndex / totalCompanies) * 100}%`,
-                    }}
-                  />
-                </div>
+          {/* Vagas progress bar */}
+          {isRunning && linksTotal > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">
+                Vagas: {linksProcessed}/{linksTotal}
+              </p>
+              <div className="h-2 w-full rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-linear-to-r from-emerald-500 to-teal-500 transition-all"
+                  style={{
+                    width: `${(linksProcessed / linksTotal) * 100}%`,
+                  }}
+                />
               </div>
-
-              {linksTotal > 0 && (
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Vagas: {linksProcessed}/{linksTotal}
-                  </p>
-                  <div className="h-2 w-full rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all"
-                      style={{
-                        width: `${(linksProcessed / linksTotal) * 100}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -261,7 +243,7 @@ function TimelineEvent({
               color="#6b7280"
               shineColor="#ffffff"
               speed={2}
-              className="font-medium text-base font-semibold"
+              className="text-base font-semibold"
             />
           ) : (
             <p className="font-medium text-foreground">

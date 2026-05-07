@@ -1,3 +1,5 @@
+import { revalidatePath } from "next/cache";
+
 import { runAllCompaniesMonitoringStream } from "@/server/actions/job-monitoring";
 import type { MonitoringStreamEvent } from "@/lib/job-monitoring/types";
 
@@ -15,6 +17,12 @@ export async function GET() {
 
         await runAllCompaniesMonitoringStream(sendEvent);
         controller.close();
+        // Revalidate companies/applications server cache.
+        // Do NOT revalidate /leads here — the client handles live updates
+        // via onLeadAppended and calls router.refresh() in startTransition
+        // after all-done to avoid triggering the Suspense boundary fallback.
+        revalidatePath("/companies");
+        revalidatePath("/applications");
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
         controller.enqueue(

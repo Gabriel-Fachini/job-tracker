@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ type MonitoringRunButtonProps = {
   useStream?: boolean;
   onProgressChange?: (progress: MonitoringProgress) => void;
   onLeadAppended?: (lead: LeadListItem) => void;
+  onComplete?: () => void;
 };
 
 export type MonitoringProgress = {
@@ -52,6 +53,7 @@ export function MonitoringRunButton({
   useStream = false,
   onProgressChange,
   onLeadAppended,
+  onComplete,
 }: MonitoringRunButtonProps) {
   const [isPending, startTransition] = useTransition();
   const [progress, setProgress] = useState<MonitoringProgress>({
@@ -72,16 +74,27 @@ export function MonitoringRunButton({
     eventSource: null,
   });
 
-  useEffect(() => {
-    onProgressChange?.(progress);
-  }, [progress, onProgressChange]);
+  const onProgressChangeRef = useRef(onProgressChange);
+  onProgressChangeRef.current = onProgressChange;
+
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
+  const progressRef = useRef(progress);
+
+  function updateProgress(updater: (prev: MonitoringProgress) => MonitoringProgress) {
+    const next = updater(progressRef.current);
+    progressRef.current = next;
+    setProgress(next);
+    onProgressChangeRef.current?.(next);
+  }
 
   function addEvent(
     type: MonitoringProgressEvent["type"],
     message: string,
     detail?: string
   ) {
-    setProgress((prev) => {
+    updateProgress((prev) => {
       const newEvent: MonitoringProgressEvent = {
         id: `${Date.now()}-${Math.random()}`,
         timestamp: new Date(),
@@ -91,13 +104,13 @@ export function MonitoringRunButton({
       };
       return {
         ...prev,
-        events: [newEvent, ...prev.events].slice(0, 50), // Keep last 50 events
+        events: [newEvent, ...prev.events].slice(0, 50),
       };
     });
   }
 
   function handleStreamStart() {
-    setProgress({
+    updateProgress(() => ({
       isRunning: true,
       currentCompany: null,
       companyIndex: 0,
@@ -113,7 +126,7 @@ export function MonitoringRunButton({
       },
       result: null,
       eventSource: null,
-    });
+    }));
   }
 
   function handleStreamEvent(event: Record<string, unknown>) {
@@ -121,15 +134,23 @@ export function MonitoringRunButton({
 
     switch (type) {
       case "start":
-        setProgress((prev) => ({
+        updateProgress((prev) => ({
           ...prev,
           totalCompanies: (event.total as number) || 0,
         }));
         break;
 
+      case "link-processing":
+        updateProgress((prev) => ({
+          ...prev,
+          linksProcessed: (event.processed as number) || 0,
+          linksTotal: (event.total as number) || 0,
+        }));
+        break;
+
       case "company-start":
         const company = event.company as string;
-        setProgress((prev) => ({
+        updateProgress((prev) => ({
           ...prev,
           currentCompany: company,
           companyIndex: (event.index as number) || 0,
@@ -144,7 +165,7 @@ export function MonitoringRunButton({
         const decision = event.decision as string;
         const title = event.title as string;
         const lead = event.lead as LeadListItem | undefined;
-        setProgress((prev) => {
+        updateProgress((prev) => {
           const newStats = { ...prev.stats };
           if (decision === "interesting") newStats.leadsSaved += 1;
           if (decision === "review") newStats.reviewsSaved += 1;
@@ -182,7 +203,7 @@ export function MonitoringRunButton({
             discarded: number;
             failed: number;
           };
-          setProgress((prev) => ({
+          updateProgress((prev) => ({
             ...prev,
             isRunning: false,
             result: {
@@ -195,12 +216,13 @@ export function MonitoringRunButton({
             "company-done",
             `Radar concluído: ${summary.leadsSaved} salvos, ${summary.reviewsSaved} para revisar`
           );
+          onCompleteRef.current?.();
         }
         break;
 
       case "error":
         const errorMsg = event.message as string;
-        setProgress((prev) => ({
+        updateProgress((prev) => ({
           ...prev,
           isRunning: false,
           result: {
@@ -216,12 +238,13 @@ export function MonitoringRunButton({
           },
         }));
         addEvent("error", errorMsg);
+        onCompleteRef.current?.();
         break;
     }
   }
 
   function handleStreamError() {
-    setProgress((prev) => ({
+    updateProgress((prev) => ({
       ...prev,
       isRunning: false,
       result: {
@@ -240,9 +263,9 @@ export function MonitoringRunButton({
   }
 
   function handleCancel() {
-    if (progress.eventSource) {
-      progress.eventSource.close();
-      setProgress((prev) => ({
+    if (progressRef.current.eventSource) {
+      progressRef.current.eventSource.close();
+      updateProgress((prev) => ({
         ...prev,
         isRunning: false,
         eventSource: null,
@@ -256,7 +279,7 @@ export function MonitoringRunButton({
     startTransition(async () => {
       const eventSource = new EventSource("/api/monitoring/stream?type=all");
 
-      setProgress((prev) => ({
+      updateProgress((prev) => ({
         ...prev,
         eventSource,
       }));
@@ -271,7 +294,7 @@ export function MonitoringRunButton({
           handleStreamEvent(data);
           if (data.type === "all-done" || data.type === "error") {
             eventSource.close();
-            setProgress((prev) => ({ ...prev, eventSource: null, isRunning: false }));
+            updateProgress((prev) => ({ ...prev, eventSource: null, isRunning: false }));
           }
         } catch (error) {
           console.error("Failed to parse SSE message:", error);
@@ -281,16 +304,23 @@ export function MonitoringRunButton({
       eventSource.onerror = () => {
         handleStreamError();
         eventSource.close();
-        setProgress((prev) => ({
+        updateProgress((prev) => ({
           ...prev,
           eventSource: null,
         }));
       };
 
-      // Wait for all-done event
+      // Wait for all-done event or external cancel
       await new Promise<void>((resolve) => {
         const checkComplete = setInterval(() => {
-          if (!progress.isRunning && (progress.result !== null || !eventSource.url)) {
+          const cur = progressRef.current;
+          const externallyTerminated =
+            cur.eventSource !== null && cur.eventSource.readyState === 2;
+
+          if (!cur.isRunning || externallyTerminated) {
+            if (externallyTerminated) {
+              updateProgress((prev) => ({ ...prev, isRunning: false, eventSource: null }));
+            }
             clearInterval(checkComplete);
             resolve();
           }
@@ -302,20 +332,20 @@ export function MonitoringRunButton({
   function handleActionClick() {
     if (!action) return;
 
-    setProgress((prev) => ({
+    updateProgress((prev) => ({
       ...prev,
       result: null,
     }));
     startTransition(async () => {
       const next = await action();
-      setProgress((prev) => ({
+      updateProgress((prev) => ({
         ...prev,
         result: next,
       }));
     });
   }
 
-  const isRunning = useStream ? isPending : isPending;
+  const isRunning = useStream ? progress.isRunning : isPending;
   const displayLabel = (() => {
     if (!isRunning) return label;
 
@@ -351,10 +381,7 @@ export function MonitoringRunButton({
           disabled={isRunning}
           className={className}
         >
-          <RefreshCw
-            data-icon="inline-start"
-            className={cn(isRunning && "animate-spin")}
-          />
+          <RefreshCw className={cn(isRunning && "animate-spin")} />
           {displayLabel}
         </Button>
 

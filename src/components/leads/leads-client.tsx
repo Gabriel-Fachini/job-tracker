@@ -1,7 +1,7 @@
 "use client";
 
 import type { KeyboardEvent, MouseEvent } from "react";
-import { useMemo, useState } from "react";
+import { startTransition, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -234,16 +234,22 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
           <MonitoringRunButton
             label="Rodar radar completo"
             pendingLabel="Rodando radar..."
-            className="h-11 rounded-xl bg-amber-300 px-5 text-zinc-950 hover:bg-amber-200 inline-flex items-center justify-center gap-2 whitespace-nowrap"
+            className="h-11 rounded-xl bg-amber-300 px-5 text-zinc-950 hover:bg-amber-200"
             useStream
             onProgressChange={setMonitoringProgress}
-            onLeadAppended={(lead) =>
+            onLeadAppended={(lead) => {
+              const normalizedLead = {
+                ...lead,
+                discoveredAt: new Date(lead.discoveredAt),
+                updatedAt: new Date(lead.updatedAt),
+              };
               setLiveItems((prev) =>
-                prev.some((i) => i.id === lead.id)
-                  ? prev.map((i) => (i.id === lead.id ? lead : i))
-                  : [lead, ...prev]
-              )
-            }
+                prev.some((i) => i.id === normalizedLead.id)
+                  ? prev.map((i) => (i.id === normalizedLead.id ? normalizedLead : i))
+                  : [normalizedLead, ...prev]
+              );
+            }}
+            onComplete={() => startTransition(() => router.refresh())}
           />
         </div>
 
@@ -459,6 +465,7 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
                 tab={activeTab}
                 onOpen={() => openLead(lead.id)}
                 onCreateApplication={() => openCreateModal(lead)}
+                onDiscard={() => setLiveItems((prev) => prev.filter((i) => i.id !== lead.id))}
               />
             ))}
           </div>
@@ -493,12 +500,15 @@ function LeadCard({
   tab,
   onOpen,
   onCreateApplication,
+  onDiscard,
 }: {
   lead: LeadListItem;
   tab: LeadTab;
   onOpen: () => void;
   onCreateApplication: () => void;
+  onDiscard?: () => void;
 }) {
+  const [isDiscarding, startDiscardTransition] = useTransition();
   const approveAction = approveLead.bind(null, lead.id);
   const discardAction = discardLead.bind(null, lead.id);
 
@@ -607,15 +617,20 @@ function LeadCard({
                 </FormSubmitButton>
               </form>
 
-              <form action={discardAction}>
-                <FormSubmitButton
-                  pendingLabel="Descartando..."
-                  variant="outline"
-                  className="rounded-xl"
-                >
-                  Descartar
-                </FormSubmitButton>
-              </form>
+              <button
+                type="button"
+                disabled={isDiscarding}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startDiscardTransition(async () => {
+                    await discardAction();
+                    onDiscard?.();
+                  });
+                }}
+                className={cn(buttonVariants({ variant: "outline" }), "rounded-xl")}
+              >
+                {isDiscarding ? "Descartando..." : "Descartar"}
+              </button>
             </>
           ) : (
             <button
@@ -719,7 +734,7 @@ function StatCard({
   );
 }
 
-function formatDate(date: Date | null) {
+function formatDate(date: Date | string | null) {
   if (!date) {
     return "sem registro";
   }
@@ -728,7 +743,7 @@ function formatDate(date: Date | null) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  }).format(date);
+  }).format(new Date(date));
 }
 
 function formatWorkModel(value: string) {
