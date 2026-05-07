@@ -37,7 +37,9 @@ yarn-error.log*
 /job-tracker.db
 /job-tracker.db-shm
 /job-tracker.db-wal
+/job-tracker.db.pre-restore-*
 /uploads/**
+/backups/
 !/uploads/resumes/
 !/uploads/resumes/master/
 !/uploads/resumes/generated/
