@@ -36,7 +36,12 @@ export function MonitoringProgressProvider({
             linksProcessed: runSnapshot.linksProcessed,
             linksTotal: runSnapshot.linksTotal,
             events: [],
-            stats: runSnapshot.stats,
+            stats: {
+              leadsSaved: runSnapshot.stats.saved,
+              reviewsSaved: runSnapshot.stats.review,
+              discarded: runSnapshot.stats.discarded,
+              failed: runSnapshot.stats.failed,
+            },
             result: null,
             eventSource,
           };
