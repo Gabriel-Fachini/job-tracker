@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import type { AnyNode } from "domhandler";
+import TurndownService from "turndown";
 
 import { normalizeBrazilianJobText } from "./signals";
 import type { ExtractedJobDetail, FetchLike } from "./types";
@@ -13,6 +14,24 @@ const CONTENT_SELECTORS = [
   ".jobDescriptionContent",
   ".description",
 ];
+
+function htmlToMarkdown(html: string): string {
+  const $ = cheerio.load(html);
+  $("script, style, noscript, template, svg").remove();
+  const cleanedHtml = $.html() ?? "";
+
+  const turndown = new TurndownService({
+    headingStyle: "atx",
+    bulletListMarker: "-",
+    codeBlockStyle: "fenced",
+  });
+
+  return turndown.turndown(cleanedHtml);
+}
+
+function extractReadableMarkdown(node: cheerio.Cheerio<AnyNode>): string {
+  return htmlToMarkdown(node.html() ?? "");
+}
 
 export async function extractJobDetail(
   url: string,
@@ -97,9 +116,15 @@ function extractJobPostingJsonLd($: cheerio.CheerioAPI): JobPostingJsonLd | null
         continue;
       }
 
+      const rawDescription = getString(candidate, "description");
+      const description =
+        rawDescription && rawDescription.includes("<")
+          ? htmlToMarkdown(decodeHtmlEntities(rawDescription))
+          : cleanRichText(rawDescription);
+
       return {
         title: cleanRichText(getString(candidate, "title")),
-        description: cleanRichText(getString(candidate, "description")),
+        description,
         jobLocation: readJobLocation(candidate),
         baseSalary: readSalary(candidate),
       };
@@ -207,20 +232,20 @@ function readSalary(record: Record<string, unknown>): string | null {
 
 function extractPrimaryDescription($: cheerio.CheerioAPI) {
   for (const selector of CONTENT_SELECTORS) {
-    const text = extractReadableText($(selector).first());
+    const markdown = extractReadableMarkdown($(selector).first());
 
-    if (text.length >= 120) {
-      return text;
+    if (markdown.length >= 120) {
+      return markdown;
     }
   }
 
   let bestCandidate = "";
 
   $("section, div").each((_, element) => {
-    const text = extractReadableText($(element));
+    const markdown = extractReadableMarkdown($(element));
 
-    if (text.length > bestCandidate.length && isLikelyReadableContent(text)) {
-      bestCandidate = text;
+    if (markdown.length > bestCandidate.length && isLikelyReadableContent(markdown)) {
+      bestCandidate = markdown;
     }
   });
 
@@ -342,11 +367,13 @@ function isLikelyReadableContent(text: string) {
 }
 
 function finalizeDescription(value: string | null | undefined, title: string | null) {
-  let text = normalizeWhitespace(value);
+  const trimmed = (value ?? "").trim();
 
-  if (!text) {
+  if (!trimmed) {
     return null;
   }
+
+  let text = trimmed.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n");
 
   for (const marker of ["Descrição da vaga", "Descricao da vaga", "Job description"]) {
     const index = text.indexOf(marker);

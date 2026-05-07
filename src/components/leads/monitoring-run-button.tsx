@@ -5,6 +5,7 @@ import { RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { MonitoringActionResult } from "@/server/actions/job-monitoring";
+import type { LeadListItem } from "@/components/leads/types";
 import { cn } from "@/lib/utils";
 
 export type MonitoringProgressEvent = {
@@ -22,6 +23,7 @@ type MonitoringRunButtonProps = {
   className?: string;
   useStream?: boolean;
   onProgressChange?: (progress: MonitoringProgress) => void;
+  onLeadAppended?: (lead: LeadListItem) => void;
 };
 
 export type MonitoringProgress = {
@@ -49,6 +51,7 @@ export function MonitoringRunButton({
   className,
   useStream = false,
   onProgressChange,
+  onLeadAppended,
 }: MonitoringRunButtonProps) {
   const [isPending, startTransition] = useTransition();
   const [progress, setProgress] = useState<MonitoringProgress>({
@@ -71,7 +74,7 @@ export function MonitoringRunButton({
 
   useEffect(() => {
     onProgressChange?.(progress);
-  }, [progress]);
+  }, [progress, onProgressChange]);
 
   function addEvent(
     type: MonitoringProgressEvent["type"],
@@ -140,6 +143,7 @@ export function MonitoringRunButton({
       case "link-done":
         const decision = event.decision as string;
         const title = event.title as string;
+        const lead = event.lead as LeadListItem | undefined;
         setProgress((prev) => {
           const newStats = { ...prev.stats };
           if (decision === "interesting") newStats.leadsSaved += 1;
@@ -158,6 +162,9 @@ export function MonitoringRunButton({
           `Vaga processada: ${title}`,
           `Classificação: ${decision}`
         );
+        if (lead) {
+          onLeadAppended?.(lead);
+        }
         break;
 
       case "company-done":
@@ -213,13 +220,6 @@ export function MonitoringRunButton({
     }
   }
 
-  function handleStreamEnd() {
-    setProgress((prev) => ({
-      ...prev,
-      isRunning: false,
-    }));
-  }
-
   function handleStreamError() {
     setProgress((prev) => ({
       ...prev,
@@ -269,6 +269,10 @@ export function MonitoringRunButton({
         try {
           const data = JSON.parse(event.data);
           handleStreamEvent(data);
+          if (data.type === "all-done" || data.type === "error") {
+            eventSource.close();
+            setProgress((prev) => ({ ...prev, eventSource: null, isRunning: false }));
+          }
         } catch (error) {
           console.error("Failed to parse SSE message:", error);
         }
@@ -285,27 +289,12 @@ export function MonitoringRunButton({
 
       // Wait for all-done event
       await new Promise<void>((resolve) => {
-        const originalOnmessage = eventSource.onmessage;
-        eventSource.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (originalOnmessage) {
-              originalOnmessage.call(eventSource, event);
-            }
-            handleStreamEvent(data);
-            if (data.type === "all-done" || data.type === "error") {
-              handleStreamEnd();
-              eventSource.close();
-              setProgress((prev) => ({
-                ...prev,
-                eventSource: null,
-              }));
-              resolve();
-            }
-          } catch (error) {
-            console.error("Failed to parse SSE message:", error);
+        const checkComplete = setInterval(() => {
+          if (!progress.isRunning && (progress.result !== null || !eventSource.url)) {
+            clearInterval(checkComplete);
+            resolve();
           }
-        };
+        }, 100);
       });
     });
   }

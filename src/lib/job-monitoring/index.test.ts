@@ -1,7 +1,31 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import type { LeadListItem } from "@/components/leads/types";
 import { runMonitoringForCompany } from "./index";
+
+function createMockLeadSnapshot(lead: { sourceUrl: string; title: string }): LeadListItem {
+  return {
+    id: 1,
+    title: lead.title,
+    sourceUrl: lead.sourceUrl,
+    sourceName: "company_site",
+    description: null,
+    workModel: "remote",
+    seniority: "senior",
+    locationText: null,
+    salaryText: null,
+    classificationStatus: "interesting",
+    classificationScore: 88,
+    classificationReason: "Test",
+    userDecision: "none",
+    promotedToApplicationId: null,
+    discoveredAt: new Date(),
+    updatedAt: new Date(),
+    companyId: 1,
+    companyName: "Test Company",
+  };
+}
 
 test("runMonitoringForCompany aggregates discoveries and skips discarded jobs", async () => {
   const persisted: Array<{ sourceUrl: string; classificationStatus: string }> = [];
@@ -64,6 +88,7 @@ test("runMonitoringForCompany aggregates discoveries and skips discarded jobs", 
           id: persisted.length,
           created: true,
           promotedToApplicationId: null,
+          leadSnapshot: createMockLeadSnapshot({ sourceUrl: lead.sourceUrl, title: lead.title }),
         };
       },
     },
@@ -127,6 +152,7 @@ test("runMonitoringForCompany skips classification failures without persisting b
           id: persisted.length,
           created: true,
           promotedToApplicationId: null,
+          leadSnapshot: createMockLeadSnapshot({ sourceUrl: lead.sourceUrl, title: lead.title }),
         };
       },
     },
@@ -200,6 +226,7 @@ test("runMonitoringForCompany applies discovery hints before classification and 
           id: 1,
           created: true,
           promotedToApplicationId: null,
+          leadSnapshot: createMockLeadSnapshot({ sourceUrl: lead.sourceUrl, title: lead.title }),
         };
       },
     },

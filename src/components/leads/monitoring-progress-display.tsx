@@ -1,11 +1,10 @@
 "use client";
 
-import { X } from "lucide-react";
+import { X, Radar } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import ShinyText from "@/components/ui/shiny-text";
-import type { MonitoringStreamEvent } from "@/lib/job-monitoring/types";
 
 type MonitoringProgressEvent = {
   id: string;
@@ -29,7 +28,9 @@ type MonitoringProgressDisplayProps = {
     discarded: number;
     failed: number;
   };
+  result?: { success: boolean } | null;
   onCancel: () => void;
+  onDismiss: () => void;
 };
 
 const animationStyle = `
@@ -57,7 +58,9 @@ export function MonitoringProgressDisplay({
   linksTotal,
   events,
   stats,
+  result,
   onCancel,
+  onDismiss,
 }: MonitoringProgressDisplayProps) {
   if (!isRunning && events.length === 0) {
     return null;
@@ -65,108 +68,139 @@ export function MonitoringProgressDisplay({
 
   const currentEvent = events[0];
 
+  const getHeaderTitle = () => {
+    if (isRunning) return "Monitoramento em andamento";
+    if (result?.success === true) return "Radar concluído";
+    if (result?.success === false) return "Radar falhou";
+    return "Último monitoramento";
+  };
+
+  const getHeaderTitleColor = () => {
+    if (isRunning) return "";
+    if (result?.success === true) return "text-emerald-600";
+    if (result?.success === false) return "text-destructive";
+    return "";
+  };
+
   return (
     <>
       <style>{animationStyle}</style>
-      <div className="mb-6 space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h3 className="text-lg font-semibold">
-              {isRunning ? "Monitoramento em andamento" : "Último monitoramento"}
-            </h3>
-            {currentCompany && (
-              <p className="text-sm text-muted-foreground">
-                {currentCompany} ({companyIndex}/{totalCompanies})
-                {linksTotal > 0 && ` • ${linksProcessed}/${linksTotal} vagas processadas`}
-              </p>
-            )}
-          </div>
-
-          {isRunning && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onCancel}
-              className="rounded-lg"
-            >
-              <X className="size-4" />
-              Cancelar
-            </Button>
-          )}
-        </div>
-
-        {/* Current Action - Animated */}
-        {currentEvent && (
-          <Card className="border-border/60 bg-card/50">
-            <CardContent className="pt-4">
-              <div className="animate-fade-in-up">
-                <TimelineEvent event={currentEvent} hideTime={true} isCurrentAction={true} />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Progress Bars */}
-        {isRunning && companyIndex > 0 && (
-          <div className="space-y-2">
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">
-                Empresas: {companyIndex}/{totalCompanies}
-              </p>
-              <div className="h-2 w-full rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all"
-                  style={{
-                    width: `${(companyIndex / totalCompanies) * 100}%`,
-                  }}
-                />
+      <Card className="border-border/60 bg-card/85">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <Radar className="size-5 text-muted-foreground shrink-0" />
+              <div className="space-y-1 flex-1">
+                <h3 className={cn("text-lg font-semibold", getHeaderTitleColor())}>
+                  {getHeaderTitle()}
+                </h3>
+                {currentCompany && (
+                  <p className="text-sm text-muted-foreground">
+                    {currentCompany} ({companyIndex}/{totalCompanies})
+                    {linksTotal > 0 && ` • ${linksProcessed}/${linksTotal} vagas processadas`}
+                  </p>
+                )}
               </div>
             </div>
 
-            {linksTotal > 0 && (
+            {isRunning && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onCancel}
+                className="rounded-lg"
+              >
+                <X className="size-4" />
+                Cancelar
+              </Button>
+            )}
+
+            {!isRunning && events.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onDismiss}
+                className="rounded-lg"
+              >
+                Fechar
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+
+          {/* Current Action - Animated */}
+          {currentEvent && (
+            <Card className="border-border/60 bg-card/50">
+              <CardContent className="pt-4">
+                <div className="animate-fade-in-up">
+                  <TimelineEvent event={currentEvent} hideTime={true} isCurrentAction={true} />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Progress Bars */}
+          {isRunning && companyIndex > 0 && (
+            <div className="space-y-2">
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">
-                  Vagas: {linksProcessed}/{linksTotal}
+                  Empresas: {companyIndex}/{totalCompanies}
                 </p>
                 <div className="h-2 w-full rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all"
+                    className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all"
                     style={{
-                      width: `${(linksProcessed / linksTotal) * 100}%`,
+                      width: `${(companyIndex / totalCompanies) * 100}%`,
                     }}
                   />
                 </div>
               </div>
-            )}
+
+              {linksTotal > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Vagas: {linksProcessed}/{linksTotal}
+                  </p>
+                  <div className="h-2 w-full rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all"
+                      style={{
+                        width: `${(linksProcessed / linksTotal) * 100}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-4 gap-2">
+            <StatBox
+              label="Salvos"
+              value={stats.leadsSaved}
+              className="bg-emerald-500/10 border-emerald-500/20"
+            />
+            <StatBox
+              label="Revisar"
+              value={stats.reviewsSaved}
+              className="bg-amber-500/10 border-amber-500/20"
+            />
+            <StatBox
+              label="Descartados"
+              value={stats.discarded}
+              className="bg-red-500/10 border-red-500/20"
+            />
+            <StatBox
+              label="Falhas"
+              value={stats.failed}
+              className="bg-orange-500/10 border-orange-500/20"
+            />
           </div>
-        )}
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-4 gap-2">
-          <StatBox
-            label="Salvos"
-            value={stats.leadsSaved}
-            className="bg-emerald-500/10 border-emerald-500/20"
-          />
-          <StatBox
-            label="Revisar"
-            value={stats.reviewsSaved}
-            className="bg-amber-500/10 border-amber-500/20"
-          />
-          <StatBox
-            label="Descartados"
-            value={stats.discarded}
-            className="bg-red-500/10 border-red-500/20"
-          />
-          <StatBox
-            label="Falhas"
-            value={stats.failed}
-            className="bg-orange-500/10 border-orange-500/20"
-          />
-        </div>
-
-      </div>
+        </CardContent>
+      </Card>
     </>
   );
 }
@@ -202,13 +236,6 @@ function TimelineEvent({
     minute: "2-digit",
     second: "2-digit",
   });
-
-  const iconColor = {
-    "company-start": "text-blue-500",
-    "link-done": "text-emerald-500",
-    "company-done": "text-amber-500",
-    error: "text-red-500",
-  }[event.type];
 
   const dotColor = {
     "company-start": "bg-blue-500",

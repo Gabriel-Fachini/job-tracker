@@ -1,11 +1,20 @@
 import { and, eq } from "drizzle-orm";
 
+import type { LeadListItem } from "@/components/leads/types";
 import { db } from "@/lib/db";
-import { jobLeads } from "@/lib/db/schema";
+import { companies, jobLeads } from "@/lib/db/schema";
+import { mapRawLeadToListItem } from "@/lib/job-leads/mapper";
 
 import type { PersistableLead } from "./types";
 
-export function upsertJobLead(lead: PersistableLead) {
+export function upsertJobLead(
+  lead: PersistableLead,
+): {
+  id: number;
+  created: boolean;
+  promotedToApplicationId: number | null;
+  leadSnapshot: LeadListItem;
+} {
   const now = new Date();
   const existing = db
     .select({
@@ -40,10 +49,40 @@ export function upsertJobLead(lead: PersistableLead) {
       .where(eq(jobLeads.id, existing.id))
       .run();
 
+    // Query the updated lead with company info
+    const leadRow = db
+      .select({
+        id: jobLeads.id,
+        title: jobLeads.title,
+        sourceUrl: jobLeads.sourceUrl,
+        sourceName: jobLeads.sourceName,
+        description: jobLeads.description,
+        workModel: jobLeads.workModel,
+        seniority: jobLeads.seniority,
+        locationText: jobLeads.locationText,
+        salaryText: jobLeads.salaryText,
+        classificationStatus: jobLeads.classificationStatus,
+        classificationScore: jobLeads.classificationScore,
+        classificationReason: jobLeads.classificationReason,
+        userDecision: jobLeads.userDecision,
+        promotedToApplicationId: jobLeads.promotedToApplicationId,
+        discoveredAt: jobLeads.discoveredAt,
+        updatedAt: jobLeads.updatedAt,
+        companyId: companies.id,
+        companyName: companies.name,
+      })
+      .from(jobLeads)
+      .innerJoin(companies, eq(jobLeads.companyId, companies.id))
+      .where(eq(jobLeads.id, existing.id))
+      .get();
+
+    const leadSnapshot = mapRawLeadToListItem(leadRow!);
+
     return {
       id: existing.id,
       created: false,
       promotedToApplicationId: existing.promotedToApplicationId,
+      leadSnapshot,
     };
   }
 
@@ -71,9 +110,39 @@ export function upsertJobLead(lead: PersistableLead) {
     .returning({ id: jobLeads.id })
     .get();
 
+  // Query the inserted lead with company info
+  const leadRow = db
+    .select({
+      id: jobLeads.id,
+      title: jobLeads.title,
+      sourceUrl: jobLeads.sourceUrl,
+      sourceName: jobLeads.sourceName,
+      description: jobLeads.description,
+      workModel: jobLeads.workModel,
+      seniority: jobLeads.seniority,
+      locationText: jobLeads.locationText,
+      salaryText: jobLeads.salaryText,
+      classificationStatus: jobLeads.classificationStatus,
+      classificationScore: jobLeads.classificationScore,
+      classificationReason: jobLeads.classificationReason,
+      userDecision: jobLeads.userDecision,
+      promotedToApplicationId: jobLeads.promotedToApplicationId,
+      discoveredAt: jobLeads.discoveredAt,
+      updatedAt: jobLeads.updatedAt,
+      companyId: companies.id,
+      companyName: companies.name,
+    })
+    .from(jobLeads)
+    .innerJoin(companies, eq(jobLeads.companyId, companies.id))
+    .where(eq(jobLeads.id, inserted.id))
+    .get();
+
+  const leadSnapshot = mapRawLeadToListItem(leadRow!);
+
   return {
     id: inserted.id,
     created: true,
     promotedToApplicationId: null,
+    leadSnapshot,
   };
 }

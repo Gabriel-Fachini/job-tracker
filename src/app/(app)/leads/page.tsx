@@ -5,7 +5,7 @@ import { LeadsClient } from "@/components/leads/leads-client";
 import type { LeadListItem } from "@/components/leads/types";
 import { db } from "@/lib/db";
 import { companies, jobLeads } from "@/lib/db/schema";
-import { isJobLeadStatus, isJobLeadUserDecision } from "@/lib/job-leads";
+import { mapRawLeadToListItem } from "@/lib/job-leads/mapper";
 
 export default async function LeadsPage() {
   const items = db
@@ -34,17 +34,7 @@ export default async function LeadsPage() {
     .where(ne(jobLeads.classificationStatus, "discarded"))
     .orderBy(desc(jobLeads.updatedAt))
     .all()
-    .map(
-      (item): LeadListItem => ({
-        ...item,
-        classificationStatus: isJobLeadStatus(item.classificationStatus)
-          ? item.classificationStatus
-          : "review",
-        userDecision: isJobLeadUserDecision(item.userDecision)
-          ? item.userDecision
-          : "none",
-      }),
-    );
+    .map(mapRawLeadToListItem);
 
   const companyOptions = db
     .select({

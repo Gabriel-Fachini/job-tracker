@@ -1,5 +1,6 @@
 import pLimit from "p-limit";
 
+import { formatJobDescriptionAsMarkdown } from "@/lib/ai/openai";
 import { classifyJobLead } from "./classification";
 import { discoverJobLinks } from "./discovery";
 import { extractJobDetail } from "./extraction";
@@ -98,6 +99,30 @@ export async function runMonitoringForCompany(
         }
 
         job = applyDiscoveryHints(job, link.text);
+
+        // Format job description as markdown if enabled
+        if (
+          process.env.OPENAI_FORMAT_JOB_DESCRIPTIONS === "true" &&
+          job.description &&
+          !(/\n\n/.test(job.description) || /^#|^- |^\* |\*\*/m.test(job.description))
+        ) {
+          try {
+            const formatted = await formatJobDescriptionAsMarkdown(job.description);
+            job = { ...job, description: formatted };
+            logMonitoringStep(company.name, "description-formatted", {
+              url: job.sourceUrl,
+              title: job.title,
+            });
+          } catch (error) {
+            logMonitoringStep(company.name, "description-format-failed", {
+              url: job.sourceUrl,
+              title: job.title,
+              error: getErrorMessage(error),
+            });
+            // Keep original description on error
+          }
+        }
+
         logMonitoringStep(company.name, "job-extracted", {
           url: job.sourceUrl,
           title: job.title,
@@ -181,7 +206,7 @@ export async function runMonitoringForCompany(
 
     summary.jobsParsed += 1;
 
-    upsertJobLeadFn({
+    const upsertResult = upsertJobLeadFn({
       companyId: company.id,
       title: job.title ?? link.text ?? "Vaga monitorada",
       sourceUrl: job.sourceUrl,
@@ -217,6 +242,7 @@ export async function runMonitoringForCompany(
         decision: classification.decision,
         processed: processedCount,
         total: links.length,
+        lead: upsertResult.leadSnapshot,
       });
     }
   }

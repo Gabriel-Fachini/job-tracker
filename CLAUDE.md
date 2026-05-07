@@ -24,6 +24,15 @@
 - Phase 2: Sequential upsert + stats accumulation
 - Per-link events emitted for granular UI updates
 
+## Job Description Formatting
+
+**Optional OpenAI Formatting:**
+- `OPENAI_FORMAT_JOB_DESCRIPTIONS=true|false` (default: `false`)
+- When enabled, descriptions lacking markdown structure (no `\n\n`, `#`, `-`, `*`, `**`) are reformatted via OpenAI (gpt-4o-mini) during Phase 1 extraction
+- Converts unstructured HTML/text into clean markdown with sections, lists, and bold terms
+- Non-blocking: format errors log and keep original description
+- Controlled via environment variable to manage API costs
+
 ## Database Backups
 
 **Before any database schema changes or migrations:**

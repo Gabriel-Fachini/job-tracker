@@ -273,6 +273,55 @@ export async function callOpenAiForComparisonDetailed(
   }
 }
 
+export async function formatJobDescriptionAsMarkdown(
+  rawText: string,
+): Promise<string> {
+  const cleanedText = rawText.trim();
+
+  if (!cleanedText) {
+    throw new OpenAiComparisonError(
+      "Cannot format an empty job description.",
+    );
+  }
+
+  const { apiKey } = getOpenAiComparisonConfig();
+  const client = new OpenAI({ apiKey });
+  const model = "gpt-4o-mini";
+
+  const systemPrompt = `Você reformata descrições de vaga em markdown limpo. Use ## para seções (Responsabilidades, Requisitos, Benefícios, Sobre a empresa, etc), listas com \`-\`, **negrito** para tecnologias e termos-chave. NÃO invente, remova ou parafraseie conteúdo. Mantenha o idioma original. Retorne apenas o markdown sem cercas \`\`\`.`;
+
+  let response: Response;
+
+  try {
+    response = await client.responses.create({
+      model,
+      max_output_tokens: 4000,
+      input: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: cleanedText },
+      ],
+    });
+  } catch (error) {
+    if (error instanceof OpenAiComparisonError) throw error;
+    if (error instanceof Error) {
+      throw new OpenAiComparisonError(
+        `OpenAI job description formatting failed: ${error.message}`,
+      );
+    }
+    throw new OpenAiComparisonError(
+      "OpenAI job description formatting failed for an unknown reason.",
+    );
+  }
+
+  if (!response.output_text?.trim()) {
+    throw new OpenAiComparisonError(
+      "OpenAI job description formatting did not return output_text.",
+    );
+  }
+
+  return response.output_text.trim();
+}
+
 export async function extractProfileWithOpenAi(
   rawText: string,
 ): Promise<ExtractedProfile> {

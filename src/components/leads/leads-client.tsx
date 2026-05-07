@@ -7,6 +7,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   BriefcaseBusiness,
   ExternalLink,
+  Globe,
+  MapPin,
   Radar,
   ScanSearch,
   Search,
@@ -48,7 +50,6 @@ import {
   approveLead,
   discardLead,
   promoteApprovedLeadToApplication,
-  runAllCompaniesMonitoring,
 } from "@/server/actions/job-monitoring";
 
 type LeadsClientProps = {
@@ -99,6 +100,7 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
   const [monitoringProgress, setMonitoringProgress] = useState<MonitoringProgress | null>(
     null
   );
+  const [liveItems, setLiveItems] = useState<LeadListItem[]>(items);
 
   const activeTab = normalizeLeadTab(searchParams.get("tab"));
   const filters = normalizeLeadFilters({
@@ -115,7 +117,7 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
     [companies],
   );
 
-  const tabItems = items.filter((item) => {
+  const tabItems = liveItems.filter((item) => {
     if (item.promotedToApplicationId !== null) {
       return false;
     }
@@ -154,10 +156,10 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
     return haystack.includes(filters.q);
   });
 
-  const triageCount = items.filter(
+  const triageCount = liveItems.filter(
     (item) => item.userDecision === "none" && item.promotedToApplicationId === null,
   ).length;
-  const approvedCount = items.filter(
+  const approvedCount = liveItems.filter(
     (item) => item.userDecision === "approved" && item.promotedToApplicationId === null,
   ).length;
   const reviewCount = filteredItems.filter(
@@ -232,9 +234,16 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
           <MonitoringRunButton
             label="Rodar radar completo"
             pendingLabel="Rodando radar..."
-            className="h-11 rounded-xl bg-amber-300 px-6 text-zinc-950 hover:bg-amber-200"
+            className="h-11 rounded-xl bg-amber-300 px-5 text-zinc-950 hover:bg-amber-200 inline-flex items-center justify-center gap-2 whitespace-nowrap"
             useStream
             onProgressChange={setMonitoringProgress}
+            onLeadAppended={(lead) =>
+              setLiveItems((prev) =>
+                prev.some((i) => i.id === lead.id)
+                  ? prev.map((i) => (i.id === lead.id ? lead : i))
+                  : [lead, ...prev]
+              )
+            }
           />
         </div>
 
@@ -248,12 +257,14 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
             linksTotal={monitoringProgress.linksTotal}
             events={monitoringProgress.events}
             stats={monitoringProgress.stats}
+            result={monitoringProgress.result}
             onCancel={() => {
               if (monitoringProgress.eventSource) {
                 monitoringProgress.eventSource.close();
                 setMonitoringProgress(null);
               }
             }}
+            onDismiss={() => setMonitoringProgress(null)}
           />
         )}
 
@@ -521,11 +532,40 @@ function LeadCard({
           <LeadStatusBadge status={lead.classificationStatus} />
         </div>
 
-        <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.14em] text-muted-foreground">
-          {lead.classificationScore !== null ? <span>Score {lead.classificationScore}</span> : null}
-          {lead.seniority ? <span>{formatSeniority(lead.seniority)}</span> : null}
-          {lead.workModel ? <span>{formatWorkModel(lead.workModel)}</span> : null}
-          {lead.locationText ? <span>{lead.locationText}</span> : null}
+        <div className="flex flex-wrap gap-2">
+          {lead.classificationScore !== null && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
+                lead.classificationScore >= 80
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+                  : lead.classificationScore >= 50
+                    ? "border-amber-500/30 bg-amber-500/10 text-amber-700"
+                    : "border-muted-foreground/30 bg-muted text-muted-foreground"
+              )}
+            >
+              <Radar className="size-3" />
+              Score {lead.classificationScore}
+            </span>
+          )}
+          {lead.seniority && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-700">
+              <Sparkles className="size-3" />
+              {formatSeniority(lead.seniority)}
+            </span>
+          )}
+          {lead.workModel && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-500/30 bg-slate-500/10 px-2.5 py-1 text-xs font-medium text-slate-700">
+              <Globe className="size-3" />
+              {formatWorkModel(lead.workModel)}
+            </span>
+          )}
+          {lead.locationText && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-xs font-medium text-sky-700">
+              <MapPin className="size-3" />
+              {lead.locationText}
+            </span>
+          )}
         </div>
       </CardHeader>
 
