@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   integer,
   sqliteTable,
@@ -165,6 +165,7 @@ export const jobLeads = sqliteTable(
       () => applications.id,
     ),
     discoveredAt: integer("discovered_at", { mode: "timestamp" }).notNull(),
+    lastViewed: integer("last_viewed", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
   (table) => [

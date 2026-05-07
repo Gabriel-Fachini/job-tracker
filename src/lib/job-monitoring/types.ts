@@ -57,13 +57,14 @@ export type JobLeadClassification = {
 export type PersistableLead = ExtractedJobDetail & {
   companyId: number;
   title: string;
-  classificationStatus: Exclude<JobLeadStatus, "discarded">;
+  classificationStatus: JobLeadStatus;
   classificationScore: number;
   classificationReason: string;
 };
 
 export type MonitoringSummary = {
   linksFound: number;
+  skippedLinks: number;
   jobsParsed: number;
   leadsSaved: number;
   reviewsSaved: number;
@@ -81,6 +82,7 @@ export type MonitoringStreamEvent =
   | { type: "start"; total: number }
   | { type: "company-start"; company: string; index: number; total: number }
   | { type: "link-processing"; company: string; title: string | null; processed: number; total: number }
+  | { type: "link-skipped"; url: string; companyId: number }
   | { type: "link-done"; company: string; title: string; decision: JobLeadStatus; processed: number; total: number; lead?: LeadListItem }
   | { type: "company-done"; company: string; summary: MonitoringSummary }
   | { type: "all-done"; summary: MonitoringSummary }

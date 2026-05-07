@@ -5,7 +5,7 @@ import { classifyJobLead } from "./classification";
 import { discoverJobLinks } from "./discovery";
 import { extractJobDetail } from "./extraction";
 import { logMonitoringStep } from "./logger";
-import { upsertJobLead } from "./persistence";
+import { getExistingJobLeadUrls, touchLastViewed, upsertJobLead } from "./persistence";
 import type {
   ClassificationContext,
   MonitoringCompany,
@@ -51,19 +51,43 @@ export async function runMonitoringForCompany(
 
   const discoveryStart = Date.now();
   const links = await discoverJobLinksFn(company);
+  logMonitoringStep(company.name, "discovery-finished", {
+    linksFound: links.length,
+    durationMs: Date.now() - discoveryStart,
+  });
+
+  // Filter already-processed links
+  const existingUrls = getExistingJobLeadUrls(
+    company.id,
+    links.map((l) => l.url),
+  );
+  const newLinks = links.filter((l) => !existingUrls.has(l.url));
+  const skippedCount = links.length - newLinks.length;
+
+  const skippedUrls: string[] = [];
+  for (const link of links) {
+    if (existingUrls.has(link.url)) {
+      skippedUrls.push(link.url);
+      onEvent?.({ type: "link-skipped", url: link.url, companyId: company.id });
+    }
+  }
+  touchLastViewed(company.id, skippedUrls);
+
+  logMonitoringStep(company.name, "skip-filter-applied", {
+    total: links.length,
+    newLinks: newLinks.length,
+    skipped: skippedCount,
+  });
+
   const summary: MonitoringSummary = {
     linksFound: links.length,
+    skippedLinks: skippedCount,
     jobsParsed: 0,
     leadsSaved: 0,
     reviewsSaved: 0,
     discarded: 0,
     failed: 0,
   };
-
-  logMonitoringStep(company.name, "discovery-finished", {
-    linksFound: links.length,
-    durationMs: Date.now() - discoveryStart,
-  });
 
   // Phase 1: Extract + Classify in parallel with concurrency limit
   const limit = pLimit(LINK_PROCESSING_CONCURRENCY);
@@ -77,12 +101,12 @@ export async function runMonitoringForCompany(
   let phase1Count = 0;
 
   const results = await Promise.allSettled(
-    links.map((link, index) =>
+    newLinks.map((link, index) =>
       limit(async (): Promise<ProcessLinkResult> => {
         try {
         logMonitoringStep(company.name, "processing-link", {
           current: index + 1,
-          total: links.length,
+          total: newLinks.length,
           url: link.url,
           hint: link.text,
         });
@@ -185,7 +209,7 @@ export async function runMonitoringForCompany(
             company: company.name,
             title: link.text,
             processed: phase1Count,
-            total: links.length,
+            total: newLinks.length,
           });
         }
       })
@@ -212,27 +236,6 @@ export async function runMonitoringForCompany(
       continue;
     }
 
-    if (classification.decision === "discarded") {
-      summary.discarded += 1;
-      logMonitoringStep(company.name, "lead-discarded", {
-        url: job.sourceUrl,
-        title: job.title,
-      });
-      if (onEvent) {
-        onEvent({
-          type: "link-done",
-          company: company.name,
-          title: job.title ?? link.text ?? "Vaga monitorada",
-          decision: classification.decision,
-          processed: processedCount,
-          total: links.length,
-        });
-      }
-      continue;
-    }
-
-    summary.jobsParsed += 1;
-
     const upsertStart = Date.now();
     const upsertResult = upsertJobLeadFn({
       companyId: company.id,
@@ -248,6 +251,27 @@ export async function runMonitoringForCompany(
       classificationScore: classification.score,
       classificationReason: classification.reason,
     });
+
+    if (classification.decision === "discarded") {
+      summary.discarded += 1;
+      logMonitoringStep(company.name, "lead-discarded", {
+        url: job.sourceUrl,
+        title: job.title,
+      });
+      if (onEvent) {
+        onEvent({
+          type: "link-done",
+          company: company.name,
+          title: job.title ?? link.text ?? "Vaga monitorada",
+          decision: classification.decision,
+          processed: processedCount,
+          total: newLinks.length,
+        });
+      }
+      continue;
+    }
+
+    summary.jobsParsed += 1;
 
     logMonitoringStep(company.name, "lead-persisted", {
       url: job.sourceUrl,
@@ -272,7 +296,7 @@ export async function runMonitoringForCompany(
         title: job.title ?? link.text ?? "Vaga monitorada",
         decision: classification.decision,
         processed: processedCount,
-        total: links.length,
+        total: newLinks.length,
         lead: upsertResult.leadSnapshot,
       });
     }
@@ -358,6 +382,7 @@ function detectHintedSeniority(text: string) {
 function emptySummary(): MonitoringSummary {
   return {
     linksFound: 0,
+    skippedLinks: 0,
     jobsParsed: 0,
     leadsSaved: 0,
     reviewsSaved: 0,

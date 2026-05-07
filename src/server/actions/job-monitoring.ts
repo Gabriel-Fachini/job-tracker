@@ -259,13 +259,14 @@ export async function runAllCompaniesMonitoringStream(
   const accumulatedSummary = companyResults.reduce(
     (acc, r) => ({
       linksFound: acc.linksFound + r.summary.linksFound,
+      skippedLinks: acc.skippedLinks + r.summary.skippedLinks,
       jobsParsed: acc.jobsParsed + r.summary.jobsParsed,
       leadsSaved: acc.leadsSaved + r.summary.leadsSaved,
       reviewsSaved: acc.reviewsSaved + r.summary.reviewsSaved,
       discarded: acc.discarded + r.summary.discarded,
       failed: acc.failed + r.summary.failed,
     }),
-    { linksFound: 0, jobsParsed: 0, leadsSaved: 0, reviewsSaved: 0, discarded: 0, failed: 0 },
+    { linksFound: 0, skippedLinks: 0, jobsParsed: 0, leadsSaved: 0, reviewsSaved: 0, discarded: 0, failed: 0 },
   );
 
   setRunStats({
@@ -570,6 +571,7 @@ function isValidUrl(value: string) {
 function emptySummary(): MonitoringSummary {
   return {
     linksFound: 0,
+    skippedLinks: 0,
     jobsParsed: 0,
     leadsSaved: 0,
     reviewsSaved: 0,
@@ -580,6 +582,7 @@ function emptySummary(): MonitoringSummary {
 
 function accumulateSummary(target: MonitoringSummary, next: MonitoringSummary) {
   target.linksFound += next.linksFound;
+  target.skippedLinks += next.skippedLinks;
   target.jobsParsed += next.jobsParsed;
   target.leadsSaved += next.leadsSaved;
   target.reviewsSaved += next.reviewsSaved;

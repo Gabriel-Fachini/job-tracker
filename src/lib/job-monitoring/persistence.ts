@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import type { LeadListItem } from "@/components/leads/types";
 import { db } from "@/lib/db";
@@ -6,6 +6,41 @@ import { companies, jobLeads } from "@/lib/db/schema";
 import { mapRawLeadToListItem } from "@/lib/job-leads/mapper";
 
 import type { PersistableLead } from "./types";
+
+export function touchLastViewed(companyId: number, sourceUrls: string[]): void {
+  if (sourceUrls.length === 0) return;
+
+  const now = new Date();
+  db.update(jobLeads)
+    .set({ lastViewed: now })
+    .where(
+      and(
+        eq(jobLeads.companyId, companyId),
+        inArray(jobLeads.sourceUrl, sourceUrls),
+      ),
+    )
+    .run();
+}
+
+export function getExistingJobLeadUrls(
+  companyId: number,
+  sourceUrls: string[],
+): Set<string> {
+  if (sourceUrls.length === 0) return new Set();
+
+  const rows = db
+    .select({ sourceUrl: jobLeads.sourceUrl })
+    .from(jobLeads)
+    .where(
+      and(
+        eq(jobLeads.companyId, companyId),
+        inArray(jobLeads.sourceUrl, sourceUrls),
+      ),
+    )
+    .all();
+
+  return new Set(rows.map((r) => r.sourceUrl));
+}
 
 export function upsertJobLead(
   lead: PersistableLead,
@@ -44,6 +79,7 @@ export function upsertJobLead(
         classificationStatus: lead.classificationStatus,
         classificationScore: lead.classificationScore,
         classificationReason: lead.classificationReason,
+        lastViewed: now,
         updatedAt: now,
       })
       .where(eq(jobLeads.id, existing.id))
@@ -105,6 +141,7 @@ export function upsertJobLead(
       userDecisionAt: null,
       promotedToApplicationId: null,
       discoveredAt: now,
+      lastViewed: now,
       updatedAt: now,
     })
     .returning({ id: jobLeads.id })
