@@ -45,6 +45,17 @@ const animationStyle = `
   .animate-fade-in-up {
     animation: fadeInUp 0.3s ease-out;
   }
+  @keyframes shimmer {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+  .animate-shimmer {
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
 `;
 
 export function MonitoringProgressDisplay({
@@ -63,7 +74,6 @@ export function MonitoringProgressDisplay({
   }
 
   const currentEvent = events[0];
-  const previousEvents = events.slice(1);
 
   return (
     <>
@@ -101,7 +111,7 @@ export function MonitoringProgressDisplay({
           <Card className="border-border/60 bg-card/50">
             <CardContent className="pt-4">
               <div className="animate-fade-in-up">
-                <TimelineEvent event={currentEvent} />
+                <TimelineEvent event={currentEvent} hideTime={true} isCurrentAction={true} />
               </div>
             </CardContent>
           </Card>
@@ -166,19 +176,6 @@ export function MonitoringProgressDisplay({
           />
         </div>
 
-        {/* Timeline History */}
-        {previousEvents.length > 0 && (
-          <Card className="border-border/60 bg-card/50">
-            <CardContent className="pt-4">
-              <p className="text-xs font-medium text-muted-foreground mb-3">Histórico</p>
-              <div className="max-h-40 space-y-2 overflow-y-auto">
-                {previousEvents.map((event) => (
-                  <TimelineEvent key={event.id} event={event} />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </>
   );
@@ -201,7 +198,15 @@ function StatBox({
   );
 }
 
-function TimelineEvent({ event }: { event: MonitoringProgressEvent }) {
+function TimelineEvent({
+  event,
+  hideTime = false,
+  isCurrentAction = false,
+}: {
+  event: MonitoringProgressEvent;
+  hideTime?: boolean;
+  isCurrentAction?: boolean;
+}) {
   const timeStr = event.timestamp.toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
@@ -223,14 +228,31 @@ function TimelineEvent({ event }: { event: MonitoringProgressEvent }) {
   }[event.type];
 
   return (
-    <div className="flex gap-3 text-xs">
-      <div className={cn("mt-1 size-2 rounded-full shrink-0", dotColor)} />
+    <div className={cn("flex gap-3", isCurrentAction ? "text-lg" : "text-xs")}>
+      <div
+        className={cn(
+          "mt-1 size-2 rounded-full shrink-0",
+          dotColor,
+          isCurrentAction && "size-3"
+        )}
+      />
       <div className="flex-1 space-y-0.5">
         <div className="flex items-center justify-between gap-2">
-          <p className="font-medium text-foreground">{event.message}</p>
-          <span className="text-muted-foreground">{timeStr}</span>
+          <p
+            className={cn(
+              "font-medium text-foreground",
+              isCurrentAction && "animate-shimmer text-base font-semibold"
+            )}
+          >
+            {event.message}
+          </p>
+          {!hideTime && <span className="text-muted-foreground">{timeStr}</span>}
         </div>
-        {event.detail && <p className="text-muted-foreground">{event.detail}</p>}
+        {event.detail && (
+          <p className={cn("text-muted-foreground", isCurrentAction && "text-sm")}>
+            {event.detail}
+          </p>
+        )}
       </div>
     </div>
   );

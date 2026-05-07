@@ -65,6 +65,7 @@ export function EditCompanySheet({
   canDelete,
 }: EditCompanySheetProps) {
   const [open, setOpen] = useState(hasValidationError || hasLinkedApplicationsError);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -85,7 +86,10 @@ export function EditCompanySheet({
           </SheetDescription>
         </SheetHeader>
 
-        <form action={action} className="flex min-h-0 flex-1 flex-col overflow-hidden gap-0">
+        <form
+          action={isDeleting ? deleteAction : action}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden gap-0"
+        >
           <ScrollArea className="flex-1 min-h-0">
             <div className="flex flex-col gap-8 px-6 py-6">
               {hasValidationError ? (
@@ -275,7 +279,7 @@ export function EditCompanySheet({
             ) : null}
             <button
               type="submit"
-              formAction={deleteAction}
+              onClick={() => setIsDeleting(true)}
               disabled={!canDelete}
               className="w-full inline-flex h-10 items-center justify-center rounded-xl bg-destructive px-4 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
