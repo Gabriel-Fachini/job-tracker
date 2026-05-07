@@ -24,8 +24,9 @@ import { FormSubmitButton } from "@/components/companies/form-submit-button";
 import { LeadDetailModal } from "@/components/leads/lead-detail-modal";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
 import type { LeadListItem, LeadTab } from "@/components/leads/types";
-import { MonitoringRunButton, type MonitoringProgress } from "@/components/leads/monitoring-run-button";
+import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
 import { MonitoringProgressDisplay } from "@/components/leads/monitoring-progress-display";
+import { useMonitoringProgress } from "@/components/leads/monitoring-progress-context";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -97,9 +98,8 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [createLead, setCreateLead] = useState<LeadListItem | null>(null);
-  const [monitoringProgress, setMonitoringProgress] = useState<MonitoringProgress | null>(
-    null
-  );
+  const [showProgressDisplay, setShowProgressDisplay] = useState(true);
+  const monitoringProgress = useMonitoringProgress();
   const [liveItems, setLiveItems] = useState<LeadListItem[]>(items);
 
   const activeTab = normalizeLeadTab(searchParams.get("tab"));
@@ -236,24 +236,10 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
             pendingLabel="Rodando radar..."
             className="h-11 rounded-xl bg-amber-300 px-5 text-zinc-950 hover:bg-amber-200"
             useStream
-            onProgressChange={setMonitoringProgress}
-            onLeadAppended={(lead) => {
-              const normalizedLead = {
-                ...lead,
-                discoveredAt: new Date(lead.discoveredAt),
-                updatedAt: new Date(lead.updatedAt),
-              };
-              setLiveItems((prev) =>
-                prev.some((i) => i.id === normalizedLead.id)
-                  ? prev.map((i) => (i.id === normalizedLead.id ? normalizedLead : i))
-                  : [normalizedLead, ...prev]
-              );
-            }}
-            onComplete={() => startTransition(() => router.refresh())}
           />
         </div>
 
-        {monitoringProgress && (
+        {monitoringProgress && showProgressDisplay && (
           <MonitoringProgressDisplay
             isRunning={monitoringProgress.isRunning}
             currentCompany={monitoringProgress.currentCompany}
@@ -264,13 +250,8 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
             events={monitoringProgress.events}
             stats={monitoringProgress.stats}
             result={monitoringProgress.result}
-            onCancel={() => {
-              if (monitoringProgress.eventSource) {
-                monitoringProgress.eventSource.close();
-                setMonitoringProgress(null);
-              }
-            }}
-            onDismiss={() => setMonitoringProgress(null)}
+            onCancel={() => monitoringProgress.eventSource?.close()}
+            onDismiss={() => setShowProgressDisplay(false)}
           />
         )}
 
