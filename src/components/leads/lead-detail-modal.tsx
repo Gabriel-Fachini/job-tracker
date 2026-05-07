@@ -66,16 +66,6 @@ export function LeadDetailModal({
                   </DialogDescription>
                 </div>
               </div>
-
-              <a
-                href={lead.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-xl")}
-              >
-                Abrir vaga
-                <ExternalLink data-icon="inline-end" className="size-3.5" />
-              </a>
             </div>
           </div>
         </DialogHeader>
@@ -157,33 +147,45 @@ export function LeadDetailModal({
         </ScrollArea>
 
         <div className="shrink-0 border-t border-border/60 px-6 py-4">
-          <div className="flex flex-wrap items-center justify-end gap-3">
-            {tab === "triage" ? (
-              <>
-                <form action={discardAction}>
-                  <FormSubmitButton
-                    pendingLabel="Descartando..."
-                    variant="outline"
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    Descartar
-                  </FormSubmitButton>
-                </form>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <a
+              href={lead.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-xl")}
+            >
+              Abrir vaga
+              <ExternalLink data-icon="inline-end" className="size-3.5" />
+            </a>
 
-                <form action={approveAction}>
-                  <FormSubmitButton
-                    pendingLabel="Aprovando..."
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    Aprovar lead
-                  </FormSubmitButton>
-                </form>
-              </>
-            ) : (
-              <Button type="button" onClick={() => onCreateApplication(lead)}>
-                Criar candidatura
-              </Button>
-            )}
+            <div className="flex flex-wrap items-center gap-3">
+              {tab === "triage" ? (
+                <>
+                  <form action={discardAction}>
+                    <FormSubmitButton
+                      pendingLabel="Descartando..."
+                      variant="outline"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      Descartar
+                    </FormSubmitButton>
+                  </form>
+
+                  <form action={approveAction}>
+                    <FormSubmitButton
+                      pendingLabel="Aprovando..."
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      Aprovar lead
+                    </FormSubmitButton>
+                  </form>
+                </>
+              ) : (
+                <Button type="button" onClick={() => onCreateApplication(lead)}>
+                  Criar candidatura
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </DialogContent>
