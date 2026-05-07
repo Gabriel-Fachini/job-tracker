@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseExtractedProfileResponse } from "@/lib/ai/ollama";
+import {
+  callOllamaLlm,
+  getOllamaConfig,
+  parseExtractedProfileResponse,
+  unloadOllamaModelIfLocal,
+} from "@/lib/ai/ollama";
 
 test("normaliza datas opcionais validas sem falhar a extração", () => {
   const parsed = parseExtractedProfileResponse(
@@ -81,4 +86,84 @@ test("aceita datas correntes opcionais como null", () => {
 
   assert.equal(parsed.experiences[0]?.endDate, null);
   assert.equal(parsed.experiences[0]?.isCurrent, true);
+});
+
+test("getOllamaConfig exige modo explicito e api key em cloud", () => {
+  const originalEnv = { ...process.env };
+
+  process.env.OLLAMA_RUNTIME_MODE = "cloud";
+  process.env.OLLAMA_BASE_URL = "https://ollama.com";
+  process.env.OLLAMA_MODEL = "qwen3:latest";
+  delete process.env.OLLAMA_API_KEY;
+
+  assert.throws(
+    () => getOllamaConfig(),
+    /Missing OLLAMA_API_KEY configuration for Ollama Cloud/,
+  );
+
+  process.env = originalEnv;
+});
+
+test("callOllamaLlm envia Authorization bearer em cloud", async () => {
+  const originalEnv = { ...process.env };
+  const originalFetch = global.fetch;
+
+  process.env.OLLAMA_RUNTIME_MODE = "cloud";
+  process.env.OLLAMA_BASE_URL = "https://ollama.com";
+  process.env.OLLAMA_MODEL = "qwen3:latest";
+  process.env.OLLAMA_API_KEY = "test-key";
+
+  let capturedAuthorization = "";
+
+  global.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    capturedAuthorization = headers.get("Authorization") ?? "";
+
+    return new Response(
+      JSON.stringify({
+        response: "{}",
+        done_reason: "stop",
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+  }) as typeof fetch;
+
+  try {
+    const response = await callOllamaLlm("ola");
+    assert.equal(response, "{}");
+    assert.equal(capturedAuthorization, "Bearer test-key");
+  } finally {
+    process.env = originalEnv;
+    global.fetch = originalFetch;
+  }
+});
+
+test("unloadOllamaModelIfLocal nao chama fetch em cloud", async () => {
+  const originalEnv = { ...process.env };
+  const originalFetch = global.fetch;
+
+  process.env.OLLAMA_RUNTIME_MODE = "cloud";
+  process.env.OLLAMA_BASE_URL = "https://ollama.com";
+  process.env.OLLAMA_MODEL = "qwen3:latest";
+  process.env.OLLAMA_API_KEY = "test-key";
+
+  let called = false;
+
+  global.fetch = (async () => {
+    called = true;
+    return new Response("{}");
+  }) as typeof fetch;
+
+  try {
+    await unloadOllamaModelIfLocal();
+    assert.equal(called, false);
+  } finally {
+    process.env = originalEnv;
+    global.fetch = originalFetch;
+  }
 });

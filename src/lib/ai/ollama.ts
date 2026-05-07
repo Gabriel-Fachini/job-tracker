@@ -3,9 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
-const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
-const DEFAULT_OLLAMA_MODEL = "gemma4:e4b";
-const DEFAULT_LOCAL_LLM_TIMEOUT_MS = 240_000;
+const DEFAULT_OLLAMA_TIMEOUT_MS = 240_000;
 const execFileAsync = promisify(execFile);
 
 const WORK_MODEL_PREFERENCES = ["remote", "hybrid", "onsite"] as const;
@@ -73,6 +71,7 @@ type WorkModelPreference = (typeof WORK_MODEL_PREFERENCES)[number];
 type SkillLevel = (typeof SKILL_LEVELS)[number];
 type SkillCategory = (typeof SKILL_CATEGORIES)[number];
 type JsonObject = Record<string, unknown>;
+type OllamaRuntimeMode = "local" | "cloud";
 
 export type ExtractedProfile = {
   profile: {
@@ -120,13 +119,21 @@ export type ExtractedProfile = {
   }>;
 };
 
-type CallLocalLlmOptions = {
+type CallOllamaLlmOptions = {
   system?: string;
   format?: "json" | JsonObject;
   timeoutMs?: number;
   think?: boolean;
   generationOptions?: JsonObject;
   keepAlive?: string | number;
+};
+
+export type OllamaRuntimeConfig = {
+  runtimeMode: OllamaRuntimeMode;
+  baseUrl: string;
+  model: string;
+  apiKey: string | null;
+  timeoutMs: number;
 };
 
 type OllamaGenerateResponse = {
@@ -156,50 +163,94 @@ export class ProfileExtractionError extends Error {
   }
 }
 
-export function getOllamaConfig() {
-  const baseUrl =
-    process.env.OLLAMA_CPP_BASE_URL ??
-    process.env.OLLAMA_BASE_URL ??
-    DEFAULT_OLLAMA_BASE_URL;
-  const model = process.env.OLLAMA_CPP_MODEL ?? DEFAULT_OLLAMA_MODEL;
+export function getOllamaConfig(): OllamaRuntimeConfig {
+  const runtimeMode = normalizeRuntimeMode(process.env.OLLAMA_RUNTIME_MODE);
+  const baseUrl = process.env.OLLAMA_BASE_URL?.trim();
+  const model = process.env.OLLAMA_MODEL?.trim();
+  const apiKey = process.env.OLLAMA_API_KEY?.trim() ?? "";
+  const timeoutMs = parseTimeoutMs(process.env.OLLAMA_TIMEOUT_MS);
+
+  if (!runtimeMode) {
+    throw new OllamaConfigurationError(
+      "Missing or invalid OLLAMA_RUNTIME_MODE configuration. Use \"local\" or \"cloud\".",
+    );
+  }
 
   if (!baseUrl) {
     throw new OllamaConfigurationError(
-      "Missing OLLAMA_CPP_BASE_URL configuration.",
+      "Missing OLLAMA_BASE_URL configuration for the Ollama runtime.",
     );
   }
 
   if (!model) {
     throw new OllamaConfigurationError(
-      "Missing OLLAMA_CPP_MODEL configuration.",
+      "Missing OLLAMA_MODEL configuration for the Ollama runtime.",
+    );
+  }
+
+  if (runtimeMode === "cloud" && !apiKey) {
+    throw new OllamaConfigurationError(
+      "Missing OLLAMA_API_KEY configuration for Ollama Cloud.",
     );
   }
 
   return {
+    runtimeMode,
     baseUrl: baseUrl.replace(/\/$/, ""),
     model,
+    apiKey: apiKey || null,
+    timeoutMs,
   };
 }
 
-export async function callLocalLlm(
+function normalizeRuntimeMode(value: string | undefined): OllamaRuntimeMode | null {
+  switch (value?.trim().toLowerCase()) {
+    case "local":
+      return "local";
+    case "cloud":
+      return "cloud";
+    default:
+      return null;
+  }
+}
+
+function parseTimeoutMs(value: string | undefined) {
+  if (!value) {
+    return DEFAULT_OLLAMA_TIMEOUT_MS;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : DEFAULT_OLLAMA_TIMEOUT_MS;
+}
+
+function createOllamaHeaders(config: OllamaRuntimeConfig) {
+  return {
+    "Content-Type": "application/json",
+    ...(config.runtimeMode === "cloud" && config.apiKey
+      ? { Authorization: `Bearer ${config.apiKey}` }
+      : {}),
+  };
+}
+
+export async function callOllamaLlm(
   prompt: string,
-  options: CallLocalLlmOptions = {},
+  options: CallOllamaLlmOptions = {},
 ): Promise<string> {
-  const { baseUrl, model } = getOllamaConfig();
+  const config = getOllamaConfig();
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(),
-    options.timeoutMs ?? DEFAULT_LOCAL_LLM_TIMEOUT_MS,
+    options.timeoutMs ?? config.timeoutMs,
   );
 
   try {
-    const response = await fetch(`${baseUrl}/api/generate`, {
+    const response = await fetch(`${config.baseUrl}/api/generate`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: createOllamaHeaders(config),
       body: JSON.stringify({
-        model,
+        model: config.model,
         prompt,
         system: options.system,
         format: options.format,
@@ -215,7 +266,7 @@ export async function callLocalLlm(
     if (!response.ok) {
       const errorBody = await response.text();
       throw new OllamaRequestError(
-        `Local model request failed with status ${response.status} for model "${model}". ${errorBody}`.trim(),
+        `Ollama request failed with status ${response.status} for model "${config.model}". ${errorBody}`.trim(),
       );
     }
 
@@ -223,7 +274,7 @@ export async function callLocalLlm(
 
     if (typeof data.response !== "string" || !data.response.trim()) {
       throw new OllamaRequestError(
-        "O modelo local não retornou uma resposta textual válida.",
+        "O runtime Ollama nao retornou uma resposta textual valida.",
       );
     }
 
@@ -235,35 +286,37 @@ export async function callLocalLlm(
 
     if (error instanceof Error && error.name === "AbortError") {
       throw new OllamaRequestError(
-        "O modelo local excedeu o tempo limite de 3 minutos para responder.",
+        "O runtime Ollama excedeu o tempo limite configurado para responder.",
       );
     }
 
     if (error instanceof Error) {
       throw new OllamaRequestError(
-        `Falha ao acessar o runtime do modelo local: ${error.message}`,
+        `Falha ao acessar o runtime Ollama: ${error.message}`,
       );
     }
 
     throw new OllamaRequestError(
-      "Falha ao acessar o runtime do modelo local por um motivo desconhecido.",
+      "Falha ao acessar o runtime Ollama por um motivo desconhecido.",
     );
   } finally {
     clearTimeout(timeout);
   }
 }
 
-export async function unloadLocalLlm(): Promise<void> {
-  const { baseUrl, model } = getOllamaConfig();
+export async function unloadOllamaModelIfLocal(): Promise<void> {
+  const config = getOllamaConfig();
+
+  if (config.runtimeMode !== "local") {
+    return;
+  }
 
   try {
-    const response = await fetch(`${baseUrl}/api/generate`, {
+    const response = await fetch(`${config.baseUrl}/api/generate`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: createOllamaHeaders(config),
       body: JSON.stringify({
-        model,
+        model: config.model,
         prompt: "",
         stream: false,
         keep_alive: 0,
@@ -274,7 +327,7 @@ export async function unloadLocalLlm(): Promise<void> {
     if (!response.ok) {
       const errorBody = await response.text();
       throw new OllamaRequestError(
-        `Falha ao desalocar o modelo local com status ${response.status} para o modelo "${model}". ${errorBody}`.trim(),
+        `Falha ao desalocar o modelo Ollama com status ${response.status} para o modelo "${config.model}". ${errorBody}`.trim(),
       );
     }
 
@@ -282,12 +335,12 @@ export async function unloadLocalLlm(): Promise<void> {
 
     if (data.done_reason !== "unload") {
       throw new OllamaRequestError(
-        `A API do Ollama respondeu sem confirmar o descarregamento do modelo "${model}".`,
+        `A API do Ollama respondeu sem confirmar o descarregamento do modelo "${config.model}".`,
       );
     }
   } catch (error) {
     try {
-      await execFileAsync("ollama", ["stop", model]);
+      await execFileAsync("ollama", ["stop", config.model]);
       return;
     } catch (stopError) {
       if (error instanceof OllamaRequestError) {
@@ -296,18 +349,18 @@ export async function unloadLocalLlm(): Promise<void> {
 
       if (error instanceof Error) {
         throw new OllamaRequestError(
-          `Falha ao desalocar o modelo local: ${error.message}`,
+          `Falha ao desalocar o modelo Ollama local: ${error.message}`,
         );
       }
 
       if (stopError instanceof Error) {
         throw new OllamaRequestError(
-          `Falha ao desalocar o modelo local por API e por CLI: ${stopError.message}`,
+          `Falha ao desalocar o modelo Ollama local por API e por CLI: ${stopError.message}`,
         );
       }
 
       throw new OllamaRequestError(
-        "Falha ao desalocar o modelo local por um motivo desconhecido.",
+        "Falha ao desalocar o modelo Ollama local por um motivo desconhecido.",
       );
     }
   }
@@ -317,6 +370,7 @@ export async function extractProfileFromText(
   rawText: string,
   options: { timeoutMs?: number } = {},
 ): Promise<ExtractedProfile> {
+  const config = getOllamaConfig();
   const cleanedText = rawText.trim();
 
   if (!cleanedText) {
@@ -326,10 +380,10 @@ export async function extractProfileFromText(
   }
 
   try {
-    const response = await callLocalLlm(cleanedText, {
+    const response = await callOllamaLlm(cleanedText, {
       system: PROFILE_EXTRACTION_SYSTEM_PROMPT,
       format: PROFILE_EXTRACTION_JSON_SCHEMA,
-      timeoutMs: options.timeoutMs ?? DEFAULT_LOCAL_LLM_TIMEOUT_MS,
+      timeoutMs: options.timeoutMs ?? config.timeoutMs,
       think: false,
       generationOptions: {
         temperature: 0,
@@ -339,10 +393,15 @@ export async function extractProfileFromText(
     await logRawProfileExtractionOutput(response);
     return parseExtractedProfileResponse(response);
   } finally {
-    try {
-      await unloadLocalLlm();
-    } catch (error) {
-      console.warn("Falha ao desalocar o modelo local ao final da extração.", error);
+    if (config.runtimeMode === "local") {
+      try {
+        await unloadOllamaModelIfLocal();
+      } catch (error) {
+        console.warn(
+          "Falha ao desalocar o modelo Ollama local ao final da extracao.",
+          error,
+        );
+      }
     }
   }
 }
@@ -580,7 +639,7 @@ function parseJsonResponse(rawResponse: string): JsonObject {
   }
 
   throw new ProfileExtractionError(
-    "O modelo local não retornou um JSON válido para a extração do perfil.",
+    "O runtime Ollama nao retornou um JSON valido para a extracao do perfil.",
   );
 }
 

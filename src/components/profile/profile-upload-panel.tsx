@@ -47,7 +47,7 @@ export function ProfileUploadPanel() {
     tone: "idle",
     title: "Upload e extração",
     detail:
-      "Envie um PDF e o app salvará o currículo master localmente antes de pedir ao modelo local para estruturar seu perfil.",
+      "Envie um PDF e o app salvará o currículo master localmente antes de pedir ao runtime Ollama configurado para estruturar seu perfil.",
   });
   const [steps, setSteps] = useState<Array<{
     key: "text" | "model" | "database";
@@ -65,7 +65,7 @@ export function ProfileUploadPanel() {
     },
     {
       key: "model",
-      label: "Processando no modelo local",
+      label: "Processando no runtime Ollama",
       status: "pending",
       startedAt: null,
       finishedAt: null,
@@ -134,7 +134,7 @@ export function ProfileUploadPanel() {
       },
       {
         key: "model",
-        label: "Processando no modelo local",
+        label: "Processando no runtime Ollama",
         status: "pending",
         startedAt: null,
         finishedAt: null,
@@ -199,9 +199,9 @@ export function ProfileUploadPanel() {
     updateStep("model", "active");
     setStatus({
       tone: "idle",
-      title: "Executando o modelo local",
+      title: "Executando o runtime Ollama",
       detail:
-        "O texto do PDF foi extraído. Agora o perfil está sendo estruturado pelo modelo local.",
+        "O texto do PDF foi extraído. Agora o perfil está sendo estruturado pelo runtime Ollama configurado.",
     });
 
     try {

@@ -19,7 +19,7 @@ export type OpenAiComparisonResult = {
 
 export type ProfileExtractionComparison = {
   input: string;
-  local: {
+  primary: {
     status: "success" | "skipped";
     model: string | null;
     output: ExtractedProfile | null;
@@ -145,10 +145,10 @@ export async function compareProfileExtraction(
   options: { localTimeoutMs?: number } = {},
 ): Promise<ProfileExtractionComparison> {
   const cleanedText = rawText.trim();
-  const localOutput = await extractProfileFromText(cleanedText, {
+  const primaryOutput = await extractProfileFromText(cleanedText, {
     timeoutMs: options.localTimeoutMs,
   });
-  const localModel = getOllamaConfig().model;
+  const primaryModel = getOllamaConfig().model;
   const openAiModel =
     process.env.OPENAI_COMPARISON_MODEL?.trim() ??
     DEFAULT_OPENAI_COMPARISON_MODEL;
@@ -162,10 +162,10 @@ export async function compareProfileExtraction(
 
     return {
       input: cleanedText,
-      local: {
+      primary: {
         status: "success",
-        model: localModel,
-        output: localOutput,
+        model: primaryModel,
+        output: primaryOutput,
       },
       openai: {
         status: "success",
@@ -174,7 +174,7 @@ export async function compareProfileExtraction(
         rawOutput,
         error: null,
       },
-      observations: buildComparisonObservations(localOutput, output),
+      observations: buildComparisonObservations(primaryOutput, output),
     };
   } catch (error) {
     const isConfigurationError =
@@ -186,10 +186,10 @@ export async function compareProfileExtraction(
 
     return {
       input: cleanedText,
-      local: {
+      primary: {
         status: "success",
-        model: localModel,
-        output: localOutput,
+        model: primaryModel,
+        output: primaryOutput,
       },
       openai: {
         status: isConfigurationError ? "skipped" : "error",
@@ -208,26 +208,26 @@ function buildComparisonObservations(
   openAiOutput: ExtractedProfile,
 ): string[] {
   const observations = [
-    "OpenAI comparison completed without blocking the local extraction flow.",
+    "OpenAI comparison completed without blocking the primary Ollama extraction flow.",
   ];
 
   if (localOutput.profile.fullName !== openAiOutput.profile.fullName) {
     observations.push(
-      `Different fullName values detected: local=\"${localOutput.profile.fullName}\" vs openai=\"${openAiOutput.profile.fullName}\".`,
+      `Different fullName values detected: primary=\"${localOutput.profile.fullName}\" vs openai=\"${openAiOutput.profile.fullName}\".`,
     );
   }
 
   observations.push(
-    `Experiences: local=${localOutput.experiences.length}, openai=${openAiOutput.experiences.length}.`,
+    `Experiences: primary=${localOutput.experiences.length}, openai=${openAiOutput.experiences.length}.`,
   );
   observations.push(
-    `Skills: local=${localOutput.skills.length}, openai=${openAiOutput.skills.length}.`,
+    `Skills: primary=${localOutput.skills.length}, openai=${openAiOutput.skills.length}.`,
   );
   observations.push(
-    `Projects: local=${localOutput.projects.length}, openai=${openAiOutput.projects.length}.`,
+    `Projects: primary=${localOutput.projects.length}, openai=${openAiOutput.projects.length}.`,
   );
   observations.push(
-    `Education entries: local=${localOutput.education.length}, openai=${openAiOutput.education.length}.`,
+    `Education entries: primary=${localOutput.education.length}, openai=${openAiOutput.education.length}.`,
   );
 
   return observations;
@@ -241,12 +241,12 @@ function buildFallbackObservations(
     return [
       "OpenAI comparison was skipped because the optional remote configuration is missing.",
       message,
-      "The primary local extraction remains usable without the comparison path.",
+      "The primary Ollama extraction remains usable without the comparison path.",
     ];
   }
 
   return [
-    "OpenAI comparison failed, but the local extraction path still succeeded.",
+    "OpenAI comparison failed, but the primary Ollama extraction path still succeeded.",
     message,
     "The comparison path remains optional and non-blocking by design.",
   ];
