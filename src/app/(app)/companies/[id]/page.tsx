@@ -15,8 +15,10 @@ import { CompanyForm } from "@/components/companies/company-form";
 import { CompanyStatusBadge } from "@/components/companies/company-status-badge";
 import { FormSubmitButton } from "@/components/companies/form-submit-button";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
+import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
 import { isApplicationStatus } from "@/lib/applications";
 import {
+  getCompanyJobBoardNavigationModeLabel,
   getCompanySizeLabel,
   getCompanyStatusLabel,
   isCompanyStatus,
@@ -48,6 +50,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { deleteCompany, updateCompany } from "@/server/actions/companies";
+import { runCompanyMonitoring } from "@/server/actions/job-monitoring";
 import { cn } from "@/lib/utils";
 
 type CompanyDetailPageProps = {
@@ -100,6 +103,7 @@ export default async function CompanyDetailPage({
   const hasLinkedApplicationsError = query.error === "linked-applications";
   const boundUpdateAction = updateCompany.bind(null, company.id);
   const boundDeleteAction = deleteCompany.bind(null, company.id);
+  const boundRunMonitoringAction = runCompanyMonitoring.bind(null, company.id);
 
   return (
     <div className="flex flex-1 flex-col gap-8">
@@ -270,9 +274,33 @@ export default async function CompanyDetailPage({
               />
               <SummaryRow
                 icon={Radar}
+                label="Navegação do board"
+                value={
+                  getCompanyJobBoardNavigationModeLabel(
+                    company.jobBoardNavigationMode,
+                  ) || "Não informado"
+                }
+              />
+              <SummaryRow
+                icon={Radar}
                 label="Status atual"
                 value={getCompanyStatusLabel(company.status) || "Não informado"}
               />
+              <div className="flex flex-col gap-3 pt-2">
+                <MonitoringRunButton
+                  action={boundRunMonitoringAction}
+                  label="Rodar varredura desta empresa"
+                  pendingLabel="Rodando varredura..."
+                  className="w-full rounded-xl"
+                />
+                <Link
+                  href="/leads"
+                  className={cn(buttonVariants({ variant: "outline" }), "w-full rounded-xl")}
+                >
+                  <ArrowUpRight data-icon="inline-start" />
+                  Abrir caixa de triagem
+                </Link>
+              </div>
             </CardContent>
           </Card>
 
@@ -301,6 +329,7 @@ export default async function CompanyDetailPage({
               sector: company.sector ?? "",
               size: company.size ?? "",
               jobsBoardUrl: company.jobsBoardUrl ?? "",
+              jobBoardNavigationMode: company.jobBoardNavigationMode ?? "fetch",
               glassdoorUrl: company.glassdoorUrl ?? "",
               status: company.status,
               notes: company.notes ?? "",

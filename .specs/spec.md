@@ -48,8 +48,8 @@ Base de conhecimento sobre o usuário que alimenta geração de currículos e ma
 
 **Regras:**
 - Todo campo editável após extração automática
-- Extração automática deve usar o runtime local principal baseado em `ollama.cpp`
-- Nesta fase, o sistema pode comparar a saída local com modelos GPT da OpenAI para benchmark, sem trocar a fonte principal de IA do produto
+- Extração automática deve usar o runtime principal do Ollama, configurável por ambiente (`local` ou `cloud`)
+- Nesta fase, o sistema pode comparar a saída principal do Ollama com modelos GPT da OpenAI para benchmark, sem trocar a fonte principal de IA do produto
 
 ---
 
@@ -113,11 +113,37 @@ Base de conhecimento sobre o usuário que alimenta geração de currículos e ma
 - Uma candidatura pode ser registrada diretamente como `Aplicado` ou em qualquer etapa posterior já conhecida do processo
 - Toda mudança de status registra timestamp automaticamente
 - Etapas são livres por design — cada empresa tem seu próprio processo
-- Extração de campos deve ser feita pela stack local baseada em `ollama.cpp`
+- Extração de campos deve ser feita pela stack principal baseada em Ollama, com runtime configurável por ambiente
 
 ---
 
-### 4. Geração de Currículo
+### 4. Radar de Vagas Monitoradas
+
+**Objetivo:** Descobrir oportunidades em empresas já cadastradas e separar uma caixa de triagem antes que a vaga vire candidatura.
+
+**Fluxo:**
+1. Usuário cadastra empresa com `jobsBoardUrl`
+2. Usuário roda a varredura manual
+3. Sistema descobre links de vagas no job board
+4. Sistema extrai título, descrição e metadados com a stack local
+5. IA baseada em Ollama classifica a vaga como `Interessante | Revisar | Descartar`
+6. Apenas `Interessante` e `Revisar` entram na caixa de triagem
+7. Usuário decide se promove a vaga para candidatura
+
+**Regras:**
+- O radar é manual nesta fase, sem agendamento
+- Toda empresa com `jobsBoardUrl` válido pode entrar na varredura, independentemente do `status`
+- Leads monitorados ficam separados de `applications`
+- Criar candidatura continua sendo decisão explícita do usuário
+- O runtime principal de classificação continua sendo o Ollama configurado para o ambiente atual
+- A classificação deve priorizar cobertura: na dúvida, a vaga vai para `Revisar`
+- O classificador pode usar sinais estruturados em PT-BR e feedback implícito do usuário para calibrar o julgamento
+- LinkedIn não entra no monitoramento automatizado do MVP
+- Cada empresa pode declarar um modo de navegação do job board: `fetch` para HTML simples e `browser` para boards com paginação client-side ou conteúdo invisível ao `fetch`
+
+---
+
+### 5. Geração de Currículo
 
 **Objetivo:** Gerar automaticamente uma versão customizada do currículo em PDF a partir do perfil + descrição da vaga, acessível a partir da candidatura.
 
@@ -135,12 +161,12 @@ Base de conhecimento sobre o usuário que alimenta geração de currículos e ma
 - Nenhuma informação fabricada — só reorganização e ênfase do que existe no perfil
 - Usuário pode regenerar quantas vezes quiser com instruções diferentes
 - Histórico de currículos gerados aparece na página de detalhes da candidatura, não em página separada
-- Geração de currículo deve usar a mesma fonte principal de IA local baseada em `ollama.cpp`
+- Geração de currículo deve usar a mesma fonte principal de IA baseada em Ollama, configurável por ambiente
 - Comparações com modelos GPT da OpenAI servem para avaliar qualidade de output, não para substituir o fluxo principal
 
 ---
 
-### 5. Dashboard e Analytics
+### 6. Dashboard e Analytics
 
 **Objetivo:** Visão consolidada do funil e insights para diagnóstico do processo seletivo.
 

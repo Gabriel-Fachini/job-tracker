@@ -7,9 +7,9 @@ Aplicação web local (single-user) composta por:
 - **Web App** — Next.js rodando em `localhost:3000`, serve UI e executa lógica server-side via Server Actions e Route Handlers
 - **SQLite** — banco de dados local em arquivo único na raiz do projeto
 
-Serviços externos de runtime (rodando localmente na máquina do usuário):
+Serviços externos de runtime:
 
-- **Runtime local com `ollama.cpp`** em `localhost:11434` — fonte principal de IA do produto para extração e geração
+- **Runtime principal do Ollama** — configurável por ambiente (`local` em `localhost:11434` ou `cloud` com API key) e usado como fonte principal de IA do produto para extração e geração
 - **tectonic** — compilador LaTeX instalado no sistema, invocado via `child_process`
 
 Serviço externo remoto:
@@ -35,8 +35,8 @@ Serviço externo remoto:
 └───────────────────────────────────────────────┘─┘
          │                    │              │
          ▼                    ▼              ▼
-  localhost:11434      tectonic CLI      api.openai.com
-   (ollama.cpp)        (via exec)     (benchmark GPT)
+ Ollama local/cloud     tectonic CLI      api.openai.com
+   (principal)          (via exec)     (benchmark GPT)
          │
          ▼
   APIs públicas de plataformas
@@ -53,7 +53,7 @@ Serviço externo remoto:
 | Framework           | Next.js 16 (App Router) + TypeScript | Full-stack em repositório único, Server Actions eliminam API layer separado para o app |
 | Banco de dados      | SQLite + Drizzle ORM                 | Local, zero configuração, type-safe, migrations declarativas                           |
 | Estilização         | Tailwind CSS + shadcn/ui             | Componentes acessíveis, customizáveis, sem overhead de design system próprio           |
-| IA — principal      | Modelo local via `ollama.cpp`        | Fonte principal do produto para extração de perfil, extração de vagas e geração textual |
+| IA — principal      | Runtime Ollama configurável (`local` ou `cloud`) | Fonte principal do produto para extração de perfil, extração de vagas e geração textual |
 | IA — comparação     | OpenAI API (modelos GPT)             | Benchmark pontual de qualidade com o mesmo input, sem virar dependência primária        |
 | Scraping — APIs     | `fetch` nativo (Node.js)             | Plataformas com API pública (Gupy, Greenhouse, Lever): dados estruturados direto, sem parsing |
 | Scraping — genérico | `fetch` + `cheerio`                  | Plataformas sem API: extrai texto do HTML; IA processa os campos                       |
@@ -87,7 +87,7 @@ job-tracker/
 │   │   │   ├── migrations/           # arquivos de migration gerados
 │   │   │   └── index.ts              # instância do client SQLite
 │   │   ├── ai/
-│   │   │   ├── ollama.ts             # client do runtime local baseado em ollama.cpp
+│   │   │   ├── ollama.ts             # client do runtime principal do Ollama
 │   │   │   ├── openai.ts             # client OpenAI usado só para comparação
 │   │   │   └── comparison.ts         # orquestra comparação lado a lado entre outputs
 │   │   ├── scraper/
@@ -295,10 +295,10 @@ companies ──< applications ──< application_stages
 | Operação                                  | Onde roda                                        | Justificativa                                                       |
 | ----------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------- |
 | Queries ao banco                          | Server (Server Action)                           | Drizzle/SQLite só roda server-side                                  |
-| Extração de perfil via modelo local       | Server (Server Action)                           | Runtime local roda em localhost, chamado server-side                |
+| Extração de perfil via runtime principal do Ollama | Server (Server Action)                     | Runtime Ollama configurado por ambiente, chamado server-side        |
 | Comparação com GPT da OpenAI              | Server (Server Action)                           | API key não exposta ao client; fluxo auxiliar de benchmark          |
 | Scraping de URL de vaga via Playwright    | Server (Server Action)                           | Playwright roda server-side; browser headless não disponível no client |
-| Extração de campos de vaga via modelo local | Server (Server Action)                         | Runtime local em localhost, chamado server-side                     |
+| Extração de campos de vaga via runtime principal do Ollama | Server (Server Action)               | Runtime Ollama configurado por ambiente, chamado server-side        |
 | Compilação LaTeX via tectonic             | Server (Server Action)                           | `child_process` só disponível server-side                           |
 | Serving de PDF gerado                     | Server (Route Handler `GET /api/resumes/[id]`)   | Leitura de arquivo do filesystem                                    |
 | Estado do Kanban / UI interativa          | Client                                           | Estado local de drag-and-drop, atualiza via Server Action ao soltar |
@@ -308,7 +308,7 @@ companies ──< applications ──< application_stages
 
 ## 6. Integração com IA
 
-### 6.1 Modelo local via `ollama.cpp` — Fonte principal do produto
+### 6.1 Runtime principal do Ollama — Fonte principal do produto
 
 **Casos de uso:**
 
@@ -319,12 +319,17 @@ companies ──< applications ──< application_stages
 **Client (`src/lib/ai/ollama.ts`):**
 
 ```typescript
-export async function callLocalLlm(prompt: string, system?: string): Promise<string> {
-  const response = await fetch(`${process.env.OLLAMA_CPP_BASE_URL}/api/generate`, {
+export async function callOllamaLlm(prompt: string, system?: string): Promise<string> {
+  const response = await fetch(`${process.env.OLLAMA_BASE_URL}/api/generate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(process.env.OLLAMA_RUNTIME_MODE === 'cloud' && process.env.OLLAMA_API_KEY
+        ? { Authorization: `Bearer ${process.env.OLLAMA_API_KEY}` }
+        : {}),
+    },
     body: JSON.stringify({
-      model: process.env.OLLAMA_CPP_MODEL,
+      model: process.env.OLLAMA_MODEL,
       system,
       prompt,
       stream: false,
@@ -346,7 +351,7 @@ export async function callLocalLlm(prompt: string, system?: string): Promise<str
 
 - Rodar o mesmo input do fluxo principal em um modelo GPT da OpenAI
 - Comparar aderência estrutural e qualidade textual do output local contra o output remoto
-- Apoiar decisão futura de prompt, modelo local e critérios de qualidade
+- Apoiar decisão futura de prompt, modelo principal do Ollama e critérios de qualidade
 
 **Client (`src/lib/ai/openai.ts`):**
 
@@ -372,7 +377,7 @@ export async function callOpenAiForComparison(systemPrompt: string, userMessage:
 
 **Regra:** OpenAI entra como trilha comparativa, opcional e desligável. O fluxo principal do produto continua funcional sem ela.
 
-**Fallback:** se o runtime local não estiver rodando (conexão recusada), o app deve falhar de forma explícita nos fluxos que dependem de IA principal ou, quando o fluxo permitir, exibir campos em branco para preenchimento manual sem quebrar a operação.
+**Fallback:** se o runtime principal do Ollama estiver indisponível, o app deve falhar de forma explícita nos fluxos que dependem de IA principal ou, quando o fluxo permitir, exibir campos em branco para preenchimento manual sem quebrar a operação.
 
 ---
 
@@ -464,7 +469,7 @@ export async function extractGupy(url: string): Promise<ExtractedJob> {
 **Fallback genérico** (`platforms/generic.ts`):
 
 ```
-URL → fetch → cheerio extrai texto limpo → modelo local (ollama) extrai campos → ExtractedJob
+URL → fetch → cheerio extrai texto limpo → runtime principal do Ollama extrai campos → ExtractedJob
 ```
 
 Usado para qualquer plataforma não mapeada. Campos não encontrados pelo modelo retornam `null`.
@@ -486,14 +491,71 @@ Server Action: scrapeAndExtractJob(url)
 
 | Plataforma | Estratégia | Notas |
 |---|---|---|
-| Gupy | API pública | Cobre grande parte do mercado BR |
-| Greenhouse | API pública | Comum em empresas internacionais |
-| Lever | API pública | Comum em empresas internacionais |
-| Qualquer outra | fetch + cheerio + IA | Fallback genérico |
+| Qualquer job board HTML | `fetch` + `cheerio` + IA | Caminho padrão para boards com HTML acessível |
+| Job board com paginação client-side | Browser headless genérico | Opt-in manual por empresa via `jobBoardNavigationMode=browser` |
 
 ---
 
-## 8. Geração de Currículo (LaTeX → PDF)
+## 8. Radar Manual de Vagas
+
+**Objetivo:** varrer empresas com `jobsBoardUrl` válido, descobrir vagas e alimentar uma caixa de triagem separada de `applications`.
+
+### Persistência
+
+Criar tabela `job_leads` com:
+
+- `companyId`
+- `title`
+- `sourceUrl`
+- `sourceName`
+- `description`
+- `workModel`
+- `seniority`
+- `locationText`
+- `salaryText`
+- `classificationStatus`
+- `classificationScore`
+- `classificationReason`
+- `userDecision`
+- `userDecisionAt`
+- `promotedToApplicationId`
+- `discoveredAt`
+- `updatedAt`
+
+Regra de unicidade lógica: `companyId + sourceUrl`.
+
+Expandir `companies` com:
+
+- `jobBoardNavigationMode` (`fetch | browser`, default `fetch`)
+
+### Pipeline
+
+`runCompanyMonitoring(companyId)`:
+
+1. Busca empresa e valida `jobsBoardUrl`
+2. `discoverJobLinks()` escolhe a estratégia com base em `company.jobBoardNavigationMode`
+3. Em `fetch`, segue links de paginação estáticos quando houver `rel=next`, `?page=` ou URL equivalente
+4. Em `browser`, abre o job board com browser headless genérico, coleta links visíveis e avança paginação client-side até o fim ou até o limite de segurança
+5. `extractJobDetail()` extrai título, descrição e metadados por `JobPosting`, `meta` e HTML semântico
+6. `classifyJobLead()` usa o perfil salvo, sinais estruturados em PT-BR, feedback implícito recente e o runtime principal do Ollama para decidir `interesting | review | discarded`
+7. Apenas `interesting` e `review` viram `job_leads`
+
+### UI
+
+- Nova rota `/leads` para triagem
+- Botão `Rodar varredura` em `/companies` e `/companies/[id]`
+- Promoção manual de lead para candidatura reaproveitando o shape legado `jobs + applications`
+
+### Restrições do MVP
+
+- Sem scheduler
+- Browser headless só para discovery/paginação quando a empresa estiver marcada como `browser`
+- Sem scraping automatizado de LinkedIn
+- Descartes automáticos não precisam ser persistidos
+
+---
+
+## 9. Geração de Currículo (LaTeX → PDF)
 
 ### Fluxo detalhado
 
@@ -502,8 +564,8 @@ Server Action: generateResume(applicationId, additionalInstructions?)
         │
         ├─ 1. Busca perfil completo do banco (todas as tabelas profile_*)
         ├─ 2. Busca descrição da candidatura (applications.description)
-        ├─ 3. Chama o modelo local com perfil + descrição + instruções adicionais
-        │      └─ Runtime local retorna string com conteúdo .tex completo
+        ├─ 3. Chama o runtime principal do Ollama com perfil + descrição + instruções adicionais
+        │      └─ Ollama retorna string com conteúdo .tex completo
         ├─ 4. Salva o .tex em uploads/resumes/generated/{slug}/{timestamp}.tex
         ├─ 5. Executa: tectonic {arquivo.tex} --outdir {dir}
         │      └─ via child_process.execFile (timeout: 30s)
@@ -538,14 +600,17 @@ export async function compileLaTeX(texPath: string, outDir: string): Promise<str
 
 ---
 
-## 9. Variáveis de Ambiente
+## 10. Variáveis de Ambiente
 
 ```bash
 # .env.local
 DATABASE_URL=./job-tracker.db
 UPLOADS_PATH=./uploads
-OLLAMA_CPP_BASE_URL=http://localhost:11434
-OLLAMA_CPP_MODEL=qwen3:latest
+OLLAMA_RUNTIME_MODE=local
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen3:latest
+OLLAMA_API_KEY=ollama_...   # obrigatório quando OLLAMA_RUNTIME_MODE=cloud
+OLLAMA_TIMEOUT_MS=240000
 OPENAI_API_KEY=sk-...
 OPENAI_COMPARISON_MODEL=gpt-4.1
 TECTONIC_PATH=tectonic   # ou path absoluto se não estiver no PATH
@@ -553,11 +618,12 @@ TECTONIC_PATH=tectonic   # ou path absoluto se não estiver no PATH
 
 ---
 
-## 10. Ordem de Desenvolvimento
+## 11. Ordem de Desenvolvimento
 
 1. **Setup** — Next.js + Drizzle + SQLite + shadcn/ui + migrations iniciais
-2. **Módulo Perfil** — upload PDF + extração via runtime local + formulário de revisão
+2. **Módulo Perfil** — upload PDF + extração via runtime principal do Ollama + formulário de revisão
 3. **Módulo Empresas** — CRUD
 4. **Módulo Candidaturas** — registro (URL scraping com registry + manual), Kanban, timeline de etapas
-5. **Geração de currículo** — integração local + tectonic + serving do PDF dentro da candidatura
-6. **Dashboard + Analytics** — queries de funil + gráficos
+5. **Radar manual de vagas** — descoberta genérica via `fetch + cheerio` + triagem com sinais PT-BR + Ollama
+6. **Geração de currículo** — integração principal com Ollama + tectonic + serving do PDF dentro da candidatura
+7. **Dashboard + Analytics** — queries de funil + gráficos

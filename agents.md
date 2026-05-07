@@ -47,7 +47,7 @@ As escolhas abaixo estão **fechadas** para este projeto e não devem ser redisc
 - `Server Actions` para fluxos internos do app
 - `Route Handlers` para integrações HTTP e casos que exigem endpoint explícito
 - `Drizzle ORM` com `SQLite` local em arquivo
-- runtime local com `ollama.cpp` como fonte principal de IA do produto
+- runtime principal do Ollama configurável por ambiente (`local` ou `cloud`) como fonte principal de IA do produto
 - `OpenAI` apenas para comparação de outputs com modelos GPT nesta fase
 - `tectonic` para compilação LaTeX/PDF
 - `Chrome Extension` Manifest V3 para captura de vagas
@@ -158,11 +158,11 @@ Para persistência local:
 
 ### 5. IA e automação
 
-- use o runtime local baseado em `ollama.cpp` como fonte principal para extração e geração no produto;
+- use o runtime principal do Ollama, configurável por ambiente, como fonte principal para extração e geração no produto;
 - trate a OpenAI, neste momento, como trilha comparativa de benchmark com modelos GPT, não como dependência principal do app;
 - preserve a separação entre fluxo principal do produto e fluxo auxiliar de comparação;
 - se a comparação com OpenAI estiver indisponível, o produto principal deve continuar coerente sem ela;
-- se o runtime local estiver indisponível, implemente fallback somente quando isso já estiver previsto no escopo ou quando o fluxo puder degradar para revisão manual sem quebrar o contrato.
+- se o runtime principal do Ollama estiver indisponível, implemente fallback somente quando isso já estiver previsto no escopo ou quando o fluxo puder degradar para revisão manual sem quebrar o contrato.
 
 ### 6. Arquivos locais
 
@@ -182,6 +182,9 @@ O agente deve respeitar estes princípios:
 - toda candidatura deve estar associada a uma empresa existente; entrada livre de empresa por string não é contrato válido do produto;
 - a descrição da vaga deve ser preservada localmente;
 - análise e dashboard servem para dar dados ao usuário, não para substituir seu julgamento;
+- oportunidades descobertas por monitoramento devem viver separadas de `applications` até promoção manual explícita;
+- o radar manual considera qualquer empresa com `jobsBoardUrl` válido; `status` não limita elegibilidade;
+- boards com paginação client-side podem ser marcados manualmente com `jobBoardNavigationMode=browser`, e esse modo deve continuar genérico por empresa, sem especialização por plataforma nesta fase;
 - itens fora do escopo do MVP não devem ser puxados para dentro sem pedido explícito.
 
 Fora do escopo por padrão:

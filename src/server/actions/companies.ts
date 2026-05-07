@@ -5,8 +5,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
+  isCompanyJobBoardNavigationMode,
   isCompanySize,
   isCompanyStatus,
+  type CompanyJobBoardNavigationMode,
   type CompanySize,
   type CompanyStatus,
 } from "@/lib/companies";
@@ -20,6 +22,7 @@ import { companies, jobs } from "@/lib/db/schema";
 
 type CompanyFormFields = {
   glassdoorUrl: string;
+  jobBoardNavigationMode: string;
   jobsBoardUrl: string;
   name: string;
   notes: string;
@@ -46,6 +49,9 @@ export async function createCompany(formData: FormData) {
       sector: fields.sector || null,
       size: normalizeSize(fields.size),
       jobsBoardUrl: normalizeUrl(fields.jobsBoardUrl),
+      jobBoardNavigationMode: normalizeJobBoardNavigationMode(
+        fields.jobBoardNavigationMode,
+      ),
       glassdoorUrl: normalizeUrl(fields.glassdoorUrl),
       status: normalizeStatus(fields.status),
       notes: fields.notes || null,
@@ -89,6 +95,9 @@ export async function updateCompany(companyId: number, formData: FormData) {
       sector: fields.sector || null,
       size: normalizeSize(fields.size),
       jobsBoardUrl: normalizeUrl(fields.jobsBoardUrl),
+      jobBoardNavigationMode: normalizeJobBoardNavigationMode(
+        fields.jobBoardNavigationMode,
+      ),
       glassdoorUrl: normalizeUrl(fields.glassdoorUrl),
       status: normalizeStatus(fields.status),
       notes: fields.notes || null,
@@ -134,6 +143,9 @@ export async function deleteCompany(companyId: number) {
 function readCompanyFields(formData: FormData): CompanyFormFields {
   return {
     glassdoorUrl: String(formData.get("glassdoorUrl") ?? "").trim(),
+    jobBoardNavigationMode: String(
+      formData.get("jobBoardNavigationMode") ?? "",
+    ).trim(),
     jobsBoardUrl: String(formData.get("jobsBoardUrl") ?? "").trim(),
     name: String(formData.get("name") ?? "").trim(),
     notes: String(formData.get("notes") ?? "").trim(),
@@ -160,6 +172,12 @@ function normalizeSize(value: string): CompanySize | null {
 
 function normalizeStatus(value: string): CompanyStatus {
   return isCompanyStatus(value) ? value : "monitoring";
+}
+
+function normalizeJobBoardNavigationMode(
+  value: string,
+): CompanyJobBoardNavigationMode {
+  return isCompanyJobBoardNavigationMode(value) ? value : "fetch";
 }
 
 function normalizeUrl(value: string) {

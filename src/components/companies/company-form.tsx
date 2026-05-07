@@ -3,6 +3,7 @@ import { Building2, Orbit, Radar, ShieldBan } from "lucide-react";
 
 import {
   companyAutomationStatusLabels,
+  companyJobBoardNavigationModeOptions,
   companySizeOptions,
   companyStatusOptions,
 } from "@/lib/companies";
@@ -42,6 +43,7 @@ export type CompanyFormValues = {
   sector: string;
   size: string;
   jobsBoardUrl: string;
+  jobBoardNavigationMode: string;
   glassdoorUrl: string;
   status: string;
   notes: string;
@@ -175,6 +177,35 @@ export function CompanyForm({
                   className={inputClassName}
                 />
               </Field>
+              <Field>
+                <FieldLabel htmlFor="company-job-board-navigation">
+                  Navegação do job board
+                </FieldLabel>
+                <Select
+                  defaultValue={values.jobBoardNavigationMode || "fetch"}
+                  name="jobBoardNavigationMode"
+                >
+                  <SelectTrigger
+                    className="h-11 w-full rounded-xl"
+                    id="company-job-board-navigation"
+                  >
+                    <SelectValue placeholder="Selecione o modo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {companyJobBoardNavigationModeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  Use browser renderizado apenas quando o board depender de
+                  paginação client-side ou conteúdo invisível ao fetch simples.
+                </FieldDescription>
+              </Field>
               <Field className="md:col-span-2">
                 <FieldLabel htmlFor="company-status">Status da empresa</FieldLabel>
                 <Select defaultValue={values.status || "monitoring"} name="status">
@@ -191,7 +222,7 @@ export function CompanyForm({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-              <FieldDescription>
+                <FieldDescription>
                   `Em processo` costuma ser aplicado automaticamente quando a
                   empresa tem candidaturas em {companyAutomationStatusLabels.join(", ")}.
                   `Blacklist` funciona como exceção manual e não é sobrescrito.

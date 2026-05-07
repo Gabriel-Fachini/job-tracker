@@ -22,12 +22,12 @@
 
 ## Fase 2 — Módulo Perfil
 
-### 2.1 Integração local com `ollama.cpp`
+### 2.1 Integração principal com Ollama
 
-- [x] 2.1.1 Criar client do runtime local em `src/lib/ai/ollama.ts`
-- [x] 2.1.2 Definir configuração mínima do modelo local (`OLLAMA_CPP_BASE_URL`, `OLLAMA_CPP_MODEL`)
-- [x] 2.1.3 Criar função `extractProfileFromText(rawText: string)` que chama o modelo local e retorna JSON estruturado do perfil
-- [x] 2.1.4 Validar e tipar o JSON retornado pelo modelo local contra o schema do banco
+- [x] 2.1.1 Criar client principal do runtime Ollama em `src/lib/ai/ollama.ts`
+- [x] 2.1.2 Definir configuração explícita do runtime principal (`OLLAMA_RUNTIME_MODE`, `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `OLLAMA_API_KEY` quando cloud)
+- [x] 2.1.3 Criar função `extractProfileFromText(rawText: string)` que chama o runtime principal do Ollama e retorna JSON estruturado do perfil
+- [x] 2.1.4 Validar e tipar o JSON retornado pelo runtime principal contra o schema do banco
 
 ### 2.2 Comparação com GPT da OpenAI
 
@@ -42,7 +42,7 @@
 - [x] 2.3.1 Criar página `/profile`
 - [x] 2.3.2 Criar componente de upload de PDF (currículo master)
 - [x] 2.3.3 Criar Route Handler `POST /api/profile/upload` para receber o PDF, salvar em `uploads/resumes/master/` e extrair texto
-- [x] 2.3.4 Criar Server Action `extractProfile(rawText)` que chama o modelo local e persiste o perfil estruturado no banco
+- [x] 2.3.4 Criar Server Action `extractProfile(rawText)` que chama o runtime principal do Ollama e persiste o perfil estruturado no banco
 - [x] 2.3.5 Exibir loading state durante extração
 
 ### 2.4 Formulário de revisão
@@ -81,14 +81,14 @@ A extração vive em código, sem entidade de banco para plataformas. A arquitet
 - **Gupy** → API pública (`api.gupy.io/api/v1/jobs/{id}`) — sem IA, dados estruturados direto
 - **Greenhouse** → API pública (`boards-api.greenhouse.io/...`) — sem IA, dados estruturados direto
 - **Lever** → API pública (`api.lever.co/v0/postings/...`) — sem IA, dados estruturados direto
-- **Qualquer outra** → `fetch` + `cheerio` + modelo local (ollama) extrai campos do texto
+- **Qualquer outra** → `fetch` + `cheerio` + runtime principal do Ollama extrai campos do texto
 
 - [ ] 4.1.1 Instalar `cheerio` como dependência
 - [ ] 4.1.2 Criar `src/lib/scraper/types.ts` com o tipo `ExtractedJob` (contrato comum de saída de todos os extratores)
 - [ ] 4.1.3 Criar `src/lib/scraper/platforms/gupy.ts` — extrai jobId da URL, chama API pública da Gupy, mapeia resposta para `ExtractedJob`
 - [ ] 4.1.4 Criar `src/lib/scraper/platforms/greenhouse.ts` — extrai slug da URL, chama API pública do Greenhouse, mapeia para `ExtractedJob`
 - [ ] 4.1.5 Criar `src/lib/scraper/platforms/lever.ts` — extrai slug da URL, chama API pública do Lever, mapeia para `ExtractedJob`
-- [ ] 4.1.6 Criar `src/lib/scraper/platforms/generic.ts` — `fetch` da URL, `cheerio` extrai texto limpo, modelo local (ollama) extrai campos, retorna `ExtractedJob` com `null` onde não encontrou
+- [ ] 4.1.6 Criar `src/lib/scraper/platforms/generic.ts` — `fetch` da URL, `cheerio` extrai texto limpo, runtime principal do Ollama extrai campos, retorna `ExtractedJob` com `null` onde não encontrou
 - [ ] 4.1.7 Criar `src/lib/scraper/registry.ts` — mapeia domínio para extrator; domínios não mapeados delegam para `generic`
 - [ ] 4.1.8 Criar `src/lib/scraper/index.ts` — entry point `scrapeAndExtract(url)` que chama `getExtractor(url)` e executa
 - [ ] 4.1.9 Criar Server Action `scrapeAndExtractJob(url)` em `applications.ts` que chama `scrapeAndExtract`, localiza/cria empresa se `companyName` presente, e retorna `ExtractedJob` para a UI
@@ -124,7 +124,24 @@ A extração vive em código, sem entidade de banco para plataformas. A arquitet
 
 ---
 
-## Fase 5 — Geração de Currículo
+## Fase 5A — Radar Manual de Vagas
+
+- [x] 5A.1 Criar tabela `job_leads` separada de `applications`
+- [x] 5A.2 Criar pipeline genérico `fetch + cheerio` para descoberta de links de vagas
+- [x] 5A.3 Extrair detalhes da vaga por `JobPosting`, `meta` e HTML semântico
+- [x] 5A.4 Classificar fit com o runtime principal do Ollama usando o perfil salvo como contexto
+- [x] 5A.6 Melhorar a classificação com sinais estruturados em PT-BR e feedback implícito do usuário
+- [x] 5A.5 Persistir apenas leads `interesting` e `review`
+- [x] 5A.6 Criar Server Actions para rodar a varredura por empresa e para todas as empresas monitoráveis
+- [x] 5A.7 Criar rota `/leads` para triagem manual
+- [x] 5A.8 Permitir promoção manual de lead para candidatura reutilizando o shape legado `jobs + applications`
+- [x] 5A.9 Adicionar CTA `Rodar varredura` em `/companies` e `/companies/[id]`
+- [x] 5A.10 Tornar o radar elegível por `jobsBoardUrl` válido, sem depender de `status`
+- [x] 5A.11 Adicionar `jobBoardNavigationMode` por empresa com suporte a `browser` para boards paginados client-side
+
+---
+
+## Fase 5B — Geração de Currículo
 
 ### 5.1 Compilador LaTeX
 
@@ -136,7 +153,7 @@ A extração vive em código, sem entidade de banco para plataformas. A arquitet
 ### 5.2 Geração via IA
 
 - [ ] 5.2.1 Criar Server Action `generateResume(applicationId, additionalInstructions?)` com o fluxo completo descrito no System Design
-- [ ] 5.2.2 Criar prompt de sistema para o modelo local que instrui geração de `.tex` completo a partir do perfil e descrição da candidatura
+- [ ] 5.2.2 Criar prompt de sistema para o runtime principal do Ollama que instrui geração de `.tex` completo a partir do perfil e descrição da candidatura
 - [ ] 5.2.3 Definir convenção de nomes dos arquivos gerados: `{slug-empresa}-{slug-vaga}-{timestamp}`
 - [ ] 5.2.4 Salvar `.tex` e `.pdf` em `uploads/resumes/generated/{slug}/`
 - [ ] 5.2.5 Persistir registro na tabela `resumes` vinculado ao `applicationId`

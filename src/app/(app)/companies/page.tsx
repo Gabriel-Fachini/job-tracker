@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { CompanyStatusBadge } from "@/components/companies/company-status-badge";
+import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -23,6 +24,7 @@ import { getCompanySizeLabel, isCompanyStatus } from "@/lib/companies";
 import { db } from "@/lib/db";
 import { applications, companies, jobs } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
+import { runAllCompaniesMonitoring } from "@/server/actions/job-monitoring";
 
 type CompanyListItem = {
   id: number;
@@ -227,16 +229,31 @@ export default async function CompaniesPage() {
           </p>
         </div>
 
-        <Link
-          href="/companies/new"
-          className={cn(
-            buttonVariants({ size: "lg" }),
-            "h-11 min-w-44 justify-center rounded-xl bg-amber-300 px-6 text-zinc-950 shadow-[0_8px_28px_rgba(252,211,77,0.28)] transition-all hover:bg-amber-200 hover:shadow-[0_12px_36px_rgba(252,211,77,0.36)]",
-          )}
-        >
-          <Building2 data-icon="inline-start" />
-          Nova empresa
-        </Link>
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+          <MonitoringRunButton
+            action={runAllCompaniesMonitoring}
+            label="Rodar varredura"
+            pendingLabel="Rodando varredura..."
+            className="h-11 rounded-xl"
+          />
+          <Link
+            href="/leads"
+            className={cn(buttonVariants({ variant: "outline", size: "lg" }), "h-11 rounded-xl")}
+          >
+            <Radar data-icon="inline-start" />
+            Ver leads
+          </Link>
+          <Link
+            href="/companies/new"
+            className={cn(
+              buttonVariants({ size: "lg" }),
+              "h-11 min-w-44 justify-center rounded-xl bg-amber-300 px-6 text-zinc-950 shadow-[0_8px_28px_rgba(252,211,77,0.28)] transition-all hover:bg-amber-200 hover:shadow-[0_12px_36px_rgba(252,211,77,0.36)]",
+            )}
+          >
+            <Building2 data-icon="inline-start" />
+            Nova empresa
+          </Link>
+        </div>
       </div>
 
       {rows.length === 0 ? (
