@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import ShinyText from "@/components/ui/shiny-text";
 import type { MonitoringStreamEvent } from "@/lib/job-monitoring/types";
 
 type MonitoringProgressEvent = {
@@ -44,17 +45,6 @@ const animationStyle = `
   }
   .animate-fade-in-up {
     animation: fadeInUp 0.3s ease-out;
-  }
-  @keyframes shimmer {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.6;
-    }
-  }
-  .animate-shimmer {
-    animation: shimmer 1.5s ease-in-out infinite;
   }
 `;
 
@@ -238,14 +228,19 @@ function TimelineEvent({
       />
       <div className="flex-1 space-y-0.5">
         <div className="flex items-center justify-between gap-2">
-          <p
-            className={cn(
-              "font-medium text-foreground",
-              isCurrentAction && "animate-shimmer text-base font-semibold"
-            )}
-          >
-            {event.message}
-          </p>
+          {isCurrentAction ? (
+            <ShinyText
+              text={event.message}
+              color="#6b7280"
+              shineColor="#ffffff"
+              speed={2}
+              className="font-medium text-base font-semibold"
+            />
+          ) : (
+            <p className="font-medium text-foreground">
+              {event.message}
+            </p>
+          )}
           {!hideTime && <span className="text-muted-foreground">{timeStr}</span>}
         </div>
         {event.detail && (
