@@ -1,9 +1,10 @@
 "use client";
 
 import type { KeyboardEvent, MouseEvent } from "react";
-import { startTransition, useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
   BriefcaseBusiness,
   ExternalLink,
@@ -47,6 +48,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getSourceNameLabel } from "@/lib/jobs";
 import { cn } from "@/lib/utils";
+import { getLeads } from "@/server/actions/leads";
 import {
   approveLead,
   discardLead,
@@ -102,12 +104,18 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
   const monitoringProgress = useMonitoringProgress();
   const { cancelMonitoring } = useMonitoringActions();
 
+  const { data: liveItems = [] } = useQuery({
+    queryKey: ["leads"],
+    queryFn: () => getLeads(),
+    initialData: items,
+    staleTime: 30_000,
+  });
+
   useEffect(() => {
     if (monitoringProgress?.isRunning) {
       setShowProgressDisplay(true);
     }
   }, [monitoringProgress?.isRunning]);
-  const [liveItems, setLiveItems] = useState<LeadListItem[]>(items);
 
   const activeTab = normalizeLeadTab(searchParams.get("tab"));
   const filters = normalizeLeadFilters({
@@ -453,7 +461,6 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
                 tab={activeTab}
                 onOpen={() => openLead(lead.id)}
                 onCreateApplication={() => openCreateModal(lead)}
-                onDiscard={() => setLiveItems((prev) => prev.filter((i) => i.id !== lead.id))}
               />
             ))}
           </div>
@@ -488,13 +495,11 @@ function LeadCard({
   tab,
   onOpen,
   onCreateApplication,
-  onDiscard,
 }: {
   lead: LeadListItem;
   tab: LeadTab;
   onOpen: () => void;
   onCreateApplication: () => void;
-  onDiscard?: () => void;
 }) {
   const [isDiscarding, startDiscardTransition] = useTransition();
   const approveAction = approveLead.bind(null, lead.id);
@@ -610,10 +615,7 @@ function LeadCard({
                 disabled={isDiscarding}
                 onClick={(e) => {
                   e.stopPropagation();
-                  startDiscardTransition(async () => {
-                    await discardAction();
-                    onDiscard?.();
-                  });
+                  startDiscardTransition(() => discardAction());
                 }}
                 className={cn(buttonVariants({ variant: "outline" }), "rounded-xl")}
               >

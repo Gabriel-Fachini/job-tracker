@@ -89,20 +89,15 @@ export async function runMonitoringForCompany(
     failed: 0,
   };
 
-  // Phase 1: Extract + Classify in parallel with concurrency limit
+  // Phase 1: Extract + Classify + Upsert in parallel with concurrency limit
   const limit = pLimit(LINK_PROCESSING_CONCURRENCY);
-  type ProcessLinkResult = {
-    link: (typeof links)[0];
-    job: Awaited<ReturnType<typeof extractJobDetailFn>> | null;
-    classification: Awaited<ReturnType<typeof classifyJobLeadFn>> | null;
-    error: string | null;
-  };
-
-  let phase1Count = 0;
+  let processedCount = 0;
 
   const results = await Promise.allSettled(
     newLinks.map((link, index) =>
-      limit(async (): Promise<ProcessLinkResult> => {
+      limit(async () => {
+        let processed = 0;
+
         try {
         logMonitoringStep(company.name, "processing-link", {
           current: index + 1,
@@ -123,7 +118,8 @@ export async function runMonitoringForCompany(
             errorStack: error instanceof Error ? error.stack : undefined,
             durationMs: Date.now() - extractStart,
           });
-          return { link, job: null, classification: null, error: getErrorMessage(error) };
+          summary.failed += 1;
+          return { processed: 1 };
         }
 
         if (!job) {
@@ -131,7 +127,7 @@ export async function runMonitoringForCompany(
             url: link.url,
             durationMs: Date.now() - extractStart,
           });
-          return { link, job: null, classification: null, error: null };
+          return { processed: 1 };
         }
 
         job = applyDiscoveryHints(job, link.text);
@@ -155,7 +151,6 @@ export async function runMonitoringForCompany(
               title: job.title,
               error: getErrorMessage(error),
             });
-            // Keep original description on error
           }
         }
 
@@ -173,7 +168,7 @@ export async function runMonitoringForCompany(
             url: job.sourceUrl,
             title: job.title,
           });
-          return { link, job, classification: null, error: null };
+          return { processed: 1 };
         }
 
         let classification;
@@ -189,7 +184,8 @@ export async function runMonitoringForCompany(
             errorStack: error instanceof Error ? error.stack : undefined,
             durationMs: Date.now() - classifyStart,
           });
-          return { link, job, classification: null, error: getErrorMessage(error) };
+          summary.failed += 1;
+          return { processed: 1 };
         }
 
         logMonitoringStep(company.name, "classification-finished", {
@@ -201,106 +197,82 @@ export async function runMonitoringForCompany(
           durationMs: Date.now() - classifyStart,
         });
 
-        return { link, job, classification, error: null };
+        // Upsert immediately (within Phase 1)
+        const upsertStart = Date.now();
+        const upsertResult = upsertJobLeadFn({
+          companyId: company.id,
+          title: job.title ?? link.text ?? "Vaga monitorada",
+          sourceUrl: job.sourceUrl,
+          sourceName: job.sourceName,
+          description: job.description,
+          workModel: job.workModel,
+          seniority: job.seniority,
+          locationText: job.locationText,
+          salaryText: job.salaryText,
+          classificationStatus: classification.decision,
+          classificationScore: classification.score,
+          classificationReason: classification.reason,
+        });
+
+        if (classification.decision === "discarded") {
+          summary.discarded += 1;
+          logMonitoringStep(company.name, "lead-discarded", {
+            url: job.sourceUrl,
+            title: job.title,
+          });
+          onEvent?.({
+            type: "link-done",
+            company: company.name,
+            title: job.title ?? link.text ?? "Vaga monitorada",
+            decision: classification.decision,
+            processed: processedCount + 1,
+            total: newLinks.length,
+          });
+          return { processed: 1 };
+        }
+
+        summary.jobsParsed += 1;
+
+        logMonitoringStep(company.name, "lead-persisted", {
+          url: job.sourceUrl,
+          title: job.title ?? link.text ?? "Vaga monitorada",
+          status: classification.decision,
+          score: classification.score,
+          leadId: upsertResult.id,
+          isNew: upsertResult.created,
+          durationMs: Date.now() - upsertStart,
+        });
+
+        summary.leadsSaved += 1;
+
+        if (classification.decision === "review") {
+          summary.reviewsSaved += 1;
+        }
+
+        onEvent?.({
+          type: "link-done",
+          company: company.name,
+          title: job.title ?? link.text ?? "Vaga monitorada",
+          decision: classification.decision,
+          processed: processedCount + 1,
+          total: newLinks.length,
+          lead: upsertResult.leadSnapshot,
+        });
+
+        return { processed: 1 };
         } finally {
-          phase1Count += 1;
+          processedCount += 1;
           onEvent?.({
             type: "link-processing",
             company: company.name,
             title: link.text,
-            processed: phase1Count,
+            processed: processedCount,
             total: newLinks.length,
           });
         }
       })
     )
   );
-
-  // Phase 2: Process results sequentially (upsert + accumulate stats)
-  let processedCount = 0;
-
-  for (const result of results) {
-    processedCount += 1;
-
-    if (result.status === "rejected") {
-      summary.failed += 1;
-      continue;
-    }
-
-    const { link, job, classification, error } = result.value;
-
-    if (error || !job || !classification) {
-      if (error) {
-        summary.failed += 1;
-      }
-      continue;
-    }
-
-    const upsertStart = Date.now();
-    const upsertResult = upsertJobLeadFn({
-      companyId: company.id,
-      title: job.title ?? link.text ?? "Vaga monitorada",
-      sourceUrl: job.sourceUrl,
-      sourceName: job.sourceName,
-      description: job.description,
-      workModel: job.workModel,
-      seniority: job.seniority,
-      locationText: job.locationText,
-      salaryText: job.salaryText,
-      classificationStatus: classification.decision,
-      classificationScore: classification.score,
-      classificationReason: classification.reason,
-    });
-
-    if (classification.decision === "discarded") {
-      summary.discarded += 1;
-      logMonitoringStep(company.name, "lead-discarded", {
-        url: job.sourceUrl,
-        title: job.title,
-      });
-      if (onEvent) {
-        onEvent({
-          type: "link-done",
-          company: company.name,
-          title: job.title ?? link.text ?? "Vaga monitorada",
-          decision: classification.decision,
-          processed: processedCount,
-          total: newLinks.length,
-        });
-      }
-      continue;
-    }
-
-    summary.jobsParsed += 1;
-
-    logMonitoringStep(company.name, "lead-persisted", {
-      url: job.sourceUrl,
-      title: job.title ?? link.text ?? "Vaga monitorada",
-      status: classification.decision,
-      score: classification.score,
-      leadId: upsertResult.id,
-      isNew: upsertResult.created,
-      durationMs: Date.now() - upsertStart,
-    });
-
-    summary.leadsSaved += 1;
-
-    if (classification.decision === "review") {
-      summary.reviewsSaved += 1;
-    }
-
-    if (onEvent) {
-      onEvent({
-        type: "link-done",
-        company: company.name,
-        title: job.title ?? link.text ?? "Vaga monitorada",
-        decision: classification.decision,
-        processed: processedCount,
-        total: newLinks.length,
-        lead: upsertResult.leadSnapshot,
-      });
-    }
-  }
 
   logMonitoringStep(company.name, "company-run-finished", {
     ...summary,

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { MonitoringProgress, MonitoringProgressEvent } from "@/components/leads/monitoring-run-button";
 import type { MonitoringStreamEvent } from "@/lib/job-monitoring/types";
 
@@ -89,18 +90,23 @@ export function MonitoringProgressProvider({ children }: { children: React.React
   const [progress, setProgress] = useState<MonitoringProgress | null>(null);
   const [mounted, setMounted] = useState(false);
   const esRef = useRef<EventSource | null>(null);
+  const queryClient = useQueryClient();
 
   const attachHandlers = useCallback((es: EventSource) => {
     es.onmessage = (event) => {
       const parsed: MonitoringStreamEvent = JSON.parse(event.data);
       setProgress((prev) => (prev ? applySSEEvent(prev, parsed) : prev));
+
+      if (parsed.type === "link-done" && parsed.decision !== "discarded") {
+        queryClient.invalidateQueries({ queryKey: ["leads"] });
+      }
     };
     es.onerror = () => {
       es.close();
       esRef.current = null;
       setProgress((prev) => (prev ? { ...prev, isRunning: false, eventSource: null } : prev));
     };
-  }, []);
+  }, [queryClient]);
 
   const startMonitoring = useCallback(() => {
     esRef.current?.close();
