@@ -388,7 +388,45 @@ function finalizeDescription(value: string | null | undefined, title: string | n
     text = text.slice(title.length).trim();
   }
 
+  text = removeTrailingNoise(text);
+
   return text || null;
+}
+
+function removeTrailingNoise(text: string): string {
+  const noisePatterns = [
+    /^Compartilhar vaga\s*$/i,
+    /^Link copiado\s*$/i,
+    /^Copiar link\s*$/i,
+    /^Erro ao copiar link\s*$/i,
+    /^\*\s*\*\s*\*\s*$/,
+    /^#+\s+Acompanhe nossas redes/i,
+    /^#+\s+ACOMPANHE NOSSAS REDES/i,
+    /^-\s+\[?(Website|LinkedIn|Facebook|Instagram)/i,
+    /^\[Candidatar-se\]/i,
+    /^https?:\/\/[^\s]+\s*$/,
+    /^Não encontrou uma oportunidade/i,
+    /^Deixe seu currículo aqui/i,
+  ];
+
+  const paragraphs = text.split("\n\n");
+
+  while (paragraphs.length > 0) {
+    const lastPara = paragraphs[paragraphs.length - 1].trim();
+
+    if (!lastPara) {
+      paragraphs.pop();
+      continue;
+    }
+
+    if (noisePatterns.some((pattern) => pattern.test(lastPara))) {
+      paragraphs.pop();
+    } else {
+      break;
+    }
+  }
+
+  return paragraphs.join("\n\n").trim();
 }
 
 function createRequestHeaders() {
