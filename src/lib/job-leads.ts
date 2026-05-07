@@ -8,6 +8,7 @@ export type JobLeadStatus = (typeof jobLeadStatusOptions)[number]["value"];
 
 export const jobLeadUserDecisionOptions = [
   { value: "none", label: "Sem decisão" },
+  { value: "approved", label: "Aprovada manualmente" },
   { value: "promoted", label: "Promovida" },
   { value: "dismissed", label: "Descartada manualmente" },
 ] as const;
@@ -35,4 +36,10 @@ export function isJobLeadUserDecision(
 
 export function getJobLeadStatusLabel(value: string | null | undefined) {
   return value && isJobLeadStatus(value) ? jobLeadStatusLabelMap[value] : null;
+}
+
+export function getJobLeadUserDecisionLabel(value: string | null | undefined) {
+  return value && isJobLeadUserDecision(value)
+    ? jobLeadUserDecisionLabelMap[value]
+    : null;
 }

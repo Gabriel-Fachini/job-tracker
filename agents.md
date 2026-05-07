@@ -144,6 +144,7 @@ Use `shadcn/ui` como base de componentes.
 - novas telas, componentes e tokens não devem depender de alternância light/dark;
 - se encontrar suporte legado a tema claro, trate isso como estado transitório e não como contrato a preservar;
 - em `Candidaturas`, a visão de detalhes vive por padrão em um modal deep-linkável em `/applications?applicationId=...`; não crie uma página dedicada de detalhes sem pedido explícito;
+- em `Leads`, a triagem pendente vive por padrão na aba `Triagem`, os leads aprovados vivem na aba `Aprovados`, e o detalhe do lead também deve preferir modal deep-linkável em `/leads?leadId=...`;
 - mantenha acessibilidade, navegação por teclado e estados de loading/erro visíveis;
 - evite UI genérica demais quando estiver construindo telas novas, mas preserve consistência com o que já existe no projeto.
 
@@ -183,6 +184,7 @@ O agente deve respeitar estes princípios:
 - a descrição da vaga deve ser preservada localmente;
 - análise e dashboard servem para dar dados ao usuário, não para substituir seu julgamento;
 - oportunidades descobertas por monitoramento devem viver separadas de `applications` até promoção manual explícita;
+- no radar manual, `approved` é uma etapa intermediária de triagem; aprovar lead não cria candidatura por si só;
 - o radar manual considera qualquer empresa com `jobsBoardUrl` válido; `status` não limita elegibilidade;
 - boards com paginação client-side podem ser marcados manualmente com `jobBoardNavigationMode=browser`, e esse modo deve continuar genérico por empresa, sem especialização por plataforma nesta fase;
 - itens fora do escopo do MVP não devem ser puxados para dentro sem pedido explícito.

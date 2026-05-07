@@ -263,7 +263,7 @@ O schema foi expandido em [src/lib/db/schema.ts](/Users/gabriel_fachini/Desktop/
 - `classificationStatus`
 - `classificationScore`
 - `classificationReason`
-- `userDecision`
+- `userDecision`: `none | approved | promoted | dismissed`
 - `userDecisionAt`
 - `promotedToApplicationId`
 - `discoveredAt`
@@ -330,19 +330,23 @@ erDiagram
     }
 ```
 
-## Promoção para Candidatura
+## Aprovação e Promoção para Candidatura
 
-Quando o usuário clica em `Criar candidatura` na página `/leads`, a action `promoteLeadToApplication(leadId)` é executada.
+O fluxo manual agora foi dividido em duas etapas:
+
+1. o usuário aprova o lead em `/leads`;
+2. o lead aprovado vai para a aba `Aprovados`;
+3. dali, o usuário abre o modal de criação de candidatura com os dados pré-preenchidos.
 
 ### O que ela faz
 
-1. Busca o lead.
-2. Garante que ele não está descartado.
-3. Garante que ele ainda não foi promovido.
-4. Reaproveita o helper [src/lib/applications/create-application-record.ts](/Users/gabriel_fachini/Desktop/repos/job-tracker/src/lib/applications/create-application-record.ts).
+1. `approveLead(leadId)` marca `userDecision=approved`.
+2. O lead sai da aba `Triagem` e passa a aparecer em `Aprovados`.
+3. `promoteApprovedLeadToApplication()` recebe o `leadId` e os campos finais do modal.
+4. A action reaproveita o helper [src/lib/applications/create-application-record.ts](/Users/gabriel_fachini/Desktop/repos/job-tracker/src/lib/applications/create-application-record.ts).
 5. Cria um `job`.
 6. Cria uma `application`.
-7. Marca `promotedToApplicationId` no lead.
+7. Marca `userDecision=promoted` e `promotedToApplicationId` no lead.
 
 ### Por que isso importa
 
@@ -360,19 +364,25 @@ sem tentar resolver agora a divergência histórica da spec sobre “não existi
 
 ```mermaid
 flowchart TD
-    A["Lead em /leads"] --> B["promoteLeadToApplication"]
-    B --> C{"Ja promovido?"}
-    C -- "sim" --> D["Nao faz nada"]
-    C -- "nao" --> E["createApplicationRecord"]
-    E --> F["Insert em jobs"]
-    F --> G["Insert em applications"]
-    G --> H["Atualiza promotedToApplicationId no lead"]
-    H --> I["Revalida /companies, /applications e /leads"]
+    A["Lead em /leads"] --> B["approveLead"]
+    B --> C["Fila Aprovados"]
+    C --> D["Modal de criar candidatura"]
+    D --> E["promoteApprovedLeadToApplication"]
+    E --> F["createApplicationRecord"]
+    F --> G["Insert em jobs"]
+    G --> H["Insert em applications"]
+    H --> I["Atualiza promotedToApplicationId e userDecision no lead"]
+    I --> J["Revalida /companies, /applications e /leads"]
 ```
 
 ## Interface `/leads`
 
 A tela [src/app/(app)/leads/page.tsx](/Users/gabriel_fachini/Desktop/repos/job-tracker/src/app/(app)/leads/page.tsx) é a superfície principal da feature.
+
+Agora ela é organizada em duas abas:
+
+- `Triagem`: leads sem decisão manual;
+- `Aprovados`: leads aprovados e ainda não promovidos.
 
 Ela lista:
 
@@ -380,16 +390,18 @@ Ela lista:
 - empresa;
 - score;
 - motivo da classificação;
-- descrição resumida;
+- descrição em markdown renderizado;
 - origem;
 - data;
-- estado de promoção.
+- estado de triagem.
 
 ### Ações disponíveis
 
 - `Abrir vaga`
-- `Criar candidatura`
+- `Aprovar lead`
 - `Descartar`
+- `Criar candidatura` na aba `Aprovados`
+- abrir modal deep-linkável com `leadId` para ler a descrição completa
 
 `Descartar` aqui é manual e persistido, diferente do descarte automático da pipeline.
 

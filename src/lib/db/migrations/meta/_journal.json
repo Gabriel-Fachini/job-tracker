@@ -71,6 +71,13 @@
       "when": 1778115055478,
       "tag": "0009_rare_magik",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1778118600000,
+      "tag": "0010_lead_approved_queue",
+      "breakpoints": true
     }
   ]
 }

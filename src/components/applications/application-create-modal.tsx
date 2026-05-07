@@ -4,7 +4,10 @@ import { useActionState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Building2, Waypoints } from "lucide-react";
 
-import { createApplication } from "@/server/actions/applications";
+import {
+  createApplication,
+  type ApplicationCreateResult,
+} from "@/server/actions/applications";
 import { applicationStatusOptions } from "@/lib/applications";
 import {
   seniorityOptions,
@@ -12,14 +15,7 @@ import {
   workModelOptions,
 } from "@/lib/jobs";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   Field,
   FieldDescription,
@@ -39,6 +35,28 @@ type ApplicationCreateModalProps = {
   }>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialValues?: Partial<ApplicationCreateInitialValues>;
+  submitAction?: (
+    prev: ApplicationCreateResult | null,
+    formData: FormData,
+  ) => Promise<ApplicationCreateResult>;
+  submitLabel?: string;
+  pendingLabel?: string;
+  title?: string;
+  description?: string;
+};
+
+export type ApplicationCreateInitialValues = {
+  leadId: number;
+  title: string;
+  companyId: string;
+  description: string;
+  sourceUrl: string;
+  sourceName: string;
+  workModel: string;
+  seniority: string;
+  status: string;
+  notes: string;
 };
 
 const controlClassName =
@@ -48,9 +66,15 @@ export function ApplicationCreateModal({
   companies,
   open,
   onOpenChange,
+  initialValues,
+  submitAction = createApplication,
+  submitLabel = "Salvar candidatura",
+  pendingLabel = "Salvando...",
+  title = "Nova candidatura",
+  description = "Registre a vaga e o status inicial do seu processo seletivo.",
 }: ApplicationCreateModalProps) {
   const [state, formAction, isPending] = useActionState(
-    createApplication,
+    submitAction,
     null,
   );
   const formRef = useRef<HTMLFormElement>(null);
@@ -64,6 +88,17 @@ export function ApplicationCreateModal({
 
   const hasError = state && !state.success;
   const hasCompanies = companies.length > 0;
+  const defaults = {
+    title: initialValues?.title ?? "",
+    companyId: initialValues?.companyId ?? "",
+    description: initialValues?.description ?? "",
+    sourceUrl: initialValues?.sourceUrl ?? "",
+    sourceName: initialValues?.sourceName ?? "other",
+    workModel: initialValues?.workModel ?? "",
+    seniority: initialValues?.seniority ?? "",
+    status: initialValues?.status ?? "applied",
+    notes: initialValues?.notes ?? "",
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -71,11 +106,9 @@ export function ApplicationCreateModal({
         <DialogHeader className="shrink-0 px-6 pt-6 pb-4">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Waypoints className="size-5 text-muted-foreground" />
-            Nova candidatura
+            {title}
           </DialogTitle>
-          <DialogDescription>
-            Registre a vaga e o status inicial do seu processo seletivo.
-          </DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="flex-1 overflow-auto">
@@ -85,6 +118,10 @@ export function ApplicationCreateModal({
             action={formAction}
             className="flex flex-col gap-6 px-6 pb-6"
           >
+            {typeof initialValues?.leadId === "number" ? (
+              <input type="hidden" name="leadId" value={String(initialValues.leadId)} />
+            ) : null}
+
             {hasError ? (
               <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 Não foi possível salvar. Revise os campos obrigatórios, incluindo a empresa selecionada, e a URL.
@@ -111,6 +148,7 @@ export function ApplicationCreateModal({
                     name="title"
                     placeholder="Ex.: Senior Frontend Engineer"
                     required
+                    defaultValue={defaults.title}
                     className={controlClassName}
                   />
                 </Field>
@@ -126,7 +164,7 @@ export function ApplicationCreateModal({
                     id="companyId"
                     name="companyId"
                     required
-                    defaultValue=""
+                    defaultValue={defaults.companyId}
                     className={controlClassName}
                   >
                     <option value="" disabled>
@@ -153,7 +191,7 @@ export function ApplicationCreateModal({
                   <select
                     id="status"
                     name="status"
-                    defaultValue="applied"
+                    defaultValue={defaults.status}
                     className={controlClassName}
                   >
                     {applicationStatusOptions.map((o) => (
@@ -174,7 +212,7 @@ export function ApplicationCreateModal({
                   <select
                     id="workModel"
                     name="workModel"
-                    defaultValue=""
+                    defaultValue={defaults.workModel}
                     className={controlClassName}
                   >
                     <option value="">Não informado</option>
@@ -196,7 +234,7 @@ export function ApplicationCreateModal({
                   <select
                     id="seniority"
                     name="seniority"
-                    defaultValue=""
+                    defaultValue={defaults.seniority}
                     className={controlClassName}
                   >
                     <option value="">Não informado</option>
@@ -218,7 +256,7 @@ export function ApplicationCreateModal({
                   <select
                     id="sourceName"
                     name="sourceName"
-                    defaultValue="other"
+                    defaultValue={defaults.sourceName}
                     className={controlClassName}
                   >
                     {sourceNameOptions.map((o) => (
@@ -241,6 +279,7 @@ export function ApplicationCreateModal({
                     name="sourceUrl"
                     type="url"
                     placeholder="https://..."
+                    defaultValue={defaults.sourceUrl}
                     className={controlClassName}
                   />
                 </Field>
@@ -258,6 +297,7 @@ export function ApplicationCreateModal({
                   name="description"
                   placeholder="Cole aqui a descrição completa da vaga."
                   required
+                  defaultValue={defaults.description}
                   className="min-h-52 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 />
                 <FieldDescription>
@@ -277,6 +317,7 @@ export function ApplicationCreateModal({
                   id="notes"
                   name="notes"
                   placeholder="Observações sobre o processo..."
+                  defaultValue={defaults.notes}
                   className="min-h-20 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 />
               </Field>
@@ -298,7 +339,7 @@ export function ApplicationCreateModal({
               form="application-create-form"
               disabled={isPending || !hasCompanies}
             >
-              {isPending ? "Salvando..." : "Salvar candidatura"}
+              {isPending ? pendingLabel : submitLabel}
             </Button>
           </div>
           {!hasCompanies ? (
