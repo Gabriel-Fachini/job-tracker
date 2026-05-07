@@ -3,6 +3,7 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+import { createApplicationRecord } from "@/lib/applications/create-application-record";
 import { syncCompanyStatusForApplication } from "@/lib/company-links";
 import { db } from "@/lib/db";
 import {
@@ -10,7 +11,6 @@ import {
   applicationStages,
   applicationStatusHistory,
   companies,
-  jobs,
 } from "@/lib/db/schema";
 import {
   normalizeApplicationStatus,
@@ -70,7 +70,6 @@ export async function createApplication(
     }
   }
 
-  const now = new Date();
   const companyId = Number(fields.companyId);
 
   if (!Number.isInteger(companyId)) {
@@ -78,10 +77,7 @@ export async function createApplication(
   }
 
   const selectedCompany = db
-    .select({
-      id: companies.id,
-      name: companies.name,
-    })
+    .select({ id: companies.id })
     .from(companies)
     .where(eq(companies.id, companyId))
     .get();
@@ -90,40 +86,21 @@ export async function createApplication(
     return { success: false, error: "validation" };
   }
 
-  const jobResult = db
-    .insert(jobs)
-    .values({
-      companyId: selectedCompany.id,
-      company: selectedCompany.name,
-      title: fields.title,
-      description: fields.description,
-      sourceUrl: fields.sourceUrl || null,
-      sourceName: normalizeSourceName(fields.sourceName),
-      status: "applied",
-      workModel: normalizeWorkModel(fields.workModel),
-      seniority: normalizeSeniority(fields.seniority),
-      createdAt: now,
-    })
-    .returning({ id: jobs.id })
-    .get();
-
-  const appResult = db
-    .insert(applications)
-    .values({
-      jobId: jobResult.id,
-      status: normalizeStatus(fields.status),
-      notes: fields.notes || null,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning({ id: applications.id })
-    .get();
-
-  syncCompanyStatusForApplication(appResult.id);
+  const result = createApplicationRecord({
+    companyId,
+    title: fields.title,
+    description: fields.description,
+    sourceUrl: fields.sourceUrl || null,
+    sourceName: normalizeSourceName(fields.sourceName),
+    workModel: normalizeWorkModel(fields.workModel),
+    seniority: normalizeSeniority(fields.seniority),
+    status: normalizeStatus(fields.status),
+    notes: fields.notes || null,
+  });
 
   revalidatePath("/applications");
   revalidatePath("/companies");
-  return { success: true, id: appResult.id };
+  return { success: true, id: result.applicationId };
 }
 
 export async function updateApplicationStatus(

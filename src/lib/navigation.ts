@@ -1,6 +1,7 @@
 import {
   Building2,
   LayoutDashboard,
+  Radar,
   UserRound,
   Waypoints,
   type LucideIcon,
@@ -42,5 +43,12 @@ export const appNavigation: AppNavigationItem[] = [
     summary: "Board e timeline do processo seletivo.",
     icon: Waypoints,
     phase: "Fase 5",
+  },
+  {
+    href: "/leads",
+    label: "Leads",
+    summary: "Triagem das vagas monitoradas antes da candidatura.",
+    icon: Radar,
+    phase: "Fase 5A",
   },
 ];

@@ -50,6 +50,27 @@
       "when": 1777602000000,
       "tag": "0006_application_used_resume_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1778033576434,
+      "tag": "0007_condemned_virginia_dare",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1778110736161,
+      "tag": "0008_dizzy_brother_voodoo",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1778115055478,
+      "tag": "0009_rare_magik",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,1 @@
+ALTER TABLE `companies` ADD `job_board_navigation_mode` text DEFAULT 'fetch' NOT NULL;

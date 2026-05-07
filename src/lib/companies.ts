@@ -11,6 +11,11 @@ export const companyStatusOptions = [
   { value: "blacklist", label: "Blacklist" },
 ] as const;
 
+export const companyJobBoardNavigationModeOptions = [
+  { value: "fetch", label: "Fetch padrão" },
+  { value: "browser", label: "Browser renderizado" },
+] as const;
+
 export const companySizeOptions = [
   { value: "startup", label: "Startup" },
   { value: "small", label: "Pequena" },
@@ -21,6 +26,8 @@ export const companySizeOptions = [
 
 export type CompanyStatus = (typeof companyStatusOptions)[number]["value"];
 export type CompanySize = (typeof companySizeOptions)[number]["value"];
+export type CompanyJobBoardNavigationMode =
+  (typeof companyJobBoardNavigationModeOptions)[number]["value"];
 
 export const companyStatusLabelMap = Object.fromEntries(
   companyStatusOptions.map((option) => [option.value, option.label]),
@@ -29,6 +36,10 @@ export const companyStatusLabelMap = Object.fromEntries(
 export const companySizeLabelMap = Object.fromEntries(
   companySizeOptions.map((option) => [option.value, option.label]),
 ) as Record<CompanySize, string>;
+
+export const companyJobBoardNavigationModeLabelMap = Object.fromEntries(
+  companyJobBoardNavigationModeOptions.map((option) => [option.value, option.label]),
+) as Record<CompanyJobBoardNavigationMode, string>;
 
 const activeApplicationStatuses = new Set<ApplicationStatus>([
   "applied",
@@ -45,12 +56,28 @@ export function isCompanySize(value: string): value is CompanySize {
   return companySizeOptions.some((option) => option.value === value);
 }
 
+export function isCompanyJobBoardNavigationMode(
+  value: string,
+): value is CompanyJobBoardNavigationMode {
+  return companyJobBoardNavigationModeOptions.some(
+    (option) => option.value === value,
+  );
+}
+
 export function getCompanyStatusLabel(value: string | null | undefined) {
   return value && isCompanyStatus(value) ? companyStatusLabelMap[value] : null;
 }
 
 export function getCompanySizeLabel(value: string | null | undefined) {
   return value && isCompanySize(value) ? companySizeLabelMap[value] : null;
+}
+
+export function getCompanyJobBoardNavigationModeLabel(
+  value: string | null | undefined,
+) {
+  return value && isCompanyJobBoardNavigationMode(value)
+    ? companyJobBoardNavigationModeLabelMap[value]
+    : null;
 }
 
 export function deriveCompanyStatus(

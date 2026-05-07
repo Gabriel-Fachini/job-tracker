@@ -1,5 +1,10 @@
 import { relations } from "drizzle-orm";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  integer,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 export const profile = sqliteTable("profile", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -88,6 +93,9 @@ export const companies = sqliteTable("companies", {
   sector: text("sector"),
   size: text("size"),
   jobsBoardUrl: text("jobs_board_url"),
+  jobBoardNavigationMode: text("job_board_navigation_mode")
+    .notNull()
+    .default("fetch"),
   glassdoorUrl: text("glassdoor_url"),
   status: text("status").notNull().default("monitoring"),
   notes: text("notes"),
@@ -130,6 +138,42 @@ export const applications = sqliteTable("applications", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
+
+export const jobLeads = sqliteTable(
+  "job_leads",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    companyId: integer("company_id")
+      .notNull()
+      .references(() => companies.id),
+    title: text("title").notNull(),
+    sourceUrl: text("source_url").notNull(),
+    sourceName: text("source_name").notNull().default("company_site"),
+    description: text("description"),
+    workModel: text("work_model"),
+    seniority: text("seniority"),
+    locationText: text("location_text"),
+    salaryText: text("salary_text"),
+    classificationStatus: text("classification_status")
+      .notNull()
+      .default("review"),
+    classificationScore: integer("classification_score"),
+    classificationReason: text("classification_reason"),
+    userDecision: text("user_decision").notNull().default("none"),
+    userDecisionAt: integer("user_decision_at", { mode: "timestamp" }),
+    promotedToApplicationId: integer("promoted_to_application_id").references(
+      () => applications.id,
+    ),
+    discoveredAt: integer("discovered_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("job_leads_company_source_url_unique").on(
+      table.companyId,
+      table.sourceUrl,
+    ),
+  ],
+);
 
 export const applicationStages = sqliteTable("application_stages", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -222,6 +266,7 @@ export const profileEducationRelations = relations(
 
 export const companiesRelations = relations(companies, ({ many }) => ({
   jobs: many(jobs),
+  jobLeads: many(jobLeads),
 }));
 
 export const jobsRelations = relations(jobs, ({ one, many }) => ({
@@ -241,6 +286,18 @@ export const applicationsRelations = relations(applications, ({ one, many }) => 
   stages: many(applicationStages),
   statusHistory: many(applicationStatusHistory),
   resumes: many(resumes),
+  promotedLeads: many(jobLeads),
+}));
+
+export const jobLeadsRelations = relations(jobLeads, ({ one }) => ({
+  company: one(companies, {
+    fields: [jobLeads.companyId],
+    references: [companies.id],
+  }),
+  promotedToApplication: one(applications, {
+    fields: [jobLeads.promotedToApplicationId],
+    references: [applications.id],
+  }),
 }));
 
 export const applicationStagesRelations = relations(
@@ -282,5 +339,7 @@ export type Job = typeof jobs.$inferSelect;
 export type NewJob = typeof jobs.$inferInsert;
 export type Application = typeof applications.$inferSelect;
 export type NewApplication = typeof applications.$inferInsert;
+export type JobLead = typeof jobLeads.$inferSelect;
+export type NewJobLead = typeof jobLeads.$inferInsert;
 export type Resume = typeof resumes.$inferSelect;
 export type NewResume = typeof resumes.$inferInsert;
