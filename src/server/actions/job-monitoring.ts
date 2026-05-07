@@ -11,6 +11,12 @@ import { companies, jobLeads } from "@/lib/db/schema";
 import { getRecentLeadFeedbackSummary } from "@/lib/job-monitoring/feedback";
 import { runMonitoringForCompany } from "@/lib/job-monitoring";
 import { printRadarReport, type CompanyReportEntry } from "@/lib/job-monitoring/logger";
+import {
+  startRun,
+  appendEvent as appendRunEvent,
+  finishRun,
+  setRunStats,
+} from "@/lib/job-monitoring/run-state";
 import { isSeniority, isSourceName, isWorkModel } from "@/lib/jobs";
 import { getProfileSnapshot } from "@/lib/profile/queries";
 import type { ApplicationCreateResult } from "@/server/actions/applications";
@@ -124,10 +130,14 @@ export async function runAllCompaniesMonitoringStream(
     companiesFound: monitorableCompanies.length,
   });
 
+  const runId = `run-${Date.now()}`;
+  const runState = startRun(runId, monitorableCompanies.length);
+
   onEvent({ type: "start", total: monitorableCompanies.length });
 
   if (monitorableCompanies.length === 0) {
     onEvent({ type: "all-done", summary: emptySummary() });
+    finishRun();
     return;
   }
 
@@ -144,6 +154,16 @@ export async function runAllCompaniesMonitoringStream(
         companyName: company.name,
         index: index + 1,
         total: monitorableCompanies.length,
+      });
+
+      appendRunEvent({
+        type: "company-start",
+        timestamp: new Date(),
+        data: {
+          company: company.name,
+          index: index + 1,
+          total: monitorableCompanies.length,
+        },
       });
 
       onEvent({
@@ -181,6 +201,17 @@ export async function runAllCompaniesMonitoringStream(
         durationMs: companyRunMs,
       });
 
+      appendRunEvent({
+        type: "company-done",
+        timestamp: new Date(),
+        data: {
+          company: company.name,
+          linksCount: companySummary.linksFound,
+          leadsSaved: companySummary.leadsSaved,
+          reviewsSaved: companySummary.reviewsSaved,
+        },
+      });
+
       onEvent({
         type: "company-done",
         company: company.name,
@@ -206,6 +237,13 @@ export async function runAllCompaniesMonitoringStream(
         companyName: company.name,
         error: message,
       });
+
+      appendRunEvent({
+        type: "error",
+        timestamp: new Date(),
+        data: { company: company.name, error: message },
+      });
+
       onEvent({
         type: "error",
         message: `Falha ao processar empresa "${company.name}": ${message}`,
@@ -230,7 +268,22 @@ export async function runAllCompaniesMonitoringStream(
     { linksFound: 0, jobsParsed: 0, leadsSaved: 0, reviewsSaved: 0, discarded: 0, failed: 0 },
   );
 
+  setRunStats({
+    saved: accumulatedSummary.leadsSaved,
+    review: accumulatedSummary.reviewsSaved,
+    discarded: accumulatedSummary.discarded,
+    failed: accumulatedSummary.failed,
+  });
+
+  appendRunEvent({
+    type: "all-done",
+    timestamp: new Date(),
+    data: { summary: accumulatedSummary },
+  });
+
   onEvent({ type: "all-done", summary: accumulatedSummary });
+  finishRun();
+
   console.log("[job-monitoring] [action] run-all-stream-finished", {
     companiesProcessed: monitorableCompanies.length,
     durationMs: Date.now() - streamStart,
