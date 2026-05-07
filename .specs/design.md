@@ -542,9 +542,10 @@ Expandir `companies` com:
 
 ### UI
 
-- Nova rota `/leads` para triagem
+- Nova rota `/leads` para triagem com abas `Triagem` e `Aprovados`
 - Botão `Rodar varredura` em `/companies` e `/companies/[id]`
-- Promoção manual de lead para candidatura reaproveitando o shape legado `jobs + applications`
+- Aprovação manual do lead antes da criação efetiva da candidatura
+- Promoção manual de lead aprovado para candidatura reaproveitando o shape legado `jobs + applications`
 
 ### Restrições do MVP
 

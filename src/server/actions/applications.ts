@@ -38,7 +38,7 @@ type ApplicationFormFields = {
   notes: string;
 };
 
-type CreateResult =
+export type ApplicationCreateResult =
   | { success: true; id: number }
   | { success: false; error: string };
 
@@ -53,9 +53,9 @@ type ApplicationStageFields = {
 };
 
 export async function createApplication(
-  _prev: CreateResult | null,
+  _prev: ApplicationCreateResult | null,
   formData: FormData,
-): Promise<CreateResult> {
+): Promise<ApplicationCreateResult> {
   const fields = readFields(formData);
 
   if (!fields.title || !fields.description) {

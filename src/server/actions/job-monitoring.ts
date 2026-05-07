@@ -12,7 +12,8 @@ import { getRecentLeadFeedbackSummary } from "@/lib/job-monitoring/feedback";
 import { runMonitoringForCompany } from "@/lib/job-monitoring";
 import { isSeniority, isSourceName, isWorkModel } from "@/lib/jobs";
 import { getProfileSnapshot } from "@/lib/profile/queries";
-import type { MonitoringSummary } from "@/lib/job-monitoring/types";
+import type { ApplicationCreateResult } from "@/server/actions/applications";
+import type { MonitoringSummary, MonitoringStreamEvent } from "@/lib/job-monitoring/types";
 
 export type MonitoringActionResult = MonitoringSummary & {
   success: boolean;
@@ -101,6 +102,100 @@ export async function runCompanyMonitoring(
           : "Falha ao rodar a varredura desta empresa.",
     };
   }
+}
+
+export async function runAllCompaniesMonitoringStream(
+  onEvent: (event: MonitoringStreamEvent) => void,
+): Promise<void> {
+  const monitorableCompanies = db
+    .select({
+      id: companies.id,
+      name: companies.name,
+      jobsBoardUrl: companies.jobsBoardUrl,
+      jobBoardNavigationMode: companies.jobBoardNavigationMode,
+    })
+    .from(companies)
+    .where(isNotNull(companies.jobsBoardUrl))
+    .all()
+    .filter((company) => Boolean(company.jobsBoardUrl && isValidUrl(company.jobsBoardUrl)));
+
+  console.log("[job-monitoring] [action] run-all-stream-start", {
+    companiesFound: monitorableCompanies.length,
+  });
+
+  onEvent({ type: "start", total: monitorableCompanies.length });
+
+  if (monitorableCompanies.length === 0) {
+    onEvent({ type: "all-done", summary: emptySummary() });
+    return;
+  }
+
+  const profile = await getProfileSnapshot();
+  const feedbackSummary = getRecentLeadFeedbackSummary();
+
+  for (const [index, company] of monitorableCompanies.entries()) {
+    try {
+      console.log("[job-monitoring] [action] run-all-stream-company-start", {
+        companyId: company.id,
+        companyName: company.name,
+      });
+
+      onEvent({
+        type: "company-start",
+        company: company.name,
+        index: index + 1,
+        total: monitorableCompanies.length,
+      });
+
+      const companySummary = await runMonitoringForCompany(
+        {
+          id: company.id,
+          name: company.name,
+          jobsBoardUrl: company.jobsBoardUrl as string,
+          jobBoardNavigationMode: isCompanyJobBoardNavigationMode(
+            company.jobBoardNavigationMode,
+          )
+            ? company.jobBoardNavigationMode
+            : "fetch",
+        },
+        {
+          companyName: company.name,
+          profile,
+          feedbackSummary,
+        },
+        {
+          onEvent,
+        },
+      );
+
+      onEvent({
+        type: "company-done",
+        company: company.name,
+        summary: companySummary,
+      });
+
+      console.log("[job-monitoring] [action] run-all-stream-company-finished", {
+        companyId: company.id,
+        companyName: company.name,
+        companySummary,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      console.log("[job-monitoring] [action] run-all-stream-company-failed", {
+        companyId: company.id,
+        companyName: company.name,
+        error: message,
+      });
+      onEvent({
+        type: "error",
+        message: `Falha ao processar empresa "${company.name}": ${message}`,
+      });
+    }
+  }
+
+  revalidateRadarViews();
+  onEvent({ type: "all-done", summary: emptySummary() });
+  console.log("[job-monitoring] [action] run-all-stream-finished");
 }
 
 export async function runAllCompaniesMonitoring(): Promise<MonitoringActionResult> {
@@ -206,31 +301,97 @@ export async function discardLead(leadId: number) {
   revalidateRadarViews();
 }
 
-export async function promoteLeadToApplication(leadId: number) {
+export async function approveLead(leadId: number) {
   if (!Number.isInteger(leadId)) {
     return;
   }
 
   const lead = db
-    .select()
+    .select({
+      id: jobLeads.id,
+      classificationStatus: jobLeads.classificationStatus,
+      promotedToApplicationId: jobLeads.promotedToApplicationId,
+    })
     .from(jobLeads)
-    .where(and(eq(jobLeads.id, leadId), ne(jobLeads.classificationStatus, "discarded")))
+    .where(eq(jobLeads.id, leadId))
     .get();
 
-  if (!lead || lead.promotedToApplicationId) {
+  if (
+    !lead ||
+    lead.classificationStatus === "discarded" ||
+    lead.promotedToApplicationId !== null
+  ) {
     return;
   }
 
+  db.update(jobLeads)
+    .set({
+      userDecision: "approved",
+      userDecisionAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(jobLeads.id, leadId))
+    .run();
+
+  revalidateRadarViews();
+}
+
+export async function promoteApprovedLeadToApplication(
+  _prev: ApplicationCreateResult | null,
+  formData: FormData,
+): Promise<ApplicationCreateResult> {
+  const leadId = Number(String(formData.get("leadId") ?? "").trim());
+
+  if (!Number.isInteger(leadId)) {
+    return { success: false, error: "validation" };
+  }
+
+  const lead = db
+    .select()
+    .from(jobLeads)
+    .where(
+      and(
+        eq(jobLeads.id, leadId),
+        ne(jobLeads.classificationStatus, "discarded"),
+        eq(jobLeads.userDecision, "approved"),
+      ),
+    )
+    .get();
+
+  if (!lead || lead.promotedToApplicationId) {
+    return { success: false, error: "validation" };
+  }
+
+  const fields = readApplicationFields(formData);
+
+  if (!fields.title || !fields.description) {
+    return { success: false, error: "validation" };
+  }
+
+  if (fields.sourceUrl) {
+    try {
+      new URL(fields.sourceUrl);
+    } catch {
+      return { success: false, error: "validation" };
+    }
+  }
+
+  const companyId = Number(fields.companyId);
+
+  if (!Number.isInteger(companyId)) {
+    return { success: false, error: "validation" };
+  }
+
   const result = createApplicationRecord({
-    companyId: lead.companyId,
-    title: lead.title,
-    description: lead.description || "Descricao monitorada indisponivel.",
-    sourceUrl: lead.sourceUrl,
-    sourceName: normalizeSourceName(lead.sourceName),
-    workModel: normalizeWorkModel(lead.workModel),
-    seniority: normalizeSeniority(lead.seniority),
-    status: normalizeApplicationStatus("applied"),
-    notes: buildLeadPromotionNote(lead.classificationReason),
+    companyId,
+    title: fields.title,
+    description: fields.description,
+    sourceUrl: fields.sourceUrl || null,
+    sourceName: normalizeSourceName(fields.sourceName),
+    workModel: normalizeWorkModel(fields.workModel),
+    seniority: normalizeSeniority(fields.seniority),
+    status: normalizeApplicationStatus(fields.status),
+    notes: fields.notes || buildLeadPromotionNote(lead.classificationReason),
   });
 
   db.update(jobLeads)
@@ -244,6 +405,10 @@ export async function promoteLeadToApplication(leadId: number) {
     .run();
 
   revalidateRadarViews();
+  revalidatePath("/applications");
+  revalidatePath("/companies");
+
+  return { success: true, id: result.applicationId };
 }
 
 function buildLeadPromotionNote(reason: string | null) {
@@ -272,6 +437,32 @@ function invalidMonitoringResult(label: string): MonitoringActionResult {
     label,
     ...emptySummary(),
     error: "Empresa fora do radar monitoravel.",
+  };
+}
+
+type ApplicationFormFields = {
+  companyId: string;
+  title: string;
+  description: string;
+  sourceUrl: string;
+  sourceName: string;
+  workModel: string;
+  seniority: string;
+  status: string;
+  notes: string;
+};
+
+function readApplicationFields(formData: FormData): ApplicationFormFields {
+  return {
+    companyId: String(formData.get("companyId") ?? "").trim(),
+    title: String(formData.get("title") ?? "").trim(),
+    description: String(formData.get("description") ?? "").trim(),
+    sourceUrl: String(formData.get("sourceUrl") ?? "").trim(),
+    sourceName: String(formData.get("sourceName") ?? "").trim(),
+    workModel: String(formData.get("workModel") ?? "").trim(),
+    seniority: String(formData.get("seniority") ?? "").trim(),
+    status: String(formData.get("status") ?? "").trim(),
+    notes: String(formData.get("notes") ?? "").trim(),
   };
 }
 

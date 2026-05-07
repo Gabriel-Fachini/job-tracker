@@ -1,3 +1,5 @@
+import pLimit from "p-limit";
+
 import { classifyJobLead } from "./classification";
 import { discoverJobLinks } from "./discovery";
 import { extractJobDetail } from "./extraction";
@@ -6,7 +8,10 @@ import type {
   ClassificationContext,
   MonitoringCompany,
   MonitoringSummary,
+  MonitoringStreamEvent,
 } from "./types";
+
+const LINK_PROCESSING_CONCURRENCY = 5;
 
 export async function runMonitoringForCompany(
   company: MonitoringCompany,
@@ -16,6 +21,7 @@ export async function runMonitoringForCompany(
     extractJobDetailFn?: typeof extractJobDetail;
     classifyJobLeadFn?: typeof classifyJobLead;
     upsertJobLeadFn?: typeof upsertJobLead;
+    onEvent?: (event: MonitoringStreamEvent) => void;
   } = {},
 ): Promise<MonitoringSummary> {
   const discoverJobLinksFn =
@@ -25,6 +31,7 @@ export async function runMonitoringForCompany(
   const classifyJobLeadFn =
     dependencies.classifyJobLeadFn ?? classifyJobLead;
   const upsertJobLeadFn = dependencies.upsertJobLeadFn ?? upsertJobLead;
+  const onEvent = dependencies.onEvent;
 
   if (new URL(company.jobsBoardUrl).hostname.includes("linkedin.com")) {
     logMonitoringStep(company.name, "skip-linkedin-source", {
@@ -52,73 +59,106 @@ export async function runMonitoringForCompany(
     linksFound: links.length,
   });
 
-  for (const [index, link] of links.entries()) {
-    logMonitoringStep(company.name, "processing-link", {
-      current: index + 1,
-      total: links.length,
-      url: link.url,
-      hint: link.text,
-    });
+  // Phase 1: Extract + Classify in parallel with concurrency limit
+  const limit = pLimit(LINK_PROCESSING_CONCURRENCY);
+  type ProcessLinkResult = {
+    link: (typeof links)[0];
+    job: Awaited<ReturnType<typeof extractJobDetailFn>> | null;
+    classification: Awaited<ReturnType<typeof classifyJobLeadFn>> | null;
+    error: string | null;
+  };
 
-    let job;
+  const results = await Promise.allSettled(
+    links.map((link, index) =>
+      limit(async (): Promise<ProcessLinkResult> => {
+        logMonitoringStep(company.name, "processing-link", {
+          current: index + 1,
+          total: links.length,
+          url: link.url,
+          hint: link.text,
+        });
 
-    try {
-      job = await extractJobDetailFn(link.url);
-    } catch (error) {
-      logMonitoringStep(company.name, "extract-failed", {
-        url: link.url,
-        error: getErrorMessage(error),
-      });
-      continue;
-    }
+        let job;
 
-    if (!job) {
-      logMonitoringStep(company.name, "extract-empty", {
-        url: link.url,
-      });
-      continue;
-    }
+        try {
+          job = await extractJobDetailFn(link.url);
+        } catch (error) {
+          logMonitoringStep(company.name, "extract-failed", {
+            url: link.url,
+            error: getErrorMessage(error),
+          });
+          return { link, job: null, classification: null, error: getErrorMessage(error) };
+        }
 
-    job = applyDiscoveryHints(job, link.text);
-    logMonitoringStep(company.name, "job-extracted", {
-      url: job.sourceUrl,
-      title: job.title,
-      sourceName: job.sourceName,
-      workModel: job.workModel,
-      seniority: job.seniority,
-    });
+        if (!job) {
+          logMonitoringStep(company.name, "extract-empty", {
+            url: link.url,
+          });
+          return { link, job: null, classification: null, error: null };
+        }
 
-    if (job.sourceName === "linkedin") {
-      logMonitoringStep(company.name, "skip-linkedin-job", {
-        url: job.sourceUrl,
-        title: job.title,
-      });
-      continue;
-    }
+        job = applyDiscoveryHints(job, link.text);
+        logMonitoringStep(company.name, "job-extracted", {
+          url: job.sourceUrl,
+          title: job.title,
+          sourceName: job.sourceName,
+          workModel: job.workModel,
+          seniority: job.seniority,
+        });
 
-    summary.jobsParsed += 1;
+        if (job.sourceName === "linkedin") {
+          logMonitoringStep(company.name, "skip-linkedin-job", {
+            url: job.sourceUrl,
+            title: job.title,
+          });
+          return { link, job, classification: null, error: null };
+        }
 
-    let classification;
+        let classification;
 
-    try {
-      classification = await classifyJobLeadFn(job, context);
-    } catch (error) {
+        try {
+          classification = await classifyJobLeadFn(job, context);
+        } catch (error) {
+          logMonitoringStep(company.name, "classification-failed", {
+            url: job.sourceUrl,
+            title: job.title,
+            error: getErrorMessage(error),
+          });
+          return { link, job, classification: null, error: getErrorMessage(error) };
+        }
+
+        logMonitoringStep(company.name, "classification-finished", {
+          url: job.sourceUrl,
+          title: job.title,
+          decision: classification.decision,
+          score: classification.score,
+          reason: classification.reason,
+        });
+
+        return { link, job, classification, error: null };
+      })
+    )
+  );
+
+  // Phase 2: Process results sequentially (upsert + accumulate stats)
+  let processedCount = 0;
+
+  for (const result of results) {
+    processedCount += 1;
+
+    if (result.status === "rejected") {
       summary.failed += 1;
-      logMonitoringStep(company.name, "classification-failed", {
-        url: job.sourceUrl,
-        title: job.title,
-        error: getErrorMessage(error),
-      });
       continue;
     }
 
-    logMonitoringStep(company.name, "classification-finished", {
-      url: job.sourceUrl,
-      title: job.title,
-      decision: classification.decision,
-      score: classification.score,
-      reason: classification.reason,
-    });
+    const { link, job, classification, error } = result.value;
+
+    if (error || !job || !classification) {
+      if (error) {
+        summary.failed += 1;
+      }
+      continue;
+    }
 
     if (classification.decision === "discarded") {
       summary.discarded += 1;
@@ -126,8 +166,20 @@ export async function runMonitoringForCompany(
         url: job.sourceUrl,
         title: job.title,
       });
+      if (onEvent) {
+        onEvent({
+          type: "link-done",
+          company: company.name,
+          title: job.title ?? link.text ?? "Vaga monitorada",
+          decision: classification.decision,
+          processed: processedCount,
+          total: links.length,
+        });
+      }
       continue;
     }
+
+    summary.jobsParsed += 1;
 
     upsertJobLeadFn({
       companyId: company.id,
@@ -155,6 +207,17 @@ export async function runMonitoringForCompany(
 
     if (classification.decision === "review") {
       summary.reviewsSaved += 1;
+    }
+
+    if (onEvent) {
+      onEvent({
+        type: "link-done",
+        company: company.name,
+        title: job.title ?? link.text ?? "Vaga monitorada",
+        decision: classification.decision,
+        processed: processedCount,
+        total: links.length,
+      });
     }
   }
 

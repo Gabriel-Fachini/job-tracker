@@ -1,0 +1,32 @@
+# Job Tracker - Project Context
+
+## AI Runtime
+
+**Ollama: Cloud Mode**
+- `OLLAMA_RUNTIME_MODE=cloud` — Classification de leads roda via HTTP call remoto, não local
+- Ambos `extractJobDetail` (HTTP fetch ao job board) e `classifyJobLead` (HTTP ao Ollama cloud) são I/O bound
+- Paralelização segura: links processados em concurrent batch de 5 com `p-limit`
+
+### Ganho de Performance
+- Paralelização reduz tempo de processamento ~80% em boards extensos
+- ~2s por link → ~100s sequencial para 50 links → ~20s paralelo
+
+## Job Monitoring Features
+
+### Real-time Progress (SSE)
+- Route Handler: `src/app/api/monitoring/stream/route.ts`
+- Emits events: `start`, `company-start`, `link-done`, `company-done`, `all-done`, `error`
+- Client consumes via `EventSource` API
+- Shows: "Buscando em [Company] (N/Total)" real-time
+
+### Link Processing Pipeline
+- Phase 1: Parallel extraction + classification with `pLimit(5)`
+- Phase 2: Sequential upsert + stats accumulation
+- Per-link events emitted for granular UI updates
+
+## Architecture Notes
+
+- No background processes yet (manual triggers only)
+- No cron scheduling (future feature)
+- SQLite + Next.js server actions for mutations
+- SSE sufficient for real-time UX without process separation

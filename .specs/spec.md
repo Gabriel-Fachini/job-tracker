@@ -128,7 +128,9 @@ Base de conhecimento sobre o usuário que alimenta geração de currículos e ma
 4. Sistema extrai título, descrição e metadados com a stack local
 5. IA baseada em Ollama classifica a vaga como `Interessante | Revisar | Descartar`
 6. Apenas `Interessante` e `Revisar` entram na caixa de triagem
-7. Usuário decide se promove a vaga para candidatura
+7. Usuário decide se aprova ou descarta o lead
+8. Leads aprovados ficam em uma fila separada antes da criação efetiva da candidatura
+9. Criar candidatura continua sendo decisão explícita do usuário
 
 **Regras:**
 - O radar é manual nesta fase, sem agendamento
