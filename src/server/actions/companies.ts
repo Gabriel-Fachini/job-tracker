@@ -30,6 +30,8 @@ type CompanyFormFields = {
   size: string;
   status: string;
   website: string;
+  atsProvider: string;
+  atsBoardToken: string;
 };
 
 export async function createCompany(formData: FormData) {
@@ -52,6 +54,8 @@ export async function createCompany(formData: FormData) {
       jobBoardNavigationMode: normalizeJobBoardNavigationMode(
         fields.jobBoardNavigationMode,
       ),
+      atsProvider: fields.atsProvider || "auto",
+      atsBoardToken: fields.atsBoardToken || null,
       glassdoorUrl: normalizeUrl(fields.glassdoorUrl),
       status: normalizeStatus(fields.status),
       notes: fields.notes || null,
@@ -98,6 +102,8 @@ export async function updateCompany(companyId: number, formData: FormData) {
       jobBoardNavigationMode: normalizeJobBoardNavigationMode(
         fields.jobBoardNavigationMode,
       ),
+      atsProvider: fields.atsProvider || "auto",
+      atsBoardToken: fields.atsBoardToken || null,
       glassdoorUrl: normalizeUrl(fields.glassdoorUrl),
       status: normalizeStatus(fields.status),
       notes: fields.notes || null,
@@ -153,6 +159,8 @@ function readCompanyFields(formData: FormData): CompanyFormFields {
     size: String(formData.get("size") ?? "").trim(),
     status: String(formData.get("status") ?? "").trim(),
     website: String(formData.get("website") ?? "").trim(),
+    atsProvider: String(formData.get("atsProvider") ?? "").trim(),
+    atsBoardToken: String(formData.get("atsBoardToken") ?? "").trim(),
   };
 }
 

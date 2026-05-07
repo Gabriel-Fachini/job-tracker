@@ -96,6 +96,8 @@ export const companies = sqliteTable("companies", {
   jobBoardNavigationMode: text("job_board_navigation_mode")
     .notNull()
     .default("fetch"),
+  atsProvider: text("ats_provider").notNull().default("auto"),
+  atsBoardToken: text("ats_board_token"),
   glassdoorUrl: text("glassdoor_url"),
   status: text("status").notNull().default("monitoring"),
   notes: text("notes"),

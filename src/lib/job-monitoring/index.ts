@@ -3,7 +3,7 @@ import pLimit from "p-limit";
 import { formatJobDescriptionAsMarkdown } from "@/lib/ai/openai";
 import { classifyJobLead } from "./classification";
 import { discoverJobLinks } from "./discovery";
-import { extractJobDetail } from "./extraction";
+import { extractJobDetail, htmlToMarkdown } from "./extraction";
 import { logMonitoringStep } from "./logger";
 import { getExistingJobLeadUrls, touchLastViewed, upsertJobLead } from "./persistence";
 import type {
@@ -110,7 +110,35 @@ export async function runMonitoringForCompany(
         const extractStart = Date.now();
 
         try {
-          job = await extractJobDetailFn(link.url);
+          // Use prefetched data if available
+          if (link.prefetched) {
+            const prefetched = link.prefetched;
+            let descriptionMarkdown = prefetched.descriptionMarkdown;
+
+            // Convert HTML to markdown if not already done
+            if (!descriptionMarkdown && prefetched.descriptionHtml) {
+              descriptionMarkdown = htmlToMarkdown(prefetched.descriptionHtml);
+            }
+
+            job = {
+              title: prefetched.title,
+              description: descriptionMarkdown || null,
+              sourceUrl: link.url,
+              sourceName: "greenhouse",
+              workModel: null,
+              seniority: null,
+              locationText: prefetched.locationText || null,
+              salaryText: null,
+            };
+
+            logMonitoringStep(company.name, "extract-prefetched", {
+              url: link.url,
+              title: prefetched.title,
+              durationMs: Date.now() - extractStart,
+            });
+          } else {
+            job = await extractJobDetailFn(link.url);
+          }
         } catch (error) {
           logMonitoringStep(company.name, "extract-failed", {
             url: link.url,

@@ -85,6 +85,13 @@
       "when": 1778186827670,
       "tag": "0013_tough_living_lightning",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1778189389323,
+      "tag": "0012_zippy_madrox",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import type { Browser, Page } from "playwright";
 
 import type { DiscoveredLink, FetchLike, MonitoringCompany } from "./types";
+import { resolveAtsProvider, discoverViaProvider } from "./providers";
 
 const JOB_PATH_PATTERN =
   /(job|jobs|career|careers|vaga|vagas|opening|openings|position|positions|opportunit)/i;
@@ -54,6 +55,36 @@ export async function discoverJobLinks(
   company: MonitoringCompany,
   options: DiscoveryOptions = {},
 ): Promise<DiscoveredLink[]> {
+  // Try provider-based discovery first
+  const resolvedProvider = await resolveAtsProvider(
+    company,
+    company.atsProvider,
+  );
+
+  if (resolvedProvider !== "generic") {
+    try {
+      const providerLinks = await discoverViaProvider(
+        company,
+        resolvedProvider,
+        { fetchImpl: options.fetchImpl },
+      );
+
+      if (providerLinks !== null) {
+        logDiscoveryStep(company.name, "provider-discovery-success", {
+          provider: resolvedProvider,
+          linksFound: providerLinks.length,
+        });
+        return providerLinks;
+      }
+    } catch (error) {
+      logDiscoveryStep(company.name, "provider-discovery-failed", {
+        provider: resolvedProvider,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  // Fall back to HTML scraping
   switch (company.jobBoardNavigationMode) {
     case "browser":
       return discoverJobLinksWithBrowser(company, options);

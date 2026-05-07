@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "cd4a73b0-ac7d-4ec0-8acb-47dc0834c4ff",
-  "prevId": "d4e6cd86-27ec-4131-a230-fa8f33690a44",
+  "id": "448c1ee4-c058-4acf-b1f0-70cc18f40c66",
+  "prevId": "036c2a06-c7b4-4ec2-913c-5d2d62946cb8",
   "tables": {
     "application_stages": {
       "name": "application_stages",
@@ -299,6 +299,21 @@
           "autoincrement": false,
           "default": "'fetch'"
         },
+        "ats_provider": {
+          "name": "ats_provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'auto'"
+        },
+        "ats_board_token": {
+          "name": "ats_board_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "glassdoor_url": {
           "name": "glassdoor_url",
           "type": "text",
@@ -471,8 +486,9 @@
           "name": "last_viewed",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
         },
         "updated_at": {
           "name": "updated_at",

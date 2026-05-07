@@ -42,6 +42,8 @@ export async function runCompanyMonitoring(
       name: companies.name,
       jobsBoardUrl: companies.jobsBoardUrl,
       jobBoardNavigationMode: companies.jobBoardNavigationMode,
+      atsProvider: companies.atsProvider,
+      atsBoardToken: companies.atsBoardToken,
     })
     .from(companies)
     .where(eq(companies.id, companyId))
@@ -79,6 +81,8 @@ export async function runCompanyMonitoring(
         )
           ? company.jobBoardNavigationMode
           : "fetch",
+        atsProvider: company.atsProvider,
+        atsBoardToken: company.atsBoardToken,
       },
       {
         companyName: company.name,
@@ -120,6 +124,8 @@ export async function runAllCompaniesMonitoringStream(
       name: companies.name,
       jobsBoardUrl: companies.jobsBoardUrl,
       jobBoardNavigationMode: companies.jobBoardNavigationMode,
+      atsProvider: companies.atsProvider,
+      atsBoardToken: companies.atsBoardToken,
     })
     .from(companies)
     .where(isNotNull(companies.jobsBoardUrl))
@@ -183,6 +189,8 @@ export async function runAllCompaniesMonitoringStream(
           )
             ? company.jobBoardNavigationMode
             : "fetch",
+          atsProvider: company.atsProvider,
+          atsBoardToken: company.atsBoardToken,
         },
         {
           companyName: company.name,
@@ -298,6 +306,8 @@ export async function runAllCompaniesMonitoring(): Promise<MonitoringActionResul
       name: companies.name,
       jobsBoardUrl: companies.jobsBoardUrl,
       jobBoardNavigationMode: companies.jobBoardNavigationMode,
+      atsProvider: companies.atsProvider,
+      atsBoardToken: companies.atsBoardToken,
     })
     .from(companies)
     .where(isNotNull(companies.jobsBoardUrl))
@@ -342,6 +352,8 @@ export async function runAllCompaniesMonitoring(): Promise<MonitoringActionResul
           )
             ? company.jobBoardNavigationMode
             : "fetch",
+          atsProvider: company.atsProvider,
+          atsBoardToken: company.atsBoardToken,
         },
         {
           companyName: company.name,

@@ -7,6 +7,8 @@ export type MonitoringCompany = {
   name: string;
   jobsBoardUrl: string;
   jobBoardNavigationMode: "fetch" | "browser";
+  atsProvider?: string | null;
+  atsBoardToken?: string | null;
 };
 
 export type FetchLike = typeof fetch;
@@ -14,6 +16,16 @@ export type FetchLike = typeof fetch;
 export type DiscoveredLink = {
   url: string;
   text: string | null;
+  prefetched?: {
+    title: string;
+    descriptionHtml: string;
+    descriptionMarkdown?: string;
+    locationText?: string;
+    departments?: string[];
+    offices?: string[];
+    updatedAt?: string;
+    externalId: string;
+  };
 };
 
 export type ExtractedJobDetail = {

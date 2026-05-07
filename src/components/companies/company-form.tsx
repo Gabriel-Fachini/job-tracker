@@ -44,6 +44,8 @@ export type CompanyFormValues = {
   size: string;
   jobsBoardUrl: string;
   jobBoardNavigationMode: string;
+  atsProvider?: string;
+  atsBoardToken?: string;
   glassdoorUrl: string;
   status: string;
   notes: string;
@@ -204,6 +206,35 @@ export function CompanyForm({
                 <FieldDescription>
                   Use browser renderizado apenas quando o board depender de
                   paginação client-side ou conteúdo invisível ao fetch simples.
+                </FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="company-ats-provider">
+                  Provedor de ATS
+                </FieldLabel>
+                <Select
+                  defaultValue={values.atsProvider || "auto"}
+                  name="atsProvider"
+                >
+                  <SelectTrigger
+                    className="h-11 w-full rounded-xl"
+                    id="company-ats-provider"
+                  >
+                    <SelectValue placeholder="Selecione o provedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="auto">Detectar automaticamente</SelectItem>
+                      <SelectItem value="greenhouse">Greenhouse</SelectItem>
+                      <SelectItem value="gupy">Gupy</SelectItem>
+                      <SelectItem value="inhire">InHire</SelectItem>
+                      <SelectItem value="generic">Genérico (HTML)</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  "Detectar automaticamente" identifica o provedor pela URL.
+                  Use outro valor para override manual.
                 </FieldDescription>
               </Field>
               <Field className="md:col-span-2">

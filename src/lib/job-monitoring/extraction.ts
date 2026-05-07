@@ -15,7 +15,7 @@ const CONTENT_SELECTORS = [
   ".description",
 ];
 
-function htmlToMarkdown(html: string): string {
+export function htmlToMarkdown(html: string): string {
   const $ = cheerio.load(html);
   $("script, style, noscript, template, svg").remove();
   const cleanedHtml = $.html() ?? "";
