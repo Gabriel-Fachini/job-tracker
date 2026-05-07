@@ -75,3 +75,11 @@ export type ClassificationContext = {
   profile: ProfileSnapshot | null;
   feedbackSummary: ClassificationFeedbackSummary;
 };
+
+export type MonitoringStreamEvent =
+  | { type: "start"; total: number }
+  | { type: "company-start"; company: string; index: number; total: number }
+  | { type: "link-done"; company: string; title: string; decision: JobLeadStatus; processed: number; total: number }
+  | { type: "company-done"; company: string; summary: MonitoringSummary }
+  | { type: "all-done"; summary: MonitoringSummary }
+  | { type: "error"; message: string };

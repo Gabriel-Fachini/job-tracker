@@ -226,10 +226,10 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
           </div>
 
           <MonitoringRunButton
-            action={runAllCompaniesMonitoring}
             label="Rodar radar completo"
             pendingLabel="Rodando radar..."
             className="h-11 rounded-xl bg-amber-300 px-6 text-zinc-950 hover:bg-amber-200"
+            useStream
           />
         </div>
 

@@ -13,7 +13,7 @@ import { runMonitoringForCompany } from "@/lib/job-monitoring";
 import { isSeniority, isSourceName, isWorkModel } from "@/lib/jobs";
 import { getProfileSnapshot } from "@/lib/profile/queries";
 import type { ApplicationCreateResult } from "@/server/actions/applications";
-import type { MonitoringSummary } from "@/lib/job-monitoring/types";
+import type { MonitoringSummary, MonitoringStreamEvent } from "@/lib/job-monitoring/types";
 
 export type MonitoringActionResult = MonitoringSummary & {
   success: boolean;
@@ -102,6 +102,100 @@ export async function runCompanyMonitoring(
           : "Falha ao rodar a varredura desta empresa.",
     };
   }
+}
+
+export async function runAllCompaniesMonitoringStream(
+  onEvent: (event: MonitoringStreamEvent) => void,
+): Promise<void> {
+  const monitorableCompanies = db
+    .select({
+      id: companies.id,
+      name: companies.name,
+      jobsBoardUrl: companies.jobsBoardUrl,
+      jobBoardNavigationMode: companies.jobBoardNavigationMode,
+    })
+    .from(companies)
+    .where(isNotNull(companies.jobsBoardUrl))
+    .all()
+    .filter((company) => Boolean(company.jobsBoardUrl && isValidUrl(company.jobsBoardUrl)));
+
+  console.log("[job-monitoring] [action] run-all-stream-start", {
+    companiesFound: monitorableCompanies.length,
+  });
+
+  onEvent({ type: "start", total: monitorableCompanies.length });
+
+  if (monitorableCompanies.length === 0) {
+    onEvent({ type: "all-done", summary: emptySummary() });
+    return;
+  }
+
+  const profile = await getProfileSnapshot();
+  const feedbackSummary = getRecentLeadFeedbackSummary();
+
+  for (const [index, company] of monitorableCompanies.entries()) {
+    try {
+      console.log("[job-monitoring] [action] run-all-stream-company-start", {
+        companyId: company.id,
+        companyName: company.name,
+      });
+
+      onEvent({
+        type: "company-start",
+        company: company.name,
+        index: index + 1,
+        total: monitorableCompanies.length,
+      });
+
+      const companySummary = await runMonitoringForCompany(
+        {
+          id: company.id,
+          name: company.name,
+          jobsBoardUrl: company.jobsBoardUrl as string,
+          jobBoardNavigationMode: isCompanyJobBoardNavigationMode(
+            company.jobBoardNavigationMode,
+          )
+            ? company.jobBoardNavigationMode
+            : "fetch",
+        },
+        {
+          companyName: company.name,
+          profile,
+          feedbackSummary,
+        },
+        {
+          onEvent,
+        },
+      );
+
+      onEvent({
+        type: "company-done",
+        company: company.name,
+        summary: companySummary,
+      });
+
+      console.log("[job-monitoring] [action] run-all-stream-company-finished", {
+        companyId: company.id,
+        companyName: company.name,
+        companySummary,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      console.log("[job-monitoring] [action] run-all-stream-company-failed", {
+        companyId: company.id,
+        companyName: company.name,
+        error: message,
+      });
+      onEvent({
+        type: "error",
+        message: `Falha ao processar empresa "${company.name}": ${message}`,
+      });
+    }
+  }
+
+  revalidateRadarViews();
+  onEvent({ type: "all-done", summary: emptySummary() });
+  console.log("[job-monitoring] [action] run-all-stream-finished");
 }
 
 export async function runAllCompaniesMonitoring(): Promise<MonitoringActionResult> {
