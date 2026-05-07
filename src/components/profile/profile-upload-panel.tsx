@@ -33,6 +33,13 @@ type UploadApiResponse =
       error: string;
     };
 
+const IDLE_STATUS = {
+  tone: "idle" as const,
+  title: "Upload e extração",
+  detail:
+    "Envie um PDF e o app salvará o currículo master localmente antes de chamar a OpenAI para estruturar seu perfil.",
+};
+
 export function ProfileUploadPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -43,12 +50,7 @@ export function ProfileUploadPanel() {
     tone: "idle" | "success" | "error";
     title: string;
     detail: string;
-  }>({
-    tone: "idle",
-    title: "Upload e extração",
-    detail:
-      "Envie um PDF e o app salvará o currículo master localmente antes de pedir ao runtime Ollama configurado para estruturar seu perfil.",
-  });
+  }>(IDLE_STATUS);
   const [steps, setSteps] = useState<Array<{
     key: "text" | "model" | "database";
     label: string;
@@ -65,7 +67,7 @@ export function ProfileUploadPanel() {
     },
     {
       key: "model",
-      label: "Processando no runtime Ollama",
+      label: "Processando com OpenAI",
       status: "pending",
       startedAt: null,
       finishedAt: null,
@@ -94,6 +96,7 @@ export function ProfileUploadPanel() {
   function updateStep(
     key: "text" | "model" | "database",
     status: "pending" | "active" | "done" | "error",
+    ts: number,
   ) {
     setSteps((current) =>
       current.map((step) => {
@@ -105,7 +108,7 @@ export function ProfileUploadPanel() {
           return {
             ...step,
             status,
-            startedAt: step.startedAt ?? Date.now(),
+            startedAt: step.startedAt ?? ts,
             finishedAt: null,
           };
         }
@@ -114,7 +117,7 @@ export function ProfileUploadPanel() {
           return {
             ...step,
             status,
-            finishedAt: Date.now(),
+            finishedAt: ts,
           };
         }
 
@@ -134,7 +137,7 @@ export function ProfileUploadPanel() {
       },
       {
         key: "model",
-        label: "Processando no runtime Ollama",
+        label: "Processando com OpenAI",
         status: "pending",
         startedAt: null,
         finishedAt: null,
@@ -150,10 +153,11 @@ export function ProfileUploadPanel() {
   }
 
   async function handleSubmit(formData: FormData) {
+    const startTs = Date.now();
     setIsSubmitting(true);
-    setNowMs(Date.now());
+    setNowMs(startTs);
     resetSteps();
-    updateStep("text", "active");
+    updateStep("text", "active", startTs);
     setStatus({
       tone: "idle",
       title: "Enviando o PDF",
@@ -179,7 +183,7 @@ export function ProfileUploadPanel() {
             ? error.message
             : "A requisição de upload falhou por um motivo desconhecido.",
       });
-      updateStep("text", "error");
+      updateStep("text", "error", Date.now());
       setIsSubmitting(false);
       return;
     }
@@ -190,18 +194,19 @@ export function ProfileUploadPanel() {
         title: "Falha no upload",
         detail: uploadPayload.error,
       });
-      updateStep("text", "error");
+      updateStep("text", "error", Date.now());
       setIsSubmitting(false);
       return;
     }
 
-    updateStep("text", "done");
-    updateStep("model", "active");
+    const afterUploadTs = Date.now();
+    updateStep("text", "done", afterUploadTs);
+    updateStep("model", "active", afterUploadTs);
     setStatus({
       tone: "idle",
-      title: "Executando o runtime Ollama",
+      title: "Executando extração com OpenAI",
       detail:
-        "O texto do PDF foi extraído. Agora o perfil está sendo estruturado pelo runtime Ollama configurado.",
+        "O texto do PDF foi extraído. Agora o perfil está sendo estruturado pela OpenAI.",
     });
 
     try {
@@ -216,13 +221,14 @@ export function ProfileUploadPanel() {
           title: "Falha na extração",
           detail: extraction.error,
         });
-        updateStep("model", "error");
+        updateStep("model", "error", Date.now());
         setIsSubmitting(false);
         return;
       }
 
-      updateStep("model", "done");
-      updateStep("database", "active");
+      const afterExtractionTs = Date.now();
+      updateStep("model", "done", afterExtractionTs);
+      updateStep("database", "active", afterExtractionTs);
       setStatus({
         tone: "idle",
         title: "Salvando o perfil",
@@ -241,12 +247,12 @@ export function ProfileUploadPanel() {
           title: "Falha ao salvar",
           detail: result.error,
         });
-        updateStep("database", "error");
+        updateStep("database", "error", Date.now());
         setIsSubmitting(false);
         return;
       }
 
-      updateStep("database", "done");
+      updateStep("database", "done", Date.now());
       setStatus({
         tone: "success",
         title: "Perfil atualizado",
@@ -261,10 +267,19 @@ export function ProfileUploadPanel() {
     }
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen && !isSubmitting) {
+      resetSteps();
+      setNowMs(Date.now());
+      setStatus(IDLE_STATUS);
+    }
+    setOpen(nextOpen);
+  }
+
   const isLoading = isSubmitting;
 
   return (
-    <Dialog onOpenChange={setOpen} open={open}>
+    <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger
         render={
           <Button
@@ -287,7 +302,13 @@ export function ProfileUploadPanel() {
         </DialogHeader>
 
         <div className="flex flex-col gap-6 px-4 py-4">
-          <form action={handleSubmit} className="flex flex-col gap-4">
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleSubmit(new FormData(e.currentTarget));
+            }}
+          >
             <label className="flex flex-col gap-2 text-base text-foreground">
               <span className="font-medium">Currículo em PDF</span>
               <input

@@ -1,3 +1,6 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+
 import OpenAI from "openai";
 import type { Response } from "openai/resources/responses/responses";
 
@@ -10,6 +13,155 @@ import {
 } from "@/lib/ai/ollama";
 
 const DEFAULT_OPENAI_COMPARISON_MODEL = "gpt-5.4";
+
+export const OPENAI_PROFILE_EXTRACTION_SYSTEM_PROMPT = `
+Você extrai um perfil profissional a partir do texto de um currículo.
+Retorne apenas JSON válido, sem markdown, comentários ou texto extra.
+Use null para campos escalares desconhecidos e [] para listas desconhecidas.
+Não invente fatos que não estejam sustentados pelo currículo fornecido.
+Seja exaustivo em vez de conciso ao extrair experiência profissional.
+Preserve o máximo possível de detalhes concretos do currículo.
+Para cada experiência, capture empresa, cargo, datas, descrição e cada bullet de conquista ou responsabilidade que puder ser identificado.
+Não resuma vários bullets em uma descrição genérica se o currículo trouxer mais detalhes.
+Se uma seção tiver detalhes ricos, preserve esses detalhes na saída estruturada.
+O currículo pode estar em português brasileiro. Preserve nomes próprios e trate a seção de educação com a mesma atenção das demais seções.
+Se houver formação, não retorne placeholders como N/A. Extraia instituição, grau, área e a melhor data possível, usando null apenas quando o dado realmente não puder ser inferido.
+`.trim();
+
+export const OPENAI_PROFILE_EXTRACTION_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["profile", "experiences", "skills", "projects", "education"],
+  properties: {
+    profile: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "fullName",
+        "email",
+        "phone",
+        "linkedin",
+        "github",
+        "location",
+        "workModelPreference",
+        "notes",
+        "masterResumePath",
+      ],
+      properties: {
+        fullName: { type: "string" },
+        email: { anyOf: [{ type: "string" }, { type: "null" }] },
+        phone: { anyOf: [{ type: "string" }, { type: "null" }] },
+        linkedin: { anyOf: [{ type: "string" }, { type: "null" }] },
+        github: { anyOf: [{ type: "string" }, { type: "null" }] },
+        location: { anyOf: [{ type: "string" }, { type: "null" }] },
+        workModelPreference: {
+          anyOf: [
+            { type: "string", enum: ["remote", "hybrid", "onsite"] },
+            { type: "null" },
+          ],
+        },
+        notes: { anyOf: [{ type: "string" }, { type: "null" }] },
+        masterResumePath: { type: "null" },
+      },
+    },
+    experiences: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "company",
+          "role",
+          "startDate",
+          "endDate",
+          "isCurrent",
+          "description",
+          "bullets",
+        ],
+        properties: {
+          company: { type: "string" },
+          role: { type: "string" },
+          startDate: { type: "string" },
+          endDate: { anyOf: [{ type: "string" }, { type: "null" }] },
+          isCurrent: { type: "boolean" },
+          description: { anyOf: [{ type: "string" }, { type: "null" }] },
+          bullets: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["content", "tags"],
+              properties: {
+                content: { type: "string" },
+                tags: { type: "array", items: { type: "string" } },
+              },
+            },
+          },
+        },
+      },
+    },
+    skills: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "level", "yearsExperience", "category"],
+        properties: {
+          name: { type: "string" },
+          level: {
+            anyOf: [
+              {
+                type: "string",
+                enum: ["beginner", "intermediate", "advanced", "expert"],
+              },
+              { type: "null" },
+            ],
+          },
+          yearsExperience: { anyOf: [{ type: "integer" }, { type: "null" }] },
+          category: {
+            anyOf: [
+              {
+                type: "string",
+                enum: ["language", "framework", "tool", "soft-skill"],
+              },
+              { type: "null" },
+            ],
+          },
+        },
+      },
+    },
+    projects: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "description", "stack", "url", "impact"],
+        properties: {
+          name: { type: "string" },
+          description: { anyOf: [{ type: "string" }, { type: "null" }] },
+          stack: { type: "array", items: { type: "string" } },
+          url: { anyOf: [{ type: "string" }, { type: "null" }] },
+          impact: { anyOf: [{ type: "string" }, { type: "null" }] },
+        },
+      },
+    },
+    education: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["institution", "degree", "field", "startDate", "endDate"],
+        properties: {
+          institution: { type: "string" },
+          degree: { anyOf: [{ type: "string" }, { type: "null" }] },
+          field: { anyOf: [{ type: "string" }, { type: "null" }] },
+          startDate: { anyOf: [{ type: "string" }, { type: "null" }] },
+          endDate: { anyOf: [{ type: "string" }, { type: "null" }] },
+        },
+      },
+    },
+  },
+} as const;
 
 export type OpenAiComparisonResult = {
   model: string;
@@ -128,16 +280,78 @@ export async function extractProfileWithOpenAi(
 
   if (!cleanedText) {
     throw new OpenAiComparisonError(
-      "Cannot compare profile extraction with an empty text input.",
+      "Cannot extract profile from an empty text input.",
     );
   }
 
-  const response = await callOpenAiForComparison(
-    PROFILE_EXTRACTION_SYSTEM_PROMPT,
-    cleanedText,
-  );
+  const { apiKey, model } = getOpenAiComparisonConfig();
+  const client = new OpenAI({ apiKey });
 
-  return parseExtractedProfileResponse(response);
+  let response: Response;
+
+  try {
+    response = await client.responses.create({
+      model,
+      max_output_tokens: 16000,
+      input: [
+        { role: "system", content: OPENAI_PROFILE_EXTRACTION_SYSTEM_PROMPT },
+        { role: "user", content: cleanedText },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "profile_extraction",
+          schema: OPENAI_PROFILE_EXTRACTION_SCHEMA,
+          strict: true,
+        },
+      },
+    });
+  } catch (error) {
+    if (error instanceof OpenAiComparisonError) throw error;
+    if (error instanceof Error) {
+      throw new OpenAiComparisonError(
+        `OpenAI profile extraction request failed: ${error.message}`,
+      );
+    }
+    throw new OpenAiComparisonError(
+      "OpenAI profile extraction request failed for an unknown reason.",
+    );
+  }
+
+  await logRawOpenAiExtractionOutput(response.output_text ?? "", model);
+
+  if (response.incomplete_details) {
+    throw new OpenAiComparisonError(
+      `OpenAI interrompeu a geração por: ${response.incomplete_details.reason}. Tente com um currículo menor ou entre em contato com o suporte.`,
+    );
+  }
+
+  if (!response.output_text?.trim()) {
+    throw new OpenAiComparisonError(
+      "OpenAI profile extraction did not return output_text.",
+    );
+  }
+
+  return parseExtractedProfileResponse(response.output_text);
+}
+
+async function logRawOpenAiExtractionOutput(
+  rawOutput: string,
+  model: string,
+): Promise<void> {
+  try {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const dir = path.join(process.cwd(), "tmp", "logs");
+    const filename = `profile-extraction-openai-raw-output-${timestamp}.txt`;
+    await mkdir(dir, { recursive: true });
+    await writeFile(
+      path.join(dir, filename),
+      `model: ${model}\n\n${rawOutput}`,
+      "utf-8",
+    );
+  } catch {
+    // non-critical
+  }
 }
 
 export async function compareProfileExtraction(

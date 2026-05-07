@@ -500,7 +500,8 @@ function persistProfilePayload(
           masterResumePath: payload.profile.masterResumePath,
           updatedAt: now,
         })
-        .where(eq(profile.id, existingProfile.id));
+        .where(eq(profile.id, existingProfile.id))
+        .run();
 
       insertProfileChildren(tx, existingProfile.id, payload, now);
 
@@ -579,15 +580,17 @@ function clearProfileChildren(tx: typeof db, profileId: number) {
   if (experienceIds.length > 0) {
     tx
       .delete(profileExperienceBullets)
-      .where(inArray(profileExperienceBullets.experienceId, experienceIds));
+      .where(inArray(profileExperienceBullets.experienceId, experienceIds))
+      .run();
   }
 
   tx
     .delete(profileExperiences)
-    .where(eq(profileExperiences.profileId, profileId));
-  tx.delete(profileSkills).where(eq(profileSkills.profileId, profileId));
-  tx.delete(profileProjects).where(eq(profileProjects.profileId, profileId));
-  tx.delete(profileEducation).where(eq(profileEducation.profileId, profileId));
+    .where(eq(profileExperiences.profileId, profileId))
+    .run();
+  tx.delete(profileSkills).where(eq(profileSkills.profileId, profileId)).run();
+  tx.delete(profileProjects).where(eq(profileProjects.profileId, profileId)).run();
+  tx.delete(profileEducation).where(eq(profileEducation.profileId, profileId)).run();
 }
 
 function insertProfileChildren(
@@ -626,7 +629,7 @@ function insertProfileChildren(
           tags: JSON.stringify(bullet.tags),
           createdAt,
         })),
-      );
+      ).run();
     }
   }
 
@@ -639,7 +642,7 @@ function insertProfileChildren(
         yearsExperience: skill.yearsExperience,
         category: skill.category,
       })),
-    );
+    ).run();
   }
 
   if (payload.projects.length > 0) {
@@ -653,7 +656,7 @@ function insertProfileChildren(
         impact: project.impact,
         createdAt,
       })),
-    );
+    ).run();
   }
 
   if (payload.education.length > 0) {
@@ -666,7 +669,7 @@ function insertProfileChildren(
         startDate: educationItem.startDate,
         endDate: educationItem.endDate,
       })),
-    );
+    ).run();
   }
 }
 
