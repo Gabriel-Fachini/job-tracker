@@ -31,6 +31,22 @@ type MonitoringProgressDisplayProps = {
   onCancel: () => void;
 };
 
+const animationStyle = `
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-fade-in-up {
+    animation: fadeInUp 0.3s ease-out;
+  }
+`;
+
 export function MonitoringProgressDisplay({
   isRunning,
   currentCompany,
@@ -46,110 +62,125 @@ export function MonitoringProgressDisplay({
     return null;
   }
 
-  const totalProcessed = stats.leadsSaved + stats.reviewsSaved + stats.discarded;
-  const successRate = totalProcessed > 0 ? stats.leadsSaved + stats.reviewsSaved : 0;
+  const currentEvent = events[0];
+  const previousEvents = events.slice(1);
 
   return (
-    <div className="mb-6 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h3 className="text-lg font-semibold">
-            {isRunning ? "Monitoramento em andamento" : "Último monitoramento"}
-          </h3>
-          {currentCompany && (
-            <p className="text-sm text-muted-foreground">
-              {currentCompany} ({companyIndex}/{totalCompanies})
-              {linksTotal > 0 && ` • ${linksProcessed}/${linksTotal} vagas processadas`}
-            </p>
+    <>
+      <style>{animationStyle}</style>
+      <div className="mb-6 space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h3 className="text-lg font-semibold">
+              {isRunning ? "Monitoramento em andamento" : "Último monitoramento"}
+            </h3>
+            {currentCompany && (
+              <p className="text-sm text-muted-foreground">
+                {currentCompany} ({companyIndex}/{totalCompanies})
+                {linksTotal > 0 && ` • ${linksProcessed}/${linksTotal} vagas processadas`}
+              </p>
+            )}
+          </div>
+
+          {isRunning && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onCancel}
+              className="rounded-lg"
+            >
+              <X className="size-4" />
+              Cancelar
+            </Button>
           )}
         </div>
 
-        {isRunning && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onCancel}
-            className="rounded-lg"
-          >
-            <X className="size-4" />
-            Cancelar
-          </Button>
+        {/* Current Action - Animated */}
+        {currentEvent && (
+          <Card className="border-border/60 bg-card/50">
+            <CardContent className="pt-4">
+              <div className="animate-fade-in-up">
+                <TimelineEvent event={currentEvent} />
+              </div>
+            </CardContent>
+          </Card>
         )}
-      </div>
 
-      {/* Progress Bars */}
-      {isRunning && companyIndex > 0 && (
-        <div className="space-y-2">
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">
-              Empresas: {companyIndex}/{totalCompanies}
-            </p>
-            <div className="h-2 w-full rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all"
-                style={{
-                  width: `${(companyIndex / totalCompanies) * 100}%`,
-                }}
-              />
-            </div>
-          </div>
-
-          {linksTotal > 0 && (
+        {/* Progress Bars */}
+        {isRunning && companyIndex > 0 && (
+          <div className="space-y-2">
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">
-                Vagas: {linksProcessed}/{linksTotal}
+                Empresas: {companyIndex}/{totalCompanies}
               </p>
               <div className="h-2 w-full rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all"
+                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all"
                   style={{
-                    width: `${(linksProcessed / linksTotal) * 100}%`,
+                    width: `${(companyIndex / totalCompanies) * 100}%`,
                   }}
                 />
               </div>
             </div>
-          )}
+
+            {linksTotal > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Vagas: {linksProcessed}/{linksTotal}
+                </p>
+                <div className="h-2 w-full rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all"
+                    style={{
+                      width: `${(linksProcessed / linksTotal) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-4 gap-2">
+          <StatBox
+            label="Salvos"
+            value={stats.leadsSaved}
+            className="bg-emerald-500/10 border-emerald-500/20"
+          />
+          <StatBox
+            label="Revisar"
+            value={stats.reviewsSaved}
+            className="bg-amber-500/10 border-amber-500/20"
+          />
+          <StatBox
+            label="Descartados"
+            value={stats.discarded}
+            className="bg-red-500/10 border-red-500/20"
+          />
+          <StatBox
+            label="Falhas"
+            value={stats.failed}
+            className="bg-orange-500/10 border-orange-500/20"
+          />
         </div>
-      )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-2">
-        <StatBox
-          label="Salvos"
-          value={stats.leadsSaved}
-          className="bg-emerald-500/10 border-emerald-500/20"
-        />
-        <StatBox
-          label="Revisar"
-          value={stats.reviewsSaved}
-          className="bg-amber-500/10 border-amber-500/20"
-        />
-        <StatBox
-          label="Descartados"
-          value={stats.discarded}
-          className="bg-red-500/10 border-red-500/20"
-        />
-        <StatBox
-          label="Falhas"
-          value={stats.failed}
-          className="bg-orange-500/10 border-orange-500/20"
-        />
+        {/* Timeline History */}
+        {previousEvents.length > 0 && (
+          <Card className="border-border/60 bg-card/50">
+            <CardContent className="pt-4">
+              <p className="text-xs font-medium text-muted-foreground mb-3">Histórico</p>
+              <div className="max-h-40 space-y-2 overflow-y-auto">
+                {previousEvents.map((event) => (
+                  <TimelineEvent key={event.id} event={event} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
-
-      {/* Timeline */}
-      {events.length > 0 && (
-        <Card className="border-border/60 bg-card/50">
-          <CardContent className="pt-4">
-            <div className="max-h-48 space-y-2 overflow-y-auto">
-              {events.map((event) => (
-                <TimelineEvent key={event.id} event={event} />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+    </>
   );
 }
 

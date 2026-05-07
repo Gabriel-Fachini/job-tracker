@@ -71,7 +71,7 @@ export function MonitoringRunButton({
 
   useEffect(() => {
     onProgressChange?.(progress);
-  }, [progress, onProgressChange]);
+  }, [progress]);
 
   function addEvent(
     type: MonitoringProgressEvent["type"],

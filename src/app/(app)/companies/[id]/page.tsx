@@ -11,9 +11,8 @@ import {
 } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { CompanyForm } from "@/components/companies/company-form";
 import { CompanyStatusBadge } from "@/components/companies/company-status-badge";
-import { FormSubmitButton } from "@/components/companies/form-submit-button";
+import { EditCompanySheet } from "@/components/companies/edit-company-sheet";
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
 import { isApplicationStatus } from "@/lib/applications";
@@ -247,12 +246,34 @@ export default async function CompanyDetailPage({
         <div className="grid gap-6">
           <Card className="border-border/60 bg-card/85 shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
             <CardHeader className="border-b border-border/40 pb-5">
-              <CardTitle className="font-heading text-2xl">
-                Leitura atual
-              </CardTitle>
-              <CardDescription className="text-sm leading-6 text-muted-foreground">
-                Um resumo rápido do que esta empresa representa no seu pipeline.
-              </CardDescription>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <CardTitle className="font-heading text-2xl">
+                    Leitura atual
+                  </CardTitle>
+                  <CardDescription className="text-sm leading-6 text-muted-foreground">
+                    Um resumo rápido do que esta empresa representa no seu pipeline.
+                  </CardDescription>
+                </div>
+                <EditCompanySheet
+                  action={boundUpdateAction}
+                  deleteAction={boundDeleteAction}
+                  values={{
+                    name: company.name,
+                    website: company.website ?? "",
+                    sector: company.sector ?? "",
+                    size: company.size ?? "",
+                    jobsBoardUrl: company.jobsBoardUrl ?? "",
+                    jobBoardNavigationMode: company.jobBoardNavigationMode ?? "fetch",
+                    glassdoorUrl: company.glassdoorUrl ?? "",
+                    status: company.status,
+                    notes: company.notes ?? "",
+                  }}
+                  hasValidationError={hasValidationError}
+                  hasLinkedApplicationsError={hasLinkedApplicationsError}
+                  canDelete={relatedApplications.length === 0}
+                />
+              </div>
             </CardHeader>
             <CardContent className="grid gap-4 pt-6">
               <SummaryRow
@@ -304,59 +325,6 @@ export default async function CompanyDetailPage({
             </CardContent>
           </Card>
 
-          {hasValidationError ? (
-            <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-5 py-4 text-sm text-destructive">
-              Não foi possível atualizar a empresa. Revise o nome e as URLs informadas.
-            </div>
-          ) : null}
-
-          {hasLinkedApplicationsError ? (
-            <div className="rounded-2xl border border-amber-400/40 bg-amber-400/10 px-5 py-4 text-sm text-amber-100">
-              Esta empresa não pode ser excluída porque ainda possui candidaturas vinculadas.
-            </div>
-          ) : null}
-
-          <CompanyForm
-            action={boundUpdateAction}
-            cancelHref="/companies"
-            title="Editar empresa"
-            description="Atualize a ficha desta empresa sem perder o vínculo com as candidaturas que já estão associadas no banco local."
-            submitLabel="Salvar ajustes"
-            submitPendingLabel="Salvando ajustes..."
-            values={{
-              name: company.name,
-              website: company.website ?? "",
-              sector: company.sector ?? "",
-              size: company.size ?? "",
-              jobsBoardUrl: company.jobsBoardUrl ?? "",
-              jobBoardNavigationMode: company.jobBoardNavigationMode ?? "fetch",
-              glassdoorUrl: company.glassdoorUrl ?? "",
-              status: company.status,
-              notes: company.notes ?? "",
-            }}
-          />
-
-          <Card className="border-destructive/30 bg-destructive/5">
-            <CardHeader className="pb-3">
-              <CardTitle className="font-heading text-xl text-destructive">
-                Zona de remoção
-              </CardTitle>
-              <CardDescription className="text-sm leading-6 text-destructive/80">
-                Como toda candidatura agora exige uma empresa associada, a exclusão
-                só é permitida quando não existem candidaturas vinculadas.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form action={boundDeleteAction} className="flex justify-end">
-                <FormSubmitButton
-                  pendingLabel="Excluindo..."
-                  variant="destructive"
-                >
-                  Excluir empresa
-                </FormSubmitButton>
-              </form>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
