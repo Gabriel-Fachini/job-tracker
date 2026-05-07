@@ -24,6 +24,13 @@
 - Phase 2: Sequential upsert + stats accumulation
 - Per-link events emitted for granular UI updates
 
+## Database Backups
+
+**Before any database schema changes or migrations:**
+- Run `npm run db:backup` to create snapshot
+- Automatic daily backups at 03:00 via launchd (7 daily, 4 weekly, 3 monthly)
+- Restore with `npm run db:restore backups/daily/job-tracker-YYYY-MM-DD.db.gz`
+
 ## Architecture Notes
 
 - No background processes yet (manual triggers only)
