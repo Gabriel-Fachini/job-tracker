@@ -18,10 +18,17 @@ Retorne APENAS JSON válido neste formato exato (sem markdown, sem texto extra):
   ],
   "skills": [
     { "category": "Linguagens", "items": "TypeScript, Python" }
+  ],
+  "projects": [
+    { "name": "Nome Exato Do Projeto", "reason": "curta justificativa opcional" }
   ]
 }
 
-IMPORTANTE: Inclua TODAS as empresas do perfil no array experiences. Cada empresa deve ter pelo menos 2 bullets.`;
+IMPORTANTE:
+- Inclua TODAS as empresas do perfil no array experiences. Cada empresa deve ter pelo menos 2 bullets.
+- Nao transforme projetos em secao fixa do curriculo.
+- Preencha "projects" apenas quando 1 ou 2 projetos tiverem aderencia direta com a vaga.
+- Se projeto servir apenas para reforcar skill, deixe-o fora de "projects" e use-o somente em "skills".`;
 
 export async function generateResumeSelection(
   profile: ProfileSnapshot,
@@ -66,7 +73,7 @@ ${skillsText}
 ${projectsText}
 
 ## INSTRUÇÃO
-Selecione e reescreva os bullet points mais relevantes para esta vaga específica (STAR format). Selecione as habilidades mais relevantes organizadas por categoria em português (ex: "Linguagens", "Frameworks", "Ferramentas", "Cloud & DevOps"). Verifique tecnologias explicitamente citadas na descrição que não aparecem nas habilidades profissionais do candidato. Se o candidato tem projeto pessoal com essa tecnologia, adicione categoria "Projetos & Experiência Prática" com entradas "Tecnologia — Projeto". Caso contrário, adicione categoria "Interesse Técnico".`;
+Selecione e reescreva os bullet points mais relevantes para esta vaga específica (STAR format). Selecione as habilidades mais relevantes organizadas por categoria em português (ex: "Linguagens", "Frameworks", "Ferramentas", "Cloud & DevOps"). Verifique tecnologias explicitamente citadas na descrição que não aparecem nas habilidades profissionais do candidato. Se o candidato tem projeto pessoal com essa tecnologia, adicione categoria "Projetos & Experiência Prática" com entradas "Tecnologia — Projeto". Caso contrário, adicione categoria "Interesse Técnico". Proponha no maximo 2 projetos em "projects" e somente quando eles merecerem aparecer como conteudo proprio do curriculo para esta vaga.`;
 
   const raw = await callOllamaLlm(prompt, {
     system: SYSTEM_PROMPT,
@@ -75,6 +82,12 @@ Selecione e reescreva os bullet points mais relevantes para esta vaga específic
   });
 
   const jsonStr = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+  return parseResumeSelectionResponse(jsonStr);
+}
+
+export function parseResumeSelectionResponse(response: string): ResumeAISelection {
+  const jsonStr = response.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let parsed: any = JSON.parse(jsonStr);
 
@@ -87,5 +100,33 @@ Selecione e reescreva os bullet points mais relevantes para esta vaga específic
   return {
     experiences: Array.isArray(parsed.experiences) ? parsed.experiences : [],
     skills: Array.isArray(parsed.skills) ? parsed.skills : [],
-  } as ResumeAISelection;
+    projects: Array.isArray(parsed.projects)
+      ? parsed.projects
+          .filter(
+            (project: unknown): project is { name?: unknown; reason?: unknown } =>
+              typeof project === "object" && project !== null,
+          )
+          .flatMap((project) => {
+            const name =
+              typeof project.name === "string" && project.name.trim()
+                ? project.name.trim()
+                : null;
+
+            if (!name) {
+              return [];
+            }
+
+            return [
+              {
+                name,
+                reason:
+                  typeof project.reason === "string" && project.reason.trim()
+                    ? project.reason.trim()
+                    : undefined,
+              },
+            ];
+          })
+          .slice(0, 2)
+      : [],
+  };
 }

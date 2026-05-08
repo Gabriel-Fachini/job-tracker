@@ -4,6 +4,7 @@ import type { ResumeTemplateData } from "./types";
 export type ResumeAISelection = {
   experiences: Array<{ company: string; bullets: string[] }>;
   skills: Array<{ category: string; items: string }>;
+  projects: Array<{ name: string; reason?: string }>;
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -28,6 +29,41 @@ function findBulletsForCompany(company: string, bulletsByCompany: Map<string, st
     if (k.includes(key) || key.includes(k)) return v;
   }
   return [];
+}
+
+function normalizeLookupKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function selectProjects(
+  projects: ProfileSnapshot["projects"],
+  selection: ResumeAISelection["projects"],
+): ProfileSnapshot["projects"] {
+  if (selection.length === 0) {
+    return [];
+  }
+
+  const selectedByKey = new Set(selection.map((project) => normalizeLookupKey(project.name)));
+
+  return projects.filter((project) => {
+    const projectKey = normalizeLookupKey(project.name);
+
+    if (selectedByKey.has(projectKey)) {
+      return true;
+    }
+
+    for (const selectedKey of selectedByKey) {
+      if (projectKey.includes(selectedKey) || selectedKey.includes(projectKey)) {
+        return true;
+      }
+    }
+
+    return false;
+  });
 }
 
 export function buildResumeData(
@@ -65,7 +101,7 @@ export function buildResumeData(
       { name: "Inglês", level: "Avançado" },
     ],
 
-    projects: profile.projects.map((p) => ({
+    projects: selectProjects(profile.projects, aiSelection.projects).map((p) => ({
       name: p.name,
       url: p.url ?? undefined,
       stack: p.stack.length > 0 ? p.stack.join(", ") : undefined,
