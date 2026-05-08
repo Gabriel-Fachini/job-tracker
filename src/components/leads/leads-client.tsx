@@ -610,8 +610,13 @@ function LeadCard({
                 onClick={(e) => {
                   e.stopPropagation();
                   startApproveTransition(async () => {
+                    queryClient.setQueryData(["leads"], (old: LeadListItem[] | undefined) =>
+                      old?.map((item) =>
+                        item.id === lead.id ? { ...item, userDecision: "approved" as const } : item
+                      )
+                    );
                     await approveLead(lead.id);
-                    await queryClient.invalidateQueries({ queryKey: ["leads"] });
+                    queryClient.invalidateQueries({ queryKey: ["leads"] });
                     toast.success("Lead aprovado");
                   });
                 }}
@@ -633,8 +638,11 @@ function LeadCard({
                 onClick={(e) => {
                   e.stopPropagation();
                   startDiscardTransition(async () => {
+                    queryClient.setQueryData(["leads"], (old: LeadListItem[] | undefined) =>
+                      old?.filter((item) => item.id !== lead.id)
+                    );
                     await discardLead(lead.id);
-                    await queryClient.invalidateQueries({ queryKey: ["leads"] });
+                    queryClient.invalidateQueries({ queryKey: ["leads"] });
                     toast.success("Lead descartado");
                   });
                 }}

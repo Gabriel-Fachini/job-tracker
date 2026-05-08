@@ -1,9 +1,11 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { Building2, ExternalLink, MapPin, Radar, Sparkles, Wallet } from "lucide-react";
+import { useTransition } from "react";
+import { toast } from "sonner";
 
 import { JobMarkdown } from "@/components/applications/job-markdown";
-import { FormSubmitButton } from "@/components/companies/form-submit-button";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
 import type { LeadListItem, LeadTab } from "@/components/leads/types";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -32,13 +34,43 @@ export function LeadDetailModal({
   onClose,
   onCreateApplication,
 }: LeadDetailModalProps) {
+  const queryClient = useQueryClient();
+  const [isApproving, startApproveTransition] = useTransition();
+  const [isDiscarding, startDiscardTransition] = useTransition();
+
   if (!lead) {
     return null;
   }
 
-  const approveAction = approveLead.bind(null, lead.id);
-  const discardAction = discardLead.bind(null, lead.id);
   const decisionLabel = getJobLeadUserDecisionLabel(lead.userDecision);
+
+  const leadId = lead.id;
+
+  function handleApprove() {
+    startApproveTransition(async () => {
+      queryClient.setQueryData(["leads"], (old: LeadListItem[] | undefined) =>
+        old?.map((item) =>
+          item.id === leadId ? { ...item, userDecision: "approved" as const } : item
+        )
+      );
+      onClose();
+      await approveLead(leadId);
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      toast.success("Lead aprovado");
+    });
+  }
+
+  function handleDiscard() {
+    startDiscardTransition(async () => {
+      queryClient.setQueryData(["leads"], (old: LeadListItem[] | undefined) =>
+        old?.filter((item) => item.id !== leadId)
+      );
+      onClose();
+      await discardLead(leadId);
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      toast.success("Lead descartado");
+    });
+  }
 
   return (
     <Dialog open={!!lead} onOpenChange={(open) => !open && onClose()}>
@@ -161,24 +193,22 @@ export function LeadDetailModal({
             <div className="flex flex-wrap items-center gap-3">
               {tab === "triage" ? (
                 <>
-                  <form action={discardAction}>
-                    <FormSubmitButton
-                      pendingLabel="Descartando..."
-                      variant="outline"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      Descartar
-                    </FormSubmitButton>
-                  </form>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isDiscarding || isApproving}
+                    onClick={handleDiscard}
+                  >
+                    {isDiscarding ? "Descartando..." : "Descartar"}
+                  </Button>
 
-                  <form action={approveAction}>
-                    <FormSubmitButton
-                      pendingLabel="Aprovando..."
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      Aprovar lead
-                    </FormSubmitButton>
-                  </form>
+                  <Button
+                    type="button"
+                    disabled={isApproving || isDiscarding}
+                    onClick={handleApprove}
+                  >
+                    {isApproving ? "Aprovando..." : "Aprovar lead"}
+                  </Button>
                 </>
               ) : (
                 <Button type="button" onClick={() => onCreateApplication(lead)}>
