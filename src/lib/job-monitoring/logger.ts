@@ -28,38 +28,45 @@ export function logMonitoringStep(
     ? pc.dim(step)
     : pc.bold(step);
 
-  const colorizedPayload = { ...payload };
+  const entries = Object.entries(payload);
 
-  // durationMs: dim < 1s, yellow 1–3s, red > 3s
-  if (typeof colorizedPayload.durationMs === "number") {
-    const ms = colorizedPayload.durationMs as number;
-    colorizedPayload.durationMs =
-      ms > 3000
-        ? pc.red(`${ms}ms`)
-        : ms > 1000
-        ? pc.yellow(`${ms}ms`)
-        : pc.dim(`${ms}ms`);
+  if (entries.length === 0) {
+    console.log(prefix, tag, label);
+    return;
   }
 
-  // classification decision colors
-  if (typeof colorizedPayload.decision === "string") {
-    const d = colorizedPayload.decision as string;
-    colorizedPayload.decision =
-      d === "interesting"
-        ? pc.green(d)
-        : d === "review"
-        ? pc.yellow(d)
-        : pc.dim(d);
+  const lines: string[] = [];
+  for (const [key, value] of entries) {
+    let displayValue: string;
+
+    if (key === "durationMs" && typeof value === "number") {
+      const ms = value as number;
+      const formatted = `${ms}ms`;
+      displayValue =
+        ms > 3000
+          ? pc.red(formatted)
+          : ms > 1000
+          ? pc.yellow(formatted)
+          : pc.dim(formatted);
+    } else if (key === "decision" && typeof value === "string") {
+      const d = value as string;
+      displayValue =
+        d === "interesting"
+          ? pc.green(d)
+          : d === "review"
+          ? pc.yellow(d)
+          : pc.dim(d);
+    } else if (key === "isNew" && typeof value === "boolean") {
+      const formatted = value ? "true (insert)" : "false (update)";
+      displayValue = value ? pc.green(formatted) : pc.dim(formatted);
+    } else {
+      displayValue = pc.dim(JSON.stringify(value));
+    }
+
+    lines.push(`  ${pc.dim(key + ":")} ${displayValue}`);
   }
 
-  // isNew highlights inserts vs updates
-  if (typeof colorizedPayload.isNew === "boolean") {
-    colorizedPayload.isNew = colorizedPayload.isNew
-      ? pc.green("true (insert)")
-      : pc.dim("false (update)");
-  }
-
-  console.log(prefix, tag, label, colorizedPayload);
+  console.log(`${prefix} ${tag} ${label}\n${lines.join("\n")}`);
 }
 
 export function printRadarReport(
