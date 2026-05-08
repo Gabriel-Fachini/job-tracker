@@ -45,6 +45,9 @@ import {
   getSeniorityLabel,
   getSourceNameLabel,
   getWorkModelLabel,
+  seniorityOptions,
+  sourceNameOptions,
+  workModelOptions,
 } from "@/lib/jobs";
 import { cn } from "@/lib/utils";
 import {
@@ -52,6 +55,7 @@ import {
   deleteApplicationStage,
   updateApplicationNotes,
   updateApplicationStage,
+  updateJobContext,
 } from "@/server/actions/applications";
 import { generateResume, openResumeInFinder } from "@/server/actions/resume";
 
@@ -152,43 +156,6 @@ export function ApplicationDetailModal({
   const currentStage = orderedStages.at(-1) ?? null;
   const currentStageHealth = getStageHealth(currentStage?.date ?? null);
   const timelineItems = buildTimelineItems(orderedStages);
-  const metaItems: MetaItem[] = [
-    {
-      label: "Candidatura",
-      value: `APP-${application.id}`,
-      icon: Hash,
-    },
-    {
-      label: "Empresa",
-      value: application.company ?? "Não informada",
-      icon: Building2,
-    },
-    {
-      label: "Origem",
-      value: getSourceNameLabel(application.sourceName) ?? "Não informada",
-      icon: RadioTower,
-    },
-    {
-      label: "Modelo",
-      value: getWorkModelLabel(application.workModel) ?? "Não informado",
-      icon: Layers3,
-    },
-    {
-      label: "Senioridade",
-      value: getSeniorityLabel(application.seniority) ?? "Não informada",
-      icon: Sparkles,
-    },
-    {
-      label: "Indicação",
-      value: application.isReferral ? "Sim" : "Não",
-      icon: Users2,
-    },
-    {
-      label: "Registrada em",
-      value: formatLongDate(application.createdAt),
-      icon: CalendarDays,
-    },
-  ];
 
   return (
     <Dialog open={!!application} onOpenChange={(open) => !open && onClose()}>
@@ -363,33 +330,17 @@ export function ApplicationDetailModal({
               </section>
 
               <section className={tertiarySectionClassName}>
-                <div className="border-b border-border/40 px-5 py-4">
-                  <SectionEyebrow>Metadados</SectionEyebrow>
-                  <h3 className="mt-1 text-base font-semibold text-foreground">
-                    Contexto da vaga
-                  </h3>
-                </div>
-                <div className="grid gap-3 px-5 py-5">
-                  {metaItems.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <div
-                        key={item.label}
-                        className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <Icon className="size-3 text-muted-foreground/60" />
-                          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
-                            {item.label}
-                          </p>
-                        </div>
-                        <p className="mt-2 text-sm font-medium leading-5 text-foreground/90">
-                          {item.value}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
+                <MetadataEditor
+                  key={`metadata:${application.id}:${application.updatedAt.getTime()}`}
+                  applicationId={application.id}
+                  initialSourceName={application.sourceName}
+                  initialWorkModel={application.workModel}
+                  initialSeniority={application.seniority}
+                  initialIsReferral={application.isReferral}
+                  appId={`APP-${application.id}`}
+                  company={application.company}
+                  createdAt={application.createdAt}
+                />
               </section>
             </aside>
           </div>
@@ -689,205 +640,189 @@ function UsedResumeSection({
     });
   }
 
+  async function markResumeAsUnknown() {
+    const formData = new FormData();
+    formData.set("mode", "unknown");
+
+    const response = await fetch(`/api/applications/${applicationId}/resume`, {
+      method: "POST",
+      body: formData,
+    });
+    const payload = (await response.json()) as
+      | { ok: true }
+      | { ok: false; error: string };
+
+    if (!payload.ok) {
+      throw new Error(payload.error);
+    }
+  }
+
+  function handleMarkAsUnknown() {
+    setError(null);
+
+    startTransition(async () => {
+      try {
+        await markResumeAsUnknown();
+        router.refresh();
+      } catch (mutationError) {
+        setError(
+          mutationError instanceof Error
+            ? mutationError.message
+            : "Falha ao atualizar o status do currículo desta candidatura.",
+        );
+      }
+    });
+  }
+
   return (
     <div className={cn("rounded-2xl overflow-hidden", COLORS.card.border, COLORS.card.bg)}>
-      {/* Row 1: Uploaded PDF status */}
-      <div className={cn("p-4 border-b", COLORS.divider.border)}>
-        {status === "uploaded" ? (
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-emerald-200">
-                <FileUp className="size-4" />
-                <p className="text-sm font-semibold">PDF registrado para esta candidatura</p>
-              </div>
-              <p className="mt-2 text-sm text-foreground/85">
-                {originalFilename ?? "Arquivo salvo localmente"}
-              </p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Use este registro para lembrar exatamente qual currículo foi enviado nesta plataforma.
-              </p>
+      {status === "empty" ? (
+        /* Compact closed state — no AI generation section */
+        <div className="p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-amber-100">
+              <FileX2 className="size-4" />
+              <p className="text-sm font-semibold">Candidatura sem currículo</p>
             </div>
-
             <div className="flex flex-wrap items-center gap-2">
-              <a
-                href={`/api/applications/${applicationId}/resume`}
-                target="_blank"
-                rel="noreferrer"
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-xl")}
-              >
-                Abrir PDF
-              </a>
-              <label
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "sm" }),
-                  "cursor-pointer rounded-xl",
-                )}
-              >
-                Substituir PDF
-                <input
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  className="sr-only"
-                  onChange={handleFileSelection}
-                  disabled={isPending}
-                />
-              </label>
+              <span className="inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/12 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-amber-100">
+                Sem currículo
+              </span>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 disabled={isPending}
-                onClick={handleMarkAsEmpty}
+                onClick={handleMarkAsUnknown}
                 className="rounded-xl text-muted-foreground"
               >
-                <CircleSlash data-icon="inline-start" className="size-3.5" />
-                Marcar como sem currículo
+                {isPending ? (
+                  <Loader2 data-icon="inline-start" className="size-3.5 animate-spin" />
+                ) : null}
+                Desfazer
               </Button>
             </div>
           </div>
-        ) : status === "empty" ? (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-amber-100">
-                <FileX2 className="size-4" />
-                <p className="text-sm font-semibold">Candidatura registrada sem currículo</p>
+          {error ? (
+            <p className="mt-3 text-sm text-destructive">{error}</p>
+          ) : null}
+        </div>
+      ) : (
+        <>
+          {/* Row 1: Upload prompt — hidden when any resume is associated */}
+          {status !== "uploaded" && resumePhase !== "done" && (
+            <div className={cn("p-4 border-b", COLORS.divider.border)}>
+              <div className="flex flex-col gap-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-foreground">
+                    <FileUp className="size-4 text-muted-foreground" />
+                    <p className="text-sm font-semibold">Nenhum currículo vinculado ainda</p>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    Salve o PDF enviado nesta vaga ou marque explicitamente que esta candidatura foi feita sem currículo.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <label
+                    className={cn(
+                      buttonVariants({ variant: "default", size: "sm" }),
+                      "cursor-pointer rounded-xl bg-amber-300 text-zinc-950 hover:bg-amber-200",
+                    )}
+                  >
+                    <FileUp data-icon="inline-start" className="size-3.5" />
+                    Enviar PDF
+                    <input
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      className="sr-only"
+                      onChange={handleFileSelection}
+                      disabled={isPending}
+                    />
+                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isPending}
+                    onClick={handleMarkAsEmpty}
+                    className="rounded-xl"
+                  >
+                    <CircleSlash data-icon="inline-start" className="size-3.5" />
+                    Marcar como sem currículo
+                  </Button>
+                </div>
               </div>
-              <p className="mt-1 text-sm leading-5 text-amber-50/85">
-                Plataforma sem envio de PDF, como alguns fluxos da Gupy.
-              </p>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/12 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-amber-100">
-                Sem currículo
-              </span>
-              <label
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "sm" }),
-                  "cursor-pointer rounded-xl border-amber-300/30 bg-amber-300/6 text-amber-50 hover:bg-amber-300/12",
-                )}
-              >
-                Enviar PDF agora
-                <input
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  className="sr-only"
-                  onChange={handleFileSelection}
-                  disabled={isPending}
-                />
-              </label>
+              {error ? (
+                <p className="mt-3 text-sm text-destructive">{error}</p>
+              ) : null}
+              {isPending ? (
+                <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" />
+                  Atualizando o registro do currículo...
+                </div>
+              ) : null}
             </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-foreground">
-                <FileUp className="size-4 text-muted-foreground" />
-                <p className="text-sm font-semibold">Nenhum currículo vinculado ainda</p>
-              </div>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Salve o PDF enviado nesta vaga ou marque explicitamente que esta candidatura foi feita sem currículo.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <label
-                className={cn(
-                  buttonVariants({ variant: "default", size: "sm" }),
-                  "cursor-pointer rounded-xl bg-amber-300 text-zinc-950 hover:bg-amber-200",
-                )}
-              >
-                <FileUp data-icon="inline-start" className="size-3.5" />
-                Enviar PDF
-                <input
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  className="sr-only"
-                  onChange={handleFileSelection}
-                  disabled={isPending}
-                />
-              </label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isPending}
-                onClick={handleMarkAsEmpty}
-                className="rounded-xl"
-              >
-                <CircleSlash data-icon="inline-start" className="size-3.5" />
-                Marcar como sem currículo
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {error ? (
-          <p className="mt-3 text-sm text-destructive">{error}</p>
-        ) : null}
-        {isPending ? (
-          <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" />
-            Atualizando o registro do currículo...
-          </div>
-        ) : null}
-      </div>
-
-      {/* Row 2: AI Generation */}
-      <div className="p-4">
-        <SectionEyebrow>Geração por IA</SectionEyebrow>
-        <h3 className="mt-1 text-sm font-semibold text-foreground">Currículo personalizado para esta vaga</h3>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          A IA seleciona e reescreve os bullet points e habilidades mais relevantes para esta vaga.
-        </p>
-        {resumePhase === "error" && resumeError ? (
-          <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {resumeError}
-          </p>
-        ) : null}
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {resumePhase === "done" && pdfPath ? (
-            <>
-              <span className="text-sm text-emerald-400">Currículo gerado.</span>
-              <a
-                href={`/api/applications/${applicationId}/generated-resume`}
-                target="_blank"
-                rel="noreferrer"
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-xl")}
-              >
-                Abrir PDF
-              </a>
-              <Button type="button" variant="ghost" size="sm" onClick={handleOpenInFinder} className="rounded-xl gap-1.5 text-muted-foreground">
-                <FolderOpen className="size-3.5" />
-                Finder
-              </Button>
-              <Button type="button" variant="ghost" size="sm" onClick={handleGenerateResume} disabled={isGenerating} className="rounded-xl gap-1.5 text-muted-foreground">
-                Gerar novamente
-              </Button>
-            </>
-          ) : (
-            <Button type="button" size="sm" onClick={handleGenerateResume} disabled={isGenerating} className="rounded-xl gap-1.5 bg-emerald-600 text-white hover:bg-emerald-500">
-              {isGenerating ? (
-                <><Loader2 className="size-3.5 animate-spin" />Gerando...</>
-              ) : (
-                <><Sparkles className="size-3.5" />{resumePhase === "error" ? "Tentar novamente" : "Gerar Currículo"}</>
-              )}
-            </Button>
           )}
-        </div>
-      </div>
 
-      {/* Row 3: PDF preview — inside the same card, no layout shift */}
-      {resumePhase === "done" && pdfPath ? (
-        <div className={cn("border-t", COLORS.divider.border)}>
-          <iframe
-            src={`/api/applications/${applicationId}/generated-resume`}
-            className="w-full"
-            style={{ height: "min(780px, 65vh)" }}
-            title="Preview do currículo gerado"
-          />
-        </div>
-      ) : null}
+          {/* Row 2: AI Generation */}
+          <div className="p-4">
+            <SectionEyebrow>Geração por IA</SectionEyebrow>
+            <h3 className="mt-1 text-sm font-semibold text-foreground">Currículo personalizado para esta vaga</h3>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              A IA seleciona e reescreve os bullet points e habilidades mais relevantes para esta vaga.
+            </p>
+            {resumePhase === "error" && resumeError ? (
+              <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {resumeError}
+              </p>
+            ) : null}
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {resumePhase === "done" && pdfPath ? (
+                <>
+                  <span className="text-sm text-emerald-400">Currículo gerado.</span>
+                  <a
+                    href={`/api/applications/${applicationId}/generated-resume`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-xl")}
+                  >
+                    Abrir PDF
+                  </a>
+                  <Button type="button" variant="ghost" size="sm" onClick={handleOpenInFinder} className="rounded-xl gap-1.5 text-muted-foreground">
+                    <FolderOpen className="size-3.5" />
+                    Finder
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={handleGenerateResume} disabled={isGenerating} className="rounded-xl gap-1.5 text-muted-foreground">
+                    Gerar novamente
+                  </Button>
+                </>
+              ) : (
+                <Button type="button" size="sm" onClick={handleGenerateResume} disabled={isGenerating} className="rounded-xl gap-1.5 bg-emerald-600 text-white hover:bg-emerald-500">
+                  {isGenerating ? (
+                    <><Loader2 className="size-3.5 animate-spin" />Gerando...</>
+                  ) : (
+                    <><Sparkles className="size-3.5" />{resumePhase === "error" ? "Tentar novamente" : "Gerar Currículo"}</>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Row 3: PDF preview — inside the same card, no layout shift */}
+          {resumePhase === "done" && pdfPath ? (
+            <div className={cn("border-t", COLORS.divider.border)}>
+              <iframe
+                src={`/api/applications/${applicationId}/generated-resume`}
+                className="w-full"
+                style={{ height: "min(780px, 65vh)" }}
+                title="Preview do currículo gerado"
+              />
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
@@ -1171,6 +1106,251 @@ function SectionEyebrow({ children }: { children: ReactNode }) {
     <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
       {children}
     </p>
+  );
+}
+
+function MetadataEditor({
+  applicationId,
+  initialSourceName,
+  initialWorkModel,
+  initialSeniority,
+  initialIsReferral,
+  appId,
+  company,
+  createdAt,
+}: {
+  applicationId: number;
+  initialSourceName: string | null;
+  initialWorkModel: string | null;
+  initialSeniority: string | null;
+  initialIsReferral: boolean;
+  appId: string;
+  company: string | null;
+  createdAt: Date;
+}) {
+  const router = useRouter();
+  const [isEditing, setIsEditing] = useState(false);
+  const [sourceName, setSourceName] = useState(initialSourceName ?? "");
+  const [workModel, setWorkModel] = useState(initialWorkModel ?? "");
+  const [seniority, setSeniority] = useState(initialSeniority ?? "");
+  const [isReferral, setIsReferral] = useState(initialIsReferral);
+  const [isSaving, startSaving] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function handleEdit() {
+    setSourceName(initialSourceName ?? "");
+    setWorkModel(initialWorkModel ?? "");
+    setSeniority(initialSeniority ?? "");
+    setIsReferral(initialIsReferral);
+    setError(null);
+    setIsEditing(true);
+  }
+
+  function handleCancel() {
+    setIsEditing(false);
+    setError(null);
+  }
+
+  function handleSave() {
+    setError(null);
+    startSaving(async () => {
+      const result = await updateJobContext(applicationId, {
+        sourceName: sourceName || null,
+        workModel: workModel || null,
+        seniority: seniority || null,
+        isReferral,
+      });
+
+      if (!result.success) {
+        setError(getMutationErrorMessage(result.error));
+        return;
+      }
+
+      setIsEditing(false);
+      router.refresh();
+    });
+  }
+
+  const staticItems: MetaItem[] = [
+    { label: "Candidatura", value: appId, icon: Hash },
+    { label: "Empresa", value: company ?? "Não informada", icon: Building2 },
+    { label: "Registrada em", value: formatLongDate(createdAt), icon: CalendarDays },
+  ];
+
+  return (
+    <>
+      <div className="flex items-center justify-between border-b border-border/40 px-5 py-4">
+        <div>
+          <SectionEyebrow>Metadados</SectionEyebrow>
+          <h3 className="mt-1 text-base font-semibold text-foreground">Contexto da vaga</h3>
+        </div>
+        {!isEditing && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleEdit}
+            className="rounded-xl text-muted-foreground"
+          >
+            <PencilLine className="size-3.5" />
+          </Button>
+        )}
+      </div>
+
+      <div className="grid gap-3 px-5 py-5">
+        {staticItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div
+              key={item.label}
+              className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}
+            >
+              <div className="flex items-center gap-1.5">
+                <Icon className="size-3 text-muted-foreground/60" />
+                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
+                  {item.label}
+                </p>
+              </div>
+              <p className="mt-2 text-sm font-medium leading-5 text-foreground/90">
+                {item.value}
+              </p>
+            </div>
+          );
+        })}
+
+        {isEditing ? (
+          <>
+            <div className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <RadioTower className="size-3 text-muted-foreground/60" />
+                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
+                  Origem
+                </p>
+              </div>
+              <select
+                value={sourceName}
+                onChange={(e) => setSourceName(e.target.value)}
+                className={controlClassName}
+              >
+                <option value="">Não informada</option>
+                {sourceNameOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Layers3 className="size-3 text-muted-foreground/60" />
+                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
+                  Modelo
+                </p>
+              </div>
+              <select
+                value={workModel}
+                onChange={(e) => setWorkModel(e.target.value)}
+                className={controlClassName}
+              >
+                <option value="">Não informado</option>
+                {workModelOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Sparkles className="size-3 text-muted-foreground/60" />
+                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
+                  Senioridade
+                </p>
+              </div>
+              <select
+                value={seniority}
+                onChange={(e) => setSeniority(e.target.value)}
+                className={controlClassName}
+              >
+                <option value="">Não informada</option>
+                {seniorityOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Users2 className="size-3 text-muted-foreground/60" />
+                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
+                  Indicação
+                </p>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isReferral}
+                  onChange={(e) => setIsReferral(e.target.checked)}
+                  className="size-4 rounded"
+                />
+                <span className="text-sm text-foreground/90">Candidatura por indicação</span>
+              </label>
+            </div>
+
+            {error ? (
+              <p className="text-sm text-destructive">{error}</p>
+            ) : null}
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleCancel}
+                disabled={isSaving}
+                className="rounded-xl"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSave}
+                disabled={isSaving}
+                className="rounded-xl"
+              >
+                {isSaving ? "Salvando..." : "Salvar"}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            {[
+              { label: "Origem", value: getSourceNameLabel(initialSourceName) ?? "Não informada", icon: RadioTower },
+              { label: "Modelo", value: getWorkModelLabel(initialWorkModel) ?? "Não informado", icon: Layers3 },
+              { label: "Senioridade", value: getSeniorityLabel(initialSeniority) ?? "Não informada", icon: Sparkles },
+              { label: "Indicação", value: initialIsReferral ? "Sim" : "Não", icon: Users2 },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={item.label}
+                  className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Icon className="size-3 text-muted-foreground/60" />
+                    <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
+                      {item.label}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-sm font-medium leading-5 text-foreground/90">
+                    {item.value}
+                  </p>
+                </div>
+              );
+            })}
+          </>
+        )}
+      </div>
+    </>
   );
 }
 

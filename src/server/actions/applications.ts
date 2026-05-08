@@ -11,6 +11,7 @@ import {
   applicationStages,
   applicationStatusHistory,
   companies,
+  jobs,
 } from "@/lib/db/schema";
 import {
   normalizeApplicationStatus,
@@ -327,6 +328,52 @@ export async function updateApplicationNotes(
       notes: notes.trim() || null,
       updatedAt: new Date(),
     })
+    .where(eq(applications.id, applicationId))
+    .run();
+
+  revalidatePath("/applications");
+
+  return { success: true };
+}
+
+type JobContextData = {
+  sourceName: string | null;
+  workModel: string | null;
+  seniority: string | null;
+  isReferral: boolean;
+};
+
+export async function updateJobContext(
+  applicationId: number,
+  data: JobContextData,
+): Promise<MutationResult> {
+  if (!Number.isInteger(applicationId)) {
+    return { success: false, error: "validation" };
+  }
+
+  const current = db
+    .select({ id: applications.id, jobId: applications.jobId })
+    .from(applications)
+    .where(eq(applications.id, applicationId))
+    .get();
+
+  if (!current) {
+    return { success: false, error: "not_found" };
+  }
+
+  const now = new Date();
+
+  db.update(jobs)
+    .set({
+      sourceName: data.sourceName && isSourceName(data.sourceName) ? data.sourceName : null,
+      workModel: data.workModel && isWorkModel(data.workModel) ? data.workModel : null,
+      seniority: data.seniority && isSeniority(data.seniority) ? data.seniority : null,
+    })
+    .where(eq(jobs.id, current.jobId))
+    .run();
+
+  db.update(applications)
+    .set({ isReferral: data.isReferral, updatedAt: now })
     .where(eq(applications.id, applicationId))
     .run();
 

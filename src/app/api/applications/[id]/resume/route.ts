@@ -62,6 +62,25 @@ export async function POST(
       });
     }
 
+    if (mode === "unknown") {
+      db.update(applications)
+        .set({
+          usedResumeStatus: "unknown",
+          usedResumePath: null,
+          usedResumeOriginalFilename: null,
+          updatedAt: now,
+        })
+        .where(eq(applications.id, applicationId))
+        .run();
+
+      revalidatePath("/applications");
+
+      return NextResponse.json({
+        ok: true,
+        resumeStatus: "unknown",
+      });
+    }
+
     const file = formData.get("file");
 
     if (!(file instanceof File)) {

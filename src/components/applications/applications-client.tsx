@@ -75,6 +75,7 @@ type ApplicationListItem = {
   usedResumeOriginalFilename: string | null;
   generatedResumePath: string | null;
   notes: string | null;
+  isReferral: boolean;
   stages: ApplicationStageData[];
 };
 
@@ -230,6 +231,7 @@ function buildApplicationDetail(item: ApplicationListItem): ApplicationDetailDat
     usedResumeOriginalFilename: item.usedResumeOriginalFilename,
     generatedResumePath: item.generatedResumePath,
     notes: item.notes,
+    isReferral: item.isReferral,
     stages: item.stages,
   };
 }
