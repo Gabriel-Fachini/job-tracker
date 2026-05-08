@@ -16,9 +16,11 @@ export default async function ApplicationsPage() {
       usedResumeStatus: applications.usedResumeStatus,
       usedResumePath: applications.usedResumePath,
       usedResumeOriginalFilename: applications.usedResumeOriginalFilename,
+      generatedResumePath: applications.generatedResumePath,
       appliedAt: applications.appliedAt,
       createdAt: applications.createdAt,
       updatedAt: applications.updatedAt,
+      isReferral: applications.isReferral,
       // job fields
       jobTitle: jobs.title,
       company: companies.name,
@@ -115,7 +117,7 @@ export default async function ApplicationsPage() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-8">
+    <div className="flex flex-1 flex-col gap-8 overflow-x-hidden">
       {/* Page header */}
       <div className="flex flex-col gap-1.5">
         <h1 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">

@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "230aee68-cd34-443b-8ac7-6a95b657b308",
-  "prevId": "036c2a06-c7b4-4ec2-913c-5d2d62946cb8",
+  "id": "74BAAFF0-53A1-4D9C-B853-0D8C67D870DE",
+  "prevId": "230aee68-cd34-443b-8ac7-6a95b657b308",
   "tables": {
     "application_stages": {
       "name": "application_stages",
@@ -231,6 +231,14 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "is_referral": {
+          "name": "is_referral",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "0"
         }
       },
       "indexes": {},

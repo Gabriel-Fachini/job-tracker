@@ -73,6 +73,7 @@ type ApplicationListItem = {
   usedResumeStatus: string;
   usedResumePath: string | null;
   usedResumeOriginalFilename: string | null;
+  generatedResumePath: string | null;
   notes: string | null;
   stages: ApplicationStageData[];
 };
@@ -227,6 +228,7 @@ function buildApplicationDetail(item: ApplicationListItem): ApplicationDetailDat
     usedResumeStatus: item.usedResumeStatus,
     usedResumePath: item.usedResumePath,
     usedResumeOriginalFilename: item.usedResumeOriginalFilename,
+    generatedResumePath: item.generatedResumePath,
     notes: item.notes,
     stages: item.stages,
   };
@@ -649,24 +651,25 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
           </Button>
         </div>
 
-        <div className="flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-border/50 bg-card/40 px-4 py-3">
-          <p
-            className={cn(
-              "text-sm",
-              feedback?.tone === "danger"
-                ? "text-destructive"
-                : "text-muted-foreground",
-            )}
-          >
-            {feedback?.message ??
-              "Arraste o grip do card entre colunas para mover a candidatura com animação."}
-          </p>
-          {isSavingMove ? (
-            <span className="text-xs font-medium uppercase tracking-[0.16em] text-amber-200">
-              Salvando movimento...
-            </span>
-          ) : null}
-        </div>
+        {(feedback !== null || isSavingMove) && (
+          <div className="flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-border/50 bg-card/40 px-4 py-3">
+            <p
+              className={cn(
+                "text-sm",
+                feedback?.tone === "danger"
+                  ? "text-destructive"
+                  : "text-muted-foreground",
+              )}
+            >
+              {feedback?.message}
+            </p>
+            {isSavingMove ? (
+              <span className="text-xs font-medium uppercase tracking-[0.16em] text-amber-200">
+                Salvando movimento...
+              </span>
+            ) : null}
+          </div>
+        )}
       </div>
 
       {totalCount === 0 ? (

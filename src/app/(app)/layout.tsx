@@ -12,7 +12,7 @@ export default function AppLayout({
       <SidebarProvider defaultOpen>
         <AppSidebar />
         <SidebarInset>
-          <div className="flex flex-1 flex-col p-8 sm:p-10 lg:p-14 xl:p-16 2xl:p-20">{children}</div>
+          <div className="flex flex-1 flex-col overflow-x-hidden p-8 sm:p-10 lg:p-14 xl:p-16 2xl:p-20">{children}</div>
         </SidebarInset>
       </SidebarProvider>
     </MonitoringProgressProvider>

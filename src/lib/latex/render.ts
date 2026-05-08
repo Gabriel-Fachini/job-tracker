@@ -6,7 +6,7 @@ import type { ResumeTemplateData } from './types';
 
 Mustache.escape = (s) => s;
 
-const TEMPLATE_PATH = path.join(__dirname, 'template.tex');
+const TEMPLATE_PATH = path.join(process.cwd(), 'src/lib/latex/template.tex');
 
 export function renderResumeTex(data: ResumeTemplateData): string {
   const safe = escapeData(data);

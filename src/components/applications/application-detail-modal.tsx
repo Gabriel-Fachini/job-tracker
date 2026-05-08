@@ -21,6 +21,7 @@ import {
   RadioTower,
   Sparkles,
   Trash2,
+  Users2,
   Workflow,
   type LucideIcon,
 } from "lucide-react";
@@ -78,7 +79,9 @@ export type ApplicationDetailData = {
   usedResumeStatus: string;
   usedResumePath: string | null;
   usedResumeOriginalFilename: string | null;
+  generatedResumePath: string | null;
   notes: string | null;
+  isReferral: boolean;
   stages: ApplicationStageData[];
 };
 
@@ -105,6 +108,21 @@ type StageFormState = {
   date: string;
   notes: string;
 };
+
+// Color system
+const COLORS = {
+  card: {
+    border: "border-zinc-700/70",
+    bg: "bg-zinc-950/75",
+  },
+  divider: {
+    border: "border-zinc-700/70",
+  },
+  metadata: {
+    border: "border-zinc-800/80",
+    bg: "bg-zinc-950/75",
+  },
+} as const;
 
 const controlClassName =
   "h-10 w-full rounded-xl border border-border/70 bg-background/70 px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -159,6 +177,11 @@ export function ApplicationDetailModal({
       label: "Senioridade",
       value: getSeniorityLabel(application.seniority) ?? "Não informada",
       icon: Sparkles,
+    },
+    {
+      label: "Indicação",
+      value: application.isReferral ? "Sim" : "Não",
+      icon: Users2,
     },
     {
       label: "Registrada em",
@@ -246,9 +269,9 @@ export function ApplicationDetailModal({
 
               <section className={secondarySectionClassName}>
                 <div className="border-b border-border/40 px-5 py-4">
-                  <SectionEyebrow>Currículo usado</SectionEyebrow>
+                  <SectionEyebrow>Currículo</SectionEyebrow>
                   <h3 className="mt-1 text-base font-semibold text-foreground">
-                    PDF efetivamente enviado nesta vaga
+                    PDF enviado e geração por IA
                   </h3>
                 </div>
                 <div className="px-5 py-5">
@@ -256,6 +279,7 @@ export function ApplicationDetailModal({
                     applicationId={application.id}
                     status={usedResumeStatus}
                     originalFilename={application.usedResumeOriginalFilename}
+                    savedGeneratedResumePath={application.generatedResumePath}
                   />
                 </div>
               </section>
@@ -351,7 +375,7 @@ export function ApplicationDetailModal({
                     return (
                       <div
                         key={item.label}
-                        className="rounded-xl border border-zinc-800/80 bg-zinc-950/75 p-3"
+                        className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}
                       >
                         <div className="flex items-center gap-1.5">
                           <Icon className="size-3 text-muted-foreground/60" />
@@ -495,7 +519,7 @@ function StageComposer({
       ) : (
         <form
           onSubmit={handleSubmit}
-          className="rounded-2xl border border-zinc-700/70 bg-zinc-950/70 p-4 sm:min-w-[22rem]"
+          className={cn("rounded-2xl p-4 sm:min-w-[22rem]", COLORS.card.border, COLORS.card.bg)}
         >
           <div className="grid gap-3">
             <Input
@@ -534,6 +558,7 @@ function StageComposer({
                   setError(null);
                   setFields(createEmptyStageForm());
                 }}
+                className="rounded-xl"
               >
                 Cancelar
               </Button>
@@ -552,16 +577,20 @@ function UsedResumeSection({
   applicationId,
   status,
   originalFilename,
+  savedGeneratedResumePath,
 }: {
   applicationId: number;
   status: UsedResumeStatus;
   originalFilename: string | null;
+  savedGeneratedResumePath: string | null;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [resumePhase, setResumePhase] = useState<"idle" | "generating" | "done" | "error">("idle");
-  const [pdfPath, setPdfPath] = useState<string | null>(null);
+  const [resumePhase, setResumePhase] = useState<"idle" | "generating" | "done" | "error">(
+    savedGeneratedResumePath ? "done" : "idle"
+  );
+  const [pdfPath, setPdfPath] = useState<string | null>(savedGeneratedResumePath);
   const [resumeError, setResumeError] = useState<string | null>(null);
   const [isGenerating, startGenerating] = useTransition();
 
@@ -581,7 +610,8 @@ function UsedResumeSection({
   }
 
   function handleOpenInFinder() {
-    if (pdfPath) openResumeInFinder(pdfPath);
+    const path = pdfPath ?? savedGeneratedResumePath;
+    if (path) openResumeInFinder(path);
   }
 
   async function uploadResume(file: File) {
@@ -660,8 +690,9 @@ function UsedResumeSection({
   }
 
   return (
-    <div className="grid gap-4">
-      <div className="rounded-2xl border border-zinc-700/70 bg-zinc-950/75 p-4">
+    <div className={cn("rounded-2xl overflow-hidden", COLORS.card.border, COLORS.card.bg)}>
+      {/* Row 1: Uploaded PDF status */}
+      <div className={cn("p-4 border-b", COLORS.divider.border)}>
         {status === "uploaded" ? (
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
@@ -751,7 +782,7 @@ function UsedResumeSection({
           <div className="flex flex-col gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2 text-foreground">
-                <FileText className="size-4 text-muted-foreground" />
+                <FileUp className="size-4 text-muted-foreground" />
                 <p className="text-sm font-semibold">Nenhum currículo vinculado ainda</p>
               </div>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -790,17 +821,22 @@ function UsedResumeSection({
             </div>
           </div>
         )}
+
+        {error ? (
+          <p className="mt-3 text-sm text-destructive">{error}</p>
+        ) : null}
+        {isPending ? (
+          <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-3.5 animate-spin" />
+            Atualizando o registro do currículo...
+          </div>
+        ) : null}
       </div>
 
-      {error ? (
-        <p className="text-sm text-destructive">{error}</p>
-      ) : null}
-      {isPending ? (
-        <p className="text-sm text-muted-foreground">Atualizando o registro do currículo...</p>
-      ) : null}
-
-      <div className="rounded-2xl border border-zinc-700/70 bg-zinc-950/75 p-4">
-        <p className="text-sm font-semibold text-foreground">Geração de currículo por IA</p>
+      {/* Row 2: AI Generation */}
+      <div className="p-4">
+        <SectionEyebrow>Geração por IA</SectionEyebrow>
+        <h3 className="mt-1 text-sm font-semibold text-foreground">Currículo personalizado para esta vaga</h3>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">
           A IA seleciona e reescreve os bullet points e habilidades mais relevantes para esta vaga.
         </p>
@@ -813,9 +849,17 @@ function UsedResumeSection({
           {resumePhase === "done" && pdfPath ? (
             <>
               <span className="text-sm text-emerald-400">Currículo gerado.</span>
-              <Button type="button" variant="outline" size="sm" onClick={handleOpenInFinder} className="rounded-xl gap-1.5">
+              <a
+                href={`/api/applications/${applicationId}/generated-resume`}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-xl")}
+              >
+                Abrir PDF
+              </a>
+              <Button type="button" variant="ghost" size="sm" onClick={handleOpenInFinder} className="rounded-xl gap-1.5 text-muted-foreground">
                 <FolderOpen className="size-3.5" />
-                Abrir no Finder
+                Finder
               </Button>
               <Button type="button" variant="ghost" size="sm" onClick={handleGenerateResume} disabled={isGenerating} className="rounded-xl gap-1.5 text-muted-foreground">
                 Gerar novamente
@@ -826,12 +870,24 @@ function UsedResumeSection({
               {isGenerating ? (
                 <><Loader2 className="size-3.5 animate-spin" />Gerando...</>
               ) : (
-                <><FileText className="size-3.5" />{resumePhase === "error" ? "Tentar novamente" : "Gerar Currículo"}</>
+                <><Sparkles className="size-3.5" />{resumePhase === "error" ? "Tentar novamente" : "Gerar Currículo"}</>
               )}
             </Button>
           )}
         </div>
       </div>
+
+      {/* Row 3: PDF preview — inside the same card, no layout shift */}
+      {resumePhase === "done" && pdfPath ? (
+        <div className={cn("border-t", COLORS.divider.border)}>
+          <iframe
+            src={`/api/applications/${applicationId}/generated-resume`}
+            className="w-full"
+            style={{ height: "min(780px, 65vh)" }}
+            title="Preview do currículo gerado"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1012,6 +1068,7 @@ function TimelineStageItem({
                   setError(null);
                   setFields(createStageFormFromStage(stage));
                 }}
+                className="rounded-xl"
               >
                 Cancelar
               </Button>
@@ -1095,7 +1152,7 @@ function SummaryMetric({
   valueClassName?: string;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/75 p-3">
+    <div className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}>
       <div className="flex items-center gap-1.5">
         <Icon className="size-3 text-muted-foreground/60" />
         <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">

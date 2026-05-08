@@ -4,42 +4,20 @@ import type { ResumeAISelection } from "@/lib/latex/profile-adapter";
 
 const SYSTEM_PROMPT = `Você é um especialista em currículos técnicos para engenheiros de software.
 Dado um perfil de candidato e uma descrição de vaga, sua tarefa é:
-1. Para cada experiência, selecionar e reescrever levemente os bullet points mais relevantes (mínimo 2, máximo 5) em formato STAR (Situação, Tarefa, Ação, Resultado). Preserve números e métricas reais. Não invente dados.
-2. Selecionar as categorias e habilidades mais relevantes para a vaga, organizadas por categoria com label em português.
+1. Para cada experiência listada no perfil, selecionar e reescrever levemente os bullet points mais relevantes (mínimo 2, máximo 5) em formato STAR. Preserve números e métricas reais. Não invente dados.
+2. Selecionar as habilidades mais relevantes para a vaga, agrupadas por categoria em português.
 
-Retorne APENAS o JSON estruturado, sem explicações.`;
+Retorne APENAS JSON válido neste formato exato (sem markdown, sem texto extra):
+{
+  "experiences": [
+    { "company": "Nome Exato Da Empresa", "bullets": ["bullet 1", "bullet 2"] }
+  ],
+  "skills": [
+    { "category": "Linguagens", "items": "TypeScript, Python" }
+  ]
+}
 
-const OUTPUT_SCHEMA = {
-  type: "object",
-  required: ["experiences", "skills"],
-  properties: {
-    experiences: {
-      type: "array",
-      items: {
-        type: "object",
-        required: ["company", "bullets"],
-        properties: {
-          company: { type: "string" },
-          bullets: {
-            type: "array",
-            items: { type: "string" },
-          },
-        },
-      },
-    },
-    skills: {
-      type: "array",
-      items: {
-        type: "object",
-        required: ["category", "items"],
-        properties: {
-          category: { type: "string" },
-          items: { type: "string" },
-        },
-      },
-    },
-  },
-};
+IMPORTANTE: Inclua TODAS as empresas do perfil no array experiences. Cada empresa deve ter pelo menos 2 bullets.`;
 
 export async function generateResumeSelection(
   profile: ProfileSnapshot,
@@ -76,11 +54,22 @@ Selecione e reescreva os bullet points mais relevantes para esta vaga específic
 
   const raw = await callOllamaLlm(prompt, {
     system: SYSTEM_PROMPT,
-    format: OUTPUT_SCHEMA,
+    format: "json",
     generationOptions: { temperature: 0 },
   });
 
   const jsonStr = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
-  const parsed = JSON.parse(jsonStr) as ResumeAISelection;
-  return parsed;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let parsed: any = JSON.parse(jsonStr);
+
+  // Ollama sometimes wraps output in a top-level key
+  if (parsed && !Array.isArray(parsed.experiences)) {
+    const nested = parsed.result ?? parsed.output ?? parsed.data ?? parsed.response;
+    if (nested && Array.isArray(nested.experiences)) parsed = nested;
+  }
+
+  return {
+    experiences: Array.isArray(parsed.experiences) ? parsed.experiences : [],
+    skills: Array.isArray(parsed.skills) ? parsed.skills : [],
+  } as ResumeAISelection;
 }

@@ -60,6 +60,7 @@ export async function generateResume(
       description: row.jobDescription,
       company: row.companyName,
     });
+    console.log("[resume] aiSelection:", JSON.stringify(aiSelection, null, 2));
 
     const resumeData = buildResumeData(profile, aiSelection);
     const tex = renderResumeTex(resumeData);
@@ -79,6 +80,12 @@ export async function generateResume(
     });
 
     const pdfPath = path.join(outDir, `${basename}.pdf`);
+
+    db.update(applications)
+      .set({ generatedResumePath: pdfPath })
+      .where(eq(applications.id, applicationId))
+      .run();
+
     return { success: true, filePath: pdfPath };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

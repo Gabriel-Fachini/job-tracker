@@ -20,6 +20,16 @@ function formatDate(yyyyMm: string | null): string {
   return `${month}/${year}`;
 }
 
+function findBulletsForCompany(company: string, bulletsByCompany: Map<string, string[]>): string[] {
+  const key = company.toLowerCase();
+  if (bulletsByCompany.has(key)) return bulletsByCompany.get(key)!;
+  // Fuzzy: one name contains the other
+  for (const [k, v] of bulletsByCompany) {
+    if (k.includes(key) || key.includes(k)) return v;
+  }
+  return [];
+}
+
 export function buildResumeData(
   profile: ProfileSnapshot,
   aiSelection: ResumeAISelection,
@@ -38,8 +48,7 @@ export function buildResumeData(
     location: profile.location ?? undefined,
 
     experiences: profile.experiences.map((exp) => {
-      const key = exp.company.toLowerCase();
-      const aiBullets = bulletsByCompany.get(key) ?? [];
+      const aiBullets = findBulletsForCompany(exp.company, bulletsByCompany);
       return {
         company: exp.company,
         role: exp.role,
