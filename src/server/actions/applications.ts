@@ -26,6 +26,7 @@ import {
   type SourceName,
   type WorkModel,
 } from "@/lib/jobs";
+import { formatJobDescriptionWithOllama } from "@/lib/ai/ollama";
 
 type ApplicationFormFields = {
   companyId: string;
@@ -380,6 +381,45 @@ export async function updateJobContext(
   revalidatePath("/applications");
 
   return { success: true };
+}
+
+export async function updateApplicationDescription(
+  applicationId: number,
+  description: string,
+): Promise<MutationResult> {
+  if (!Number.isInteger(applicationId)) {
+    return { success: false, error: "validation" };
+  }
+
+  const current = db
+    .select({ id: applications.id })
+    .from(applications)
+    .where(eq(applications.id, applicationId))
+    .get();
+
+  if (!current) {
+    return { success: false, error: "not_found" };
+  }
+
+  db.update(applications)
+    .set({ description: description.trim() || null, updatedAt: new Date() })
+    .where(eq(applications.id, applicationId))
+    .run();
+
+  revalidatePath("/applications");
+  return { success: true };
+}
+
+export async function formatApplicationDescriptionWithAi(
+  rawDescription: string,
+): Promise<{ success: true; formatted: string } | { success: false; error: string }> {
+  try {
+    const formatted = await formatJobDescriptionWithOllama(rawDescription);
+    return { success: true, formatted };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro desconhecido ao formatar.";
+    return { success: false, error: message };
+  }
 }
 
 function readFields(formData: FormData): ApplicationFormFields {

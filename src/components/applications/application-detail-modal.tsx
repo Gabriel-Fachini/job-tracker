@@ -53,6 +53,8 @@ import { cn } from "@/lib/utils";
 import {
   createApplicationStage,
   deleteApplicationStage,
+  formatApplicationDescriptionWithAi,
+  updateApplicationDescription,
   updateApplicationNotes,
   updateApplicationStage,
   updateJobContext,
@@ -275,9 +277,10 @@ export function ApplicationDetailModal({
                   </h3>
                 </div>
                 <div className="px-5 py-5">
-                  <JobMarkdown
-                    content={application.description}
-                    className="rounded-xl border border-border/50 bg-muted/15 p-5"
+                  <DescriptionEditor
+                    key={`${application.id}:${application.updatedAt.getTime()}:${application.description ?? ""}`}
+                    applicationId={application.id}
+                    initialDescription={application.description}
                   />
                 </div>
               </section>
@@ -1015,6 +1018,138 @@ function TimelineStageItem({
         )}
       </div>
     </div>
+  );
+}
+
+function DescriptionEditor({
+  applicationId,
+  initialDescription,
+}: {
+  applicationId: number;
+  initialDescription: string | null;
+}) {
+  const router = useRouter();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [isFormatting, setIsFormatting] = useState(false);
+  const [description, setDescription] = useState(initialDescription ?? "");
+  const [error, setError] = useState<string | null>(null);
+
+  const hasChanges = description.trim() !== (initialDescription ?? "").trim();
+
+  function handleSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+
+    startTransition(async () => {
+      const result = await updateApplicationDescription(applicationId, description);
+
+      if (!result.success) {
+        setError(getMutationErrorMessage(result.error));
+        return;
+      }
+
+      setIsEditing(false);
+      router.refresh();
+    });
+  }
+
+  async function handleFormat() {
+    setError(null);
+    setIsFormatting(true);
+
+    try {
+      const result = await formatApplicationDescriptionWithAi(description);
+
+      if (!result.success) {
+        setError(result.error);
+      } else {
+        setDescription(result.formatted);
+      }
+    } catch (err) {
+      setError("Erro ao formatar a descrição.");
+    } finally {
+      setIsFormatting(false);
+    }
+  }
+
+  if (!isEditing) {
+    return (
+      <div className="flex flex-col gap-4">
+        <JobMarkdown
+          content={initialDescription}
+          className="rounded-xl border border-border/50 bg-muted/15 p-5"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            setIsEditing(true);
+            setDescription(initialDescription ?? "");
+          }}
+          className="rounded-xl w-fit"
+        >
+          <PencilLine data-icon="inline-start" className="size-4" />
+          Editar
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSave} className="grid gap-3">
+      <Textarea
+        value={description}
+        onChange={(event) => setDescription(event.target.value)}
+        placeholder="Descrição da vaga..."
+        className={cn(textareaClassName, "min-h-32")}
+      />
+      {error ? (
+        <p className="text-sm text-destructive">{error}</p>
+      ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleFormat}
+          disabled={isFormatting || !description.trim()}
+          className="rounded-xl"
+        >
+          {isFormatting ? (
+            <>
+              <Loader2 data-icon="inline-start" className="size-4 animate-spin" />
+              Formatando...
+            </>
+          ) : (
+            <>
+              <Sparkles data-icon="inline-start" className="size-4" />
+              Formatar com IA
+            </>
+          )}
+        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setIsEditing(false);
+              setDescription(initialDescription ?? "");
+              setError(null);
+            }}
+            className="rounded-xl"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            disabled={isPending || !hasChanges}
+            className="rounded-xl"
+          >
+            {isPending ? "Salvando..." : "Salvar"}
+          </Button>
+        </div>
+      </div>
+    </form>
   );
 }
 

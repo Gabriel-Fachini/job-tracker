@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Building2, CheckCircle2, FileText, FolderOpen, Loader2, Waypoints } from "lucide-react";
+import { Building2, CheckCircle2, FileText, FolderOpen, Loader2, Sparkles, Waypoints } from "lucide-react";
 
 import {
   createApplication,
   type ApplicationCreateResult,
+  formatApplicationDescriptionWithAi,
 } from "@/server/actions/applications";
 import { generateResume, openResumeInFinder } from "@/server/actions/resume";
 import { applicationStatusOptions } from "@/lib/applications";
@@ -50,7 +51,7 @@ type ApplicationCreateModalProps = {
   submitLabel?: string;
   pendingLabel?: string;
   title?: string;
-  description?: string;
+  descriptionValue?: string;
 };
 
 export type ApplicationCreateInitialValues = {
@@ -78,35 +79,32 @@ export function ApplicationCreateModal({
   submitLabel = "Salvar candidatura",
   pendingLabel = "Salvando...",
   title = "Nova candidatura",
-  description = "Registre a vaga e o status inicial do seu processo seletivo.",
+  descriptionValue = "Registre a vaga e o status inicial do seu processo seletivo.",
 }: ApplicationCreateModalProps) {
-  const [state, formAction, isPending] = useActionState(submitAction, null);
-  const formRef = useRef<HTMLFormElement>(null);
+  const defaults = {
+    title: initialValues?.title ?? "",
+    companyId: initialValues?.companyId ?? "",
+    description: initialValues?.description ?? "",
+    sourceUrl: initialValues?.sourceUrl ?? "",
+    sourceName: initialValues?.sourceName ?? "other",
+    workModel: initialValues?.workModel ?? "",
+    seniority: initialValues?.seniority ?? "",
+    status: initialValues?.status ?? "applied",
+    notes: initialValues?.notes ?? "",
+  };
 
+  const formRef = useRef<HTMLFormElement>(null);
   const [applicationId, setApplicationId] = useState<number | null>(null);
   const [resumePhase, setResumePhase] = useState<ResumePhase>("idle");
   const [pdfPath, setPdfPath] = useState<string | null>(null);
   const [resumeError, setResumeError] = useState<string | null>(null);
+  const [isFormatting, setIsFormatting] = useState(false);
+  const [descriptionValueError, setDescriptionError] = useState<string | null>(null);
+  const [description, setDescription] = useState(defaults.description);
   const [, startGenerating] = useTransition();
 
   const created = applicationId !== null;
-
-  useEffect(() => {
-    if (state?.success) {
-      setApplicationId(state.id);
-      formRef.current?.reset();
-      handleGenerateResume(state.id);
-    }
-  }, [state]);
-
-  useEffect(() => {
-    if (!open) {
-      setApplicationId(null);
-      setResumePhase("idle");
-      setPdfPath(null);
-      setResumeError(null);
-    }
-  }, [open]);
+  const hasCompanies = companies.length > 0;
 
   function handleGenerateResume(id: number) {
     setResumeError(null);
@@ -123,33 +121,77 @@ export function ApplicationCreateModal({
     });
   }
 
+  async function handleSubmit(
+    prev: ApplicationCreateResult | null,
+    formData: FormData,
+  ) {
+    const result = await submitAction(prev, formData);
+
+    if (result.success) {
+      setApplicationId(result.id);
+      setDescription("");
+      setDescriptionError(null);
+      formRef.current?.reset();
+      handleGenerateResume(result.id);
+    }
+
+    return result;
+  }
+
+  const [state, formAction, isPending] = useActionState(handleSubmit, null);
+  const hasSubmitError = state && !state.success;
+
   function handleOpenInFinder() {
     if (pdfPath) openResumeInFinder(pdfPath);
   }
 
-  const hasSubmitError = state && !state.success;
-  const hasCompanies = companies.length > 0;
-  const defaults = {
-    title: initialValues?.title ?? "",
-    companyId: initialValues?.companyId ?? "",
-    description: initialValues?.description ?? "",
-    sourceUrl: initialValues?.sourceUrl ?? "",
-    sourceName: initialValues?.sourceName ?? "other",
-    workModel: initialValues?.workModel ?? "",
-    seniority: initialValues?.seniority ?? "",
-    status: initialValues?.status ?? "applied",
-    notes: initialValues?.notes ?? "",
-  };
+  async function handleFormatDescription() {
+    if (!defaults.description && !description) return;
+
+    setDescriptionError(null);
+    setIsFormatting(true);
+
+    try {
+      const result = await formatApplicationDescriptionWithAi(description || defaults.description);
+
+      if (!result.success) {
+        setDescriptionError(result.error);
+      } else {
+        setDescription(result.formatted);
+      }
+    } catch {
+      setDescriptionError("Erro ao formatar a descrição.");
+    } finally {
+      setIsFormatting(false);
+    }
+  }
+
+  function resetModalState() {
+    setApplicationId(null);
+    setResumePhase("idle");
+    setPdfPath(null);
+    setResumeError(null);
+    setDescription(defaults.description);
+    setDescriptionError(null);
+  }
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      resetModalState();
+    }
+
+    onOpenChange(nextOpen);
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="flex max-h-[90vh] sm:max-w-3xl flex-col gap-0 p-0">
         <DialogHeader className="shrink-0 px-6 pt-6 pb-4">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Waypoints className="size-5 text-muted-foreground" />
             {title}
           </DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogDescription>{descriptionValue}</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="flex-1 overflow-auto">
@@ -348,24 +390,53 @@ export function ApplicationCreateModal({
                 </div>
 
                 <Field>
-                  <FieldLabel
-                    htmlFor="description"
-                    className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
-                  >
-                    Descrição da vaga em markdown *
-                  </FieldLabel>
+                  <div className="flex items-start justify-between gap-3">
+                    <FieldLabel
+                      htmlFor="description"
+                      className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                    >
+                      Descrição da vaga em markdown *
+                    </FieldLabel>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleFormatDescription}
+                      disabled={isFormatting || !description.trim()}
+                      className="rounded-lg"
+                    >
+                      {isFormatting ? (
+                        <>
+                          <Loader2 className="mr-2 size-3.5 animate-spin" />
+                          Formatando...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 size-3.5" />
+                          Formatar
+                        </>
+                      )}
+                    </Button>
+                  </div>
                   <Textarea
                     id="description"
                     name="description"
                     placeholder="Cole aqui a descrição completa da vaga."
                     required
-                    defaultValue={defaults.description}
+                    value={description}
+                    onChange={(e) => {
+                      setDescription(e.target.value);
+                      setDescriptionError(null);
+                    }}
                     className="min-h-52 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                     disabled={created}
                   />
-                  <FieldDescription>
+                  <FieldDescription className="mt-2">
                     O markdown fica salvo localmente como fonte de verdade da vaga.
                   </FieldDescription>
+                  {descriptionValueError ? (
+                    <p className="mt-2 text-sm text-destructive">{descriptionValueError}</p>
+                  ) : null}
                 </Field>
 
                 <Field>

@@ -1159,3 +1159,27 @@ async function logRawProfileExtractionOutput(rawOutput: string) {
     console.warn("Falha ao gravar o output bruto da extração de perfil.", error);
   }
 }
+
+export async function formatJobDescriptionWithOllama(
+  rawText: string,
+): Promise<string> {
+  const cleanedText = rawText.trim();
+
+  if (!cleanedText) {
+    throw new OllamaRequestError("Não é possível formatar uma descrição vazia.");
+  }
+
+  const systemPrompt = `Você reformata descrições de vaga em markdown limpo e objetivo.
+Use ## para seções (Responsabilidades, Requisitos, Diferenciais, Benefícios, Sobre a empresa).
+Use listas com \`-\`. Use **negrito** para tecnologias e termos-chave.
+Remova cabeçalhos, rodapés, links de candidatura, textos institucionais desnecessários e ruídos de formatação.
+NÃO invente, altere ou parafraseie conteúdo relevante.
+Mantenha o idioma original.
+Retorne apenas o markdown, sem cercas \`\`\`.`.trim();
+
+  return callOllamaLlm(cleanedText, {
+    system: systemPrompt,
+    think: false,
+    generationOptions: { temperature: 0.1 },
+  });
+}

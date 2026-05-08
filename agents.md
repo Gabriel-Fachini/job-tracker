@@ -1,239 +1,102 @@
-# AGENTS.md
+# Job Tracker - Project Context
 
-## Objetivo
+## Stack
 
-Este arquivo orienta **agentes de código** que trabalham neste repositório. O projeto é um **job tracker pessoal e local**, focado em reduzir atrito no registro de vagas, candidaturas e materiais de apoio, enquanto gera dados suficientes para análise do processo de job hunting.
+- Next.js (App Router) + TypeScript
+- SQLite + Drizzle ORM (`src/lib/db/schema.ts`)
+- TanStack Query para client-side state de leads
+- SSE (`EventSource`) para progresso real-time do radar
+- Ollama (cloud mode) para classificação de leads
+- OpenAI (opcional) para formatação de job descriptions
 
-O agente deve agir como implementador pragmático: ler o escopo real do projeto, comparar com o estado atual do código, executar a mudança pedida com o menor desvio possível e deixar claro quando houver divergência entre intenção e implementação existente.
+## AI Runtime — Ollama Cloud
 
-## Ordem de precedência
+`OLLAMA_RUNTIME_MODE=cloud` — classificação roda via HTTP remoto, não local.
 
-Quando houver conflito entre documentos, siga esta ordem:
+**Env vars obrigatórias:**
 
-1. `.specs/spec.md`
-2. `.specs/design.md`
-3. `.specs/tasks.md`
+| Var | Descrição |
+|-----|-----------|
+| `OLLAMA_RUNTIME_MODE` | `cloud` ou `local` |
+| `OLLAMA_BASE_URL` | URL base da API Ollama |
+| `OLLAMA_MODEL` | Nome do modelo (ex: `gemma3:4b`) |
+| `OLLAMA_API_KEY` | API key para autenticação cloud |
+| `OLLAMA_TIMEOUT_MS` | Timeout por request (default: `240000`) |
 
-Interpretação:
+Ambos `extractJobDetail` (HTTP fetch ao job board) e `classifyJobLead` (HTTP ao Ollama cloud) são I/O bound. Paralelização segura: links processados em concurrent batch com `pLimit(5)` (`LINK_PROCESSING_CONCURRENCY` em `src/lib/job-monitoring/index.ts:16`).
 
-- `spec.md` define o objetivo do produto, regras de negócio, módulos e limites do MVP.
-- `design.md` define a arquitetura, stack, estrutura de pastas e contratos técnicos esperados.
-- `tasks.md` organiza a execução em fases, mas não substitui decisões já fechadas nos dois arquivos acima.
+**Ganho de performance:** ~80% em boards extensos. ~2s/link → ~100s sequencial para 50 links → ~20s paralelo.
 
-Se `tasks.md` sugerir algo que contradiga `spec.md` ou `design.md`, preserve `spec.md` e `design.md`.
+## Radar de Vagas (Monitoramento)
 
-## Regra de divergência
+Fluxo quando usuário dispara o radar:
 
-O código atual pode estar atrás do escopo descrito em `.specs`. Isso é esperado neste projeto.
+1. `POST /api/monitoring/stream` abre SSE stream via `EventSource`
+2. Para cada empresa monitorada, `runMonitoringForCompany()` busca links do job board
+3. Cada link: **Phase 1 colapsada** — extração + classificação + upsert em paralelo dentro do mesmo `pLimit` callback (sem Phase 2 separada)
+4. Após cada link: emite evento `link-done` com decisão (`interesting`, `review`, `discarded`)
+5. Final de empresa: emite `company-done`. Final geral: `all-done`
 
-Quando houver divergência entre o repositório e os documentos:
+**SSE events:** `start`, `company-start`, `link-done`, `company-done`, `all-done`, `error`
 
-- o agente deve **avisar explicitamente** a divergência na resposta;
-- o agente deve implementar com base na precedência acima, não apenas no estado atual do código;
-- se a divergência revelar uma convenção durável, nova restrição ou mudança de direção que futuros agentes precisem conhecer, o agente deve **atualizar este `agents.md` no mesmo trabalho**;
-- se a divergência for apenas um estado temporário de bootstrap ou WIP, basta sinalizar isso sem reescrever o escopo do projeto.
+**Arquivos-chave:**
+- `src/app/api/monitoring/stream/route.ts` — Route Handler SSE
+- `src/app/api/monitoring/current/route.ts` — GET snapshot do run atual
+- `src/lib/job-monitoring/index.ts` — pipeline de processamento
+- `src/lib/job-monitoring/run-state.ts` — estado in-memory do run
 
-O agente não deve fingir que o estado atual do código já representa o sistema final.
+## Página de Leads (TanStack Query)
 
-## Stack fechada
+**Fluxo de dados:**
 
-As escolhas abaixo estão **fechadas** para este projeto e não devem ser rediscutidas por padrão:
+1. `leads/page.tsx` (Server Component) faz query Drizzle direta → passa `items` como `initialData` para `LeadsClient`
+2. `LeadsClient` usa `useQuery({ queryKey: ["leads"], queryFn: getLeads, initialData: items, staleTime: 30_000 })`
+3. `getLeads()` é Server Action em `src/server/actions/leads.ts` — sem route handler `/api/leads`
+4. `MonitoringProgressContext` escuta SSE e chama `queryClient.invalidateQueries({ queryKey: ["leads"] })` a cada `link-done` com `decision !== "discarded"`
 
-- `Next.js 16` com `App Router`
-- `TypeScript`
-- `Tailwind CSS v4`
-- `shadcn/ui`
-- tema único `dark mode`, padrão do produto
-- `Server Actions` para fluxos internos do app
-- `Route Handlers` para integrações HTTP e casos que exigem endpoint explícito
-- `Drizzle ORM` com `SQLite` local em arquivo
-- runtime principal do Ollama configurável por ambiente (`local` ou `cloud`) como fonte principal de IA do produto
-- `OpenAI` apenas para comparação de outputs com modelos GPT nesta fase
-- `tectonic` para compilação LaTeX/PDF
-- `Chrome Extension` Manifest V3 para captura de vagas
-- gerenciador de pacotes padrão: `npm`
+**Decisões arquiteturais:**
+- `initialData` (não `placeholderData`) → zero loading flicker no primeiro render
+- `staleTime: 30_000` → sem refetch desnecessário durante scan
+- Invalidação apenas para `interesting`/`review` → descartados não aparecem no board
+- `QueryProvider` deve envolver `MonitoringProgressProvider` no layout (hierarquia de providers)
 
-O agente pode propor ajustes de implementação, mas não deve trocar essas bases sem solicitação explícita.
+**Arquivos-chave:**
+- `src/app/(app)/leads/page.tsx` — Server Component com query inicial
+- `src/components/leads/leads-client.tsx` — useQuery + UI
+- `src/components/leads/monitoring-progress-context.tsx` — SSE listener + invalidação
+- `src/providers/query-provider.tsx` — QueryClientProvider
+- `src/server/actions/leads.ts` — Server Actions de leads
 
-## Estado atual do repositório
+## Job Description Formatting
 
-Hoje o repositório ainda está em estágio inicial. Ele já saiu do template puro do `create-next-app`, mas ainda está distante da arquitetura completa descrita em `.specs`.
+**OpenAI opcional:**
+- `OPENAI_FORMAT_JOB_DESCRIPTIONS=true|false` (default: `false`)
+- Quando ativo, descriptions sem estrutura markdown são reformatadas via `gpt-4o-mini` na Phase 1
+- Non-blocking: erros de formato logam e mantêm description original
 
-Leituras importantes do estado atual:
+## Database
 
-- existe `Next.js 16` com `App Router`;
-- o runtime local precisa atender ao requisito minimo do Next.js 16: `Node.js >= 20.9.0`;
-- existe configuração de `shadcn/ui` em `components.json`;
-- o projeto usa `package-lock.json`, então o padrão operacional é `npm`;
-- os scripts atuais em `package.json` ainda são mínimos;
-- o CSS atual ainda carrega tokens para light e dark mode, mas a direção correta do produto é **somente dark mode**;
-- a arquitetura futura de banco, IA, uploads e extensão ainda precisa ser construída.
+**Antes de qualquer migration ou alteração no schema:**
 
-O agente deve tomar cuidado para não inferir que pastas ausentes significam mudança de escopo. Na maior parte dos casos, significa apenas que a fase ainda não foi implementada.
+```bash
+npm run db:backup
+```
 
-## Fluxo de trabalho esperado
+- Backups automáticos diários às 03:00 via launchd (7 diários, 4 semanais, 3 mensais)
+- Restore: `npm run db:restore backups/daily/job-tracker-YYYY-MM-DD.db.gz`
+- Migrations: `npm run db:generate` → `npm run db:migrate`
 
-Antes de codar:
+## Dev Server
 
-1. Ler a solicitação do usuário.
-2. Ler os arquivos de `.specs` relevantes ao pedido.
-3. Conferir o código real que será afetado.
-4. Declarar qualquer divergência relevante entre escopo e implementação atual.
+- App roda **sempre** na porta 3000 (usuário mantém processo ativo)
+- **Nunca** executar `npm run dev` para testar — server já está rodando
+- Se iniciar servidor de dev durante conversa para verificar algo, **encerrá-lo ao terminar**
+- Se server não responder, pedir ao usuário iniciar antes de prosseguir
 
-Ao implementar:
+## Architecture Notes
 
-1. Seguir o menor caminho coerente com o escopo do projeto.
-2. Permitir atalhos técnicos quando fizer sentido, desde que não violem decisões fechadas do produto e da arquitetura.
-3. Evitar over-engineering.
-4. Não expandir escopo por conta própria.
-
-Ao finalizar:
-
-1. Validar o que for possível localmente.
-2. Informar com clareza o que foi validado e o que não foi.
-3. Atualizar este `agents.md` se surgiu uma nova regra operacional durável.
-
-## Heurística para atalhos
-
-Atalhos são permitidos quando reduzem trabalho sem comprometer o desenho principal. Exemplos aceitáveis:
-
-- criar uma implementação simples que respeita a interface futura já definida;
-- organizar código por feature antes de toda a árvore final existir;
-- entregar um fluxo vertical mínimo de uma fase sem construir abstrações prematuras.
-
-Atalhos não são aceitáveis quando:
-
-- trocam uma tecnologia já fechada;
-- introduzem uma arquitetura paralela à descrita em `.specs`;
-- escondem dívida estrutural que vai colidir com fases seguintes;
-- simplificam removendo regras explícitas do produto.
-
-## Convenções de implementação
-
-### 1. App Router primeiro
-
-Prefira padrões idiomáticos de `Next.js App Router`.
-
-- use `Server Components` por padrão;
-- adicione `'use client'` apenas quando houver necessidade real de estado, efeito, browser API ou interação rica;
-- use `Server Actions` para mutações internas do app;
-- use `Route Handlers` para integrações externas, uploads, serving de arquivos ou contratos HTTP explícitos.
-
-### 2. Organização de código
-
-Siga a estrutura planejada em `.specs/design.md` sempre que possível:
-
-- `src/app/` para rotas e handlers;
-- `src/components/` para componentes reutilizáveis e componentes por feature;
-- `src/lib/` para banco, IA, LaTeX e utilitários de infraestrutura;
-- `src/server/actions/` para ações de servidor por módulo;
-- `extension/` para a extensão Chrome;
-- `uploads/` para artefatos locais gerados ou enviados.
-
-Se uma pasta planejada ainda não existir e a tarefa pedir aquele domínio, crie-a já no formato esperado pelo design.
-
-### 3. UI
-
-Use `shadcn/ui` como base de componentes.
-
-- preserve os aliases definidos em `components.json`;
-- prefira compor em cima de componentes `ui/` em vez de reinventar primitives;
-- toda string visível ao usuário deve estar em **português brasileiro**;
-- mantenha identificadores, nomes de arquivos, nomes de funções, tipos e convenções internas de código em inglês;
-- trate `dark mode` como o **único** tema do produto;
-- novas telas, componentes e tokens não devem depender de alternância light/dark;
-- se encontrar suporte legado a tema claro, trate isso como estado transitório e não como contrato a preservar;
-- em `Candidaturas`, a visão de detalhes vive por padrão em um modal deep-linkável em `/applications?applicationId=...`; não crie uma página dedicada de detalhes sem pedido explícito;
-- em `Leads`, a triagem pendente vive por padrão na aba `Triagem`, os leads aprovados vivem na aba `Aprovados`, e o detalhe do lead também deve preferir modal deep-linkável em `/leads?leadId=...`;
-- mantenha acessibilidade, navegação por teclado e estados de loading/erro visíveis;
-- evite UI genérica demais quando estiver construindo telas novas, mas preserve consistência com o que já existe no projeto.
-
-### 4. Banco e dados
-
-Para persistência local:
-
-- use `Drizzle` com `SQLite`;
-- trate o banco local como fonte de verdade do app;
-- preserve nomes, entidades e relacionamentos definidos em `.specs/design.md`;
-- não reduza o schema por conveniência se a tarefa depende da modelagem oficial.
-
-### 5. IA e automação
-
-- use o runtime principal do Ollama, configurável por ambiente, como fonte principal para extração e geração no produto;
-- trate a OpenAI, neste momento, como trilha comparativa de benchmark com modelos GPT, não como dependência principal do app;
-- preserve a separação entre fluxo principal do produto e fluxo auxiliar de comparação;
-- se a comparação com OpenAI estiver indisponível, o produto principal deve continuar coerente sem ela;
-- se o runtime principal do Ollama estiver indisponível, implemente fallback somente quando isso já estiver previsto no escopo ou quando o fluxo puder degradar para revisão manual sem quebrar o contrato.
-
-### 6. Arquivos locais
-
-O projeto é local-first.
-
-- preserve descrições completas de vagas localmente;
-- preserve artefatos gerados relevantes, como `.tex` e `.pdf`, quando o fluxo exigir auditabilidade;
-- trate caminhos de upload e geração como parte do contrato do sistema, não como detalhe descartável.
-
-## Regras de escopo do produto
-
-O agente deve respeitar estes princípios:
-
-- o sistema é **single-user local**;
-- o foco é **mínimo atrito** no registro;
-- empresa, vaga, candidatura e perfil são as entidades centrais;
-- toda candidatura deve estar associada a uma empresa existente; entrada livre de empresa por string não é contrato válido do produto;
-- a descrição da vaga deve ser preservada localmente;
-- análise e dashboard servem para dar dados ao usuário, não para substituir seu julgamento;
-- oportunidades descobertas por monitoramento devem viver separadas de `applications` até promoção manual explícita;
-- no radar manual, `approved` é uma etapa intermediária de triagem; aprovar lead não cria candidatura por si só;
-- o radar manual considera qualquer empresa com `jobsBoardUrl` válido; `status` não limita elegibilidade;
-- boards com paginação client-side podem ser marcados manualmente com `jobBoardNavigationMode=browser`, e esse modo deve continuar genérico por empresa, sem especialização por plataforma nesta fase;
-- itens fora do escopo do MVP não devem ser puxados para dentro sem pedido explícito.
-
-Fora do escopo por padrão:
-
-- autenticação/multiusuário;
-- cloud sync;
-- scraping amplo não descrito no escopo;
-- automações extras não previstas;
-- novas superfícies de produto inventadas fora das fases.
-
-## Validação
-
-Use `npm` como padrão em comandos de instalação, execução e validação.
-
-Comandos base atuais:
-
-- `npm run dev`
-- `npm run lint`
-- `npm run build`
-
-Regras:
-
-- valide no menor nível suficiente para a mudança;
-- se a mudança tocar contrato de build, rotas, imports ou tipos, prefira ao menos `npm run lint` e `npm run build` quando viável;
-- se não for possível validar algo, diga exatamente o motivo;
-- não invente suíte de testes inexistente.
-
-## README
-
-Por padrão, **não** atualize `README.md` durante tarefas normais, mesmo que ele esteja desatualizado, a menos que o usuário peça isso explicitamente.
-
-## O que futuros agentes devem evitar
-
-- assumir que ausência de código significa mudança de requisito;
-- tratar o template atual como arquitetura final;
-- trocar `npm` por outro gerenciador;
-- substituir `Server Actions` por uma camada REST interna sem necessidade;
-- pular leitura de `.specs` antes de mexer em áreas relevantes;
-- fazer refactors genéricos que não movem o projeto em direção ao escopo definido.
-
-## Regra prática final
-
-Se houver dúvida sobre o que fazer:
-
-1. volte para `.specs/spec.md`;
-2. confirme a forma técnica em `.specs/design.md`;
-3. use `.specs/tasks.md` para escolher o recorte mais pragmático;
-4. compare isso com o estado real do código;
-5. implemente sem ampliar o escopo;
-6. sinalize divergências com honestidade.
+- No background processes (manual triggers only)
+- No cron scheduling (future feature)
+- SQLite WAL mode suporta concurrent writes — `pLimit(5)` estável; reduzir para 3 se `SQLITE_BUSY`
+- SSE suficiente para real-time UX sem separação de processos
+- Uploads path configurável via `UPLOADS_PATH` (default: `./uploads`)
