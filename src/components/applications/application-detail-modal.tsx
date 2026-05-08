@@ -262,18 +262,6 @@ export function ApplicationDetailModal({
 
               <section className={secondarySectionClassName}>
                 <div className="border-b border-border/40 px-5 py-4">
-                  <SectionEyebrow>Currículo personalizado</SectionEyebrow>
-                  <h3 className="mt-1 text-base font-semibold text-foreground">
-                    Geração de currículo por IA
-                  </h3>
-                </div>
-                <div className="px-5 py-5">
-                  <ResumeGeneratorSection applicationId={application.id} />
-                </div>
-              </section>
-
-              <section className={secondarySectionClassName}>
-                <div className="border-b border-border/40 px-5 py-4">
                   <SectionEyebrow>Notas</SectionEyebrow>
                   <h3 className="mt-1 text-base font-semibold text-foreground">
                     Contexto rápido da candidatura
@@ -572,6 +560,29 @@ function UsedResumeSection({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [resumePhase, setResumePhase] = useState<"idle" | "generating" | "done" | "error">("idle");
+  const [pdfPath, setPdfPath] = useState<string | null>(null);
+  const [resumeError, setResumeError] = useState<string | null>(null);
+  const [isGenerating, startGenerating] = useTransition();
+
+  function handleGenerateResume() {
+    setResumeError(null);
+    setResumePhase("generating");
+    startGenerating(async () => {
+      const result = await generateResume(applicationId);
+      if (result.success) {
+        setPdfPath(result.filePath);
+        setResumePhase("done");
+      } else {
+        setResumeError(result.error);
+        setResumePhase("error");
+      }
+    });
+  }
+
+  function handleOpenInFinder() {
+    if (pdfPath) openResumeInFinder(pdfPath);
+  }
 
   async function uploadResume(file: File) {
     const formData = new FormData();
@@ -787,6 +798,40 @@ function UsedResumeSection({
       {isPending ? (
         <p className="text-sm text-muted-foreground">Atualizando o registro do currículo...</p>
       ) : null}
+
+      <div className="rounded-2xl border border-zinc-700/70 bg-zinc-950/75 p-4">
+        <p className="text-sm font-semibold text-foreground">Geração de currículo por IA</p>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          A IA seleciona e reescreve os bullet points e habilidades mais relevantes para esta vaga.
+        </p>
+        {resumePhase === "error" && resumeError ? (
+          <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {resumeError}
+          </p>
+        ) : null}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {resumePhase === "done" && pdfPath ? (
+            <>
+              <span className="text-sm text-emerald-400">Currículo gerado.</span>
+              <Button type="button" variant="outline" size="sm" onClick={handleOpenInFinder} className="rounded-xl gap-1.5">
+                <FolderOpen className="size-3.5" />
+                Abrir no Finder
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={handleGenerateResume} disabled={isGenerating} className="rounded-xl gap-1.5 text-muted-foreground">
+                Gerar novamente
+              </Button>
+            </>
+          ) : (
+            <Button type="button" size="sm" onClick={handleGenerateResume} disabled={isGenerating} className="rounded-xl gap-1.5 bg-emerald-600 text-white hover:bg-emerald-500">
+              {isGenerating ? (
+                <><Loader2 className="size-3.5 animate-spin" />Gerando...</>
+              ) : (
+                <><FileText className="size-3.5" />{resumePhase === "error" ? "Tentar novamente" : "Gerar Currículo"}</>
+              )}
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1035,101 +1080,6 @@ function NotesEditor({
         </Button>
       </div>
     </form>
-  );
-}
-
-function ResumeGeneratorSection({ applicationId }: { applicationId: number }) {
-  const [resumePhase, setResumePhase] = useState<"idle" | "generating" | "done" | "error">("idle");
-  const [pdfPath, setPdfPath] = useState<string | null>(null);
-  const [resumeError, setResumeError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function handleGenerate() {
-    setResumeError(null);
-    setResumePhase("generating");
-    startTransition(async () => {
-      const result = await generateResume(applicationId);
-      if (result.success) {
-        setPdfPath(result.filePath);
-        setResumePhase("done");
-      } else {
-        setResumeError(result.error);
-        setResumePhase("error");
-      }
-    });
-  }
-
-  function handleOpenInFinder() {
-    if (pdfPath) openResumeInFinder(pdfPath);
-  }
-
-  return (
-    <div className="grid gap-4">
-      <div className="rounded-2xl border border-zinc-700/70 bg-zinc-950/75 p-4">
-        <div className="flex items-center gap-2 text-foreground">
-          <FileText className="size-4 text-muted-foreground" />
-          <p className="text-sm font-semibold">Gerar currículo para esta vaga</p>
-        </div>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          A IA seleciona e reescreve os bullet points e habilidades mais relevantes com base na descrição da vaga.
-        </p>
-
-        {resumePhase === "error" && resumeError ? (
-          <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {resumeError}
-          </p>
-        ) : null}
-
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {resumePhase === "done" && pdfPath ? (
-            <>
-              <span className="text-sm text-emerald-400">Currículo gerado com sucesso.</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleOpenInFinder}
-                className="rounded-xl gap-1.5"
-              >
-                <FolderOpen className="size-3.5" />
-                Abrir no Finder
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleGenerate}
-                disabled={isPending}
-                className="rounded-xl gap-1.5 text-muted-foreground"
-              >
-                Gerar novamente
-              </Button>
-            </>
-          ) : (
-            <Button
-              type="button"
-              variant={resumePhase === "error" ? "outline" : "default"}
-              size="sm"
-              onClick={handleGenerate}
-              disabled={isPending}
-              className="rounded-xl gap-1.5 bg-amber-300 text-zinc-950 hover:bg-amber-200"
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="size-3.5 animate-spin" />
-                  Gerando...
-                </>
-              ) : (
-                <>
-                  <FileText className="size-3.5" />
-                  {resumePhase === "error" ? "Tentar novamente" : "Gerar Currículo"}
-                </>
-              )}
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
   );
 }
 
