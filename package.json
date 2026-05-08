@@ -13,13 +13,16 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:backup": "bash scripts/backup-db.sh",
-    "db:restore": "bash scripts/restore-db.sh"
+    "db:restore": "bash scripts/restore-db.sh",
+    "resume:sample": "tsx scripts/render-resume-sample.ts",
+    "test:escape": "node --import tsx --test src/lib/latex/escape.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.4.1",
     "@react-spring/web": "^10.0.3",
     "@tanstack/react-query": "^5.100.9",
     "@tanstack/react-query-devtools": "^5.100.9",
+    "@types/mustache": "^4.2.6",
     "@types/turndown": "^5.0.6",
     "@use-gesture/react": "^10.3.1",
     "better-sqlite3": "^12.9.0",
@@ -29,6 +32,7 @@
     "drizzle-orm": "^0.45.2",
     "framer-motion": "^12.38.0",
     "lucide-react": "1.11.0",
+    "mustache": "^4.2.0",
     "next": "16.2.4",
     "openai": "^6.34.0",
     "p-limit": "^7.3.0",
