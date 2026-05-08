@@ -2,6 +2,8 @@
 
 [Versao em PT-BR](README.md)
 
+![Job Tracker](public/logo.png)
+
 ![Next.js](https://img.shields.io/badge/Next.js-16-111111?style=flat-square&logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-0b1020?style=flat-square&logo=react&logoColor=61dafb)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-0f172a?style=flat-square&logo=typescript&logoColor=3178c6)
