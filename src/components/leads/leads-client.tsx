@@ -21,7 +21,6 @@ import {
   type ApplicationCreateInitialValues,
 } from "@/components/applications/application-create-modal";
 import { JobMarkdown } from "@/components/applications/job-markdown";
-import { FormSubmitButton } from "@/components/companies/form-submit-button";
 import { LeadDetailModal } from "@/components/leads/lead-detail-modal";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
 import type { LeadListItem, LeadTab } from "@/components/leads/types";
@@ -48,6 +47,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getSourceNameLabel } from "@/lib/jobs";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { getLeads } from "@/server/actions/leads";
 import {
   approveLead,
@@ -501,9 +502,9 @@ function LeadCard({
   onOpen: () => void;
   onCreateApplication: () => void;
 }) {
+  const queryClient = useQueryClient();
+  const [isApproving, startApproveTransition] = useTransition();
   const [isDiscarding, startDiscardTransition] = useTransition();
-  const approveAction = approveLead.bind(null, lead.id);
-  const discardAction = discardLead.bind(null, lead.id);
 
   function stopPropagation(event: MouseEvent<HTMLElement>) {
     event.stopPropagation();
@@ -603,19 +604,39 @@ function LeadCard({
 
           {tab === "triage" ? (
             <>
-              <form action={approveAction}>
-                <FormSubmitButton pendingLabel="Aprovando..." className="rounded-xl">
-                  <BriefcaseBusiness data-icon="inline-start" />
-                  Aprovar lead
-                </FormSubmitButton>
-              </form>
+              <button
+                type="button"
+                disabled={isApproving}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startApproveTransition(async () => {
+                    await approveLead(lead.id);
+                    await queryClient.invalidateQueries({ queryKey: ["leads"] });
+                    toast.success("Lead aprovado");
+                  });
+                }}
+                className={cn(buttonVariants(), "rounded-xl")}
+              >
+                {isApproving ? (
+                  "Aprovando..."
+                ) : (
+                  <>
+                    <BriefcaseBusiness data-icon="inline-start" />
+                    Aprovar lead
+                  </>
+                )}
+              </button>
 
               <button
                 type="button"
                 disabled={isDiscarding}
                 onClick={(e) => {
                   e.stopPropagation();
-                  startDiscardTransition(() => discardAction());
+                  startDiscardTransition(async () => {
+                    await discardLead(lead.id);
+                    await queryClient.invalidateQueries({ queryKey: ["leads"] });
+                    toast.success("Lead descartado");
+                  });
                 }}
                 className={cn(buttonVariants({ variant: "outline" }), "rounded-xl")}
               >

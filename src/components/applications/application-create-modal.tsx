@@ -87,7 +87,7 @@ export function ApplicationCreateModal({
   const [resumePhase, setResumePhase] = useState<ResumePhase>("idle");
   const [pdfPath, setPdfPath] = useState<string | null>(null);
   const [resumeError, setResumeError] = useState<string | null>(null);
-  const [isGenerating, startGenerating] = useTransition();
+  const [, startGenerating] = useTransition();
 
   const created = applicationId !== null;
 
@@ -95,6 +95,7 @@ export function ApplicationCreateModal({
     if (state?.success) {
       setApplicationId(state.id);
       formRef.current?.reset();
+      handleGenerateResume(state.id);
     }
   }, [state]);
 
@@ -107,12 +108,11 @@ export function ApplicationCreateModal({
     }
   }, [open]);
 
-  function handleGenerateResume() {
-    if (!applicationId) return;
+  function handleGenerateResume(id: number) {
     setResumeError(null);
     setResumePhase("generating");
     startGenerating(async () => {
-      const result = await generateResume(applicationId);
+      const result = await generateResume(id);
       if (result.success) {
         setPdfPath(result.filePath);
         setResumePhase("done");
@@ -392,19 +392,15 @@ export function ApplicationCreateModal({
               <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-muted/20 px-5 py-4">
                 <div className="flex items-center gap-2">
                   <FileText className="size-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Geração de currículo</span>
+                  <span className="text-sm font-medium">Currículo personalizado</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Gera um currículo personalizado para esta vaga usando IA. Os bullet points e habilidades são selecionados e reescritos com base na descrição da vaga.
-                </p>
 
-                {resumePhase === "error" && resumeError ? (
-                  <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    {resumeError}
-                  </p>
-                ) : null}
-
-                {resumePhase === "done" && pdfPath ? (
+                {resumePhase === "generating" ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                    Gerando currículo com IA...
+                  </div>
+                ) : resumePhase === "done" && pdfPath ? (
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-green-400">Currículo gerado com sucesso.</span>
                     <Button size="sm" variant="outline" onClick={handleOpenInFinder} className="gap-1.5">
@@ -412,27 +408,11 @@ export function ApplicationCreateModal({
                       Abrir no Finder
                     </Button>
                   </div>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleGenerateResume}
-                    disabled={isGenerating}
-                    className="w-fit gap-1.5"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="size-3.5 animate-spin" />
-                        Gerando...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="size-3.5" />
-                        Gerar Currículo
-                      </>
-                    )}
-                  </Button>
-                )}
+                ) : resumePhase === "error" && resumeError ? (
+                  <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    {resumeError}
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </div>

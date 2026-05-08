@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { QueryProvider } from "@/providers/query-provider";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import "./globals.css";
@@ -34,6 +35,7 @@ export default function RootLayout({
       <body suppressHydrationWarning className="min-h-svh antialiased">
         <QueryProvider>
           <TooltipProvider>{children}</TooltipProvider>
+          <Toaster />
         </QueryProvider>
       </body>
     </html>
