@@ -12,11 +12,11 @@ export function renderResumeTex(data: ResumeTemplateData): string {
   const safe = escapeData(data);
   const languagesLine = safe.languages?.length
     ? safe.languages
-        .map((l) => `\\textbf{ ${l.name}: } ${l.level}`)
+        .map((l) => `{\\bfseries ${l.name}:} ${l.level}`)
         .join(' \\textbf{|} ')
     : undefined;
   const tpl = fs.readFileSync(TEMPLATE_PATH, 'utf8');
-  return Mustache.render(tpl, { ...safe, languagesLine });
+  return Mustache.render(tpl, { ...safe, languagesLine }, {}, ['<<', '>>']);
 }
 
 function safeUrl(url: string | undefined): string | undefined {

@@ -1,6 +1,7 @@
 \documentclass[11pt,a4paper]{article}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
+\usepackage{newtxtext}
 \usepackage[top=2.2cm,bottom=2.2cm,left=2.2cm,right=2.2cm]{geometry}
 \usepackage{enumitem}
 \usepackage{titlesec}
@@ -14,7 +15,7 @@
 
 % Large bullet list matching PDF style
 \newlist{cvitemize}{itemize}{1}
-\setlist[cvitemize]{label=\Large$\bullet$,leftmargin=*,topsep=4pt,itemsep=2pt,parsep=0pt}
+\setlist[cvitemize]{label=\Large$\bullet$,leftmargin=*,topsep=8pt,itemsep=2pt,parsep=0pt}
 
 \pagestyle{empty}
 \setlength{\parindent}{0pt}
@@ -24,66 +25,66 @@
 
 % ---------- HEADER ----------
 \begin{center}
-{\Large \textbf{ {{{fullName}}} }}\\[4pt]
-{{{location}}}{{#phone}} \textbf{|} {{{phone}}}{{/phone}}{{#email}} \textbf{|} \href{mailto:{{{email}}}}{ {{{email}}} }{{/email}}{{#linkedin}} \textbf{|} \href{ {{{linkedin}}} }{Linkedin}{{/linkedin}}{{#github}} \textbf{|} \href{ {{{github}}} }{Github}{{/github}}
+{\Large\bfseries <<fullName>>}\\[4pt]
+<<location>><<#phone>> \textbf{|} <<phone>><</phone>><<#email>> \textbf{|} \href{mailto:<<email>>}{<<email>>}<</email>><<#linkedin>> \textbf{|} \href{<<linkedin>>}{Linkedin}<</linkedin>><<#github>> \textbf{|} \href{<<github>>}{Github}<</github>>
 \end{center}
 
-{{#summary}}
+<<#summary>>
 \section*{RESUMO}
-{{{summary}}}
-{{/summary}}
+<<summary>>
+<</summary>>
 
 % ---------- EXPERIÊNCIAS ----------
-{{#experiences.length}}
+<<#experiences.length>>
 \section*{EXPERIÊNCIA}
-{{/experiences.length}}
-{{#experiences}}
+<</experiences.length>>
+<<#experiences>>
 \vspace{2pt}
-\noindent\textbf{ {{{company}}} }\hfill\textbf{ {{{location}}} }\\
-\textit{ {{{role}}} }\hfill\textit{ {{{startDate}}} -- {{{endDate}}} }
-{{#bullets.length}}
+\noindent{\bfseries <<company>>}\hfill{\bfseries <<location>>}\\
+{\itshape <<role>>}\hfill{\itshape <<startDate>>} -- {\itshape <<endDate>>}
+<<#bullets.length>>
 \begin{cvitemize}
-{{#bullets}}\item {{{content}}}
-{{/bullets}}\end{cvitemize}
-{{/bullets.length}}
+<<#bullets>>\item <<content>>
+<</bullets>>\end{cvitemize}
+<</bullets.length>>
 \vspace{4pt}
-{{/experiences}}
+<</experiences>>
 
 % ---------- HABILIDADES ----------
-{{#skills.length}}
+<<#skills.length>>
 \section*{HABILIDADES}
 \vspace{2pt}
-{{#skills}}\noindent\textbf{ {{{category}}}: } {{{items}}}\\
-{{/skills}}
-{{/skills.length}}
+<<#skills>>\noindent{\bfseries <<category>>:} <<items>>\\
+<</skills>>
+<</skills.length>>
 
 % ---------- PROJETOS ----------
-{{#projects.length}}
+<<#projects.length>>
 \section*{PROJETOS}
-{{/projects.length}}
-{{#projects}}
-\noindent\textbf{ {{{name}}} }{{#url}}\hfill\href{ {{{url}}} }{link}{{/url}}\\
-{{#stack}}\textit{ {{{stack}}} }\\{{/stack}}
-{{#description}}{{{description}}}{{/description}}{{#impact}}\\\textbf{Impacto:} {{{impact}}}{{/impact}}
+<</projects.length>>
+<<#projects>>
+\noindent{\bfseries <<name>>}<<#url>>\hfill\href{<<url>>}{link}<</url>>\\
+<<#stack>>{\itshape <<stack>>}\\<</stack>>
+<<#description>><<description>><</description>><<#impact>>\\{\bfseries Impacto:} <<impact>><</impact>>
 \vspace{4pt}
-{{/projects}}
+<</projects>>
 
 % ---------- IDIOMAS ----------
-{{#languagesLine}}
+<<#languagesLine>>
 \section*{IDIOMAS}
 \vspace{2pt}
-\noindent{{{languagesLine}}}\\
-{{/languagesLine}}
+\noindent<<languagesLine>>\\
+<</languagesLine>>
 
 % ---------- EDUCAÇÃO ----------
-{{#education.length}}
+<<#education.length>>
 \section*{EDUCA\c{C}\~AO}
-{{/education.length}}
-{{#education}}
+<</education.length>>
+<<#education>>
 \vspace{2pt}
-\noindent\textbf{ {{{institution}}} }\hfill\textbf{ {{{location}}} }\\
-\textit{ {{{degree}}}{{#field}} em {{{field}}}{{/field}} }\hfill\textit{ {{{period}}} }
+\noindent{\bfseries <<institution>>}\hfill{\bfseries <<location>>}\\
+{\itshape <<degree>>}<<#field>>{\itshape \ em <<field>>}<</field>>\hfill{\itshape <<period>>}
 \vspace{2pt}
-{{/education}}
+<</education>>
 
 \end{document}
