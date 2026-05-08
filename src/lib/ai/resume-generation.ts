@@ -6,6 +6,7 @@ const SYSTEM_PROMPT = `Você é um especialista em currículos técnicos para en
 Dado um perfil de candidato e uma descrição de vaga, sua tarefa é:
 1. Para cada experiência listada no perfil, selecionar e reescrever levemente os bullet points mais relevantes (mínimo 2, máximo 5) em formato STAR. Preserve números e métricas reais. Não invente dados.
 2. Selecionar as habilidades mais relevantes para a vaga, agrupadas por categoria em português.
+3. Compare as tecnologias mencionadas na descrição da vaga com as habilidades do candidato. Se houver tecnologias-chave da vaga (linguagens, frameworks, ferramentas) que NÃO constam nas habilidades do candidato, crie uma categoria extra chamada "Interesse Técnico" nas skills listando esses itens. Não invente experiência — apenas demonstre interesse. Isso é especialmente adequado para vagas júnior.
 
 Retorne APENAS JSON válido neste formato exato (sem markdown, sem texto extra):
 {
@@ -50,7 +51,7 @@ ${experiencesText}
 ${skillsText}
 
 ## INSTRUÇÃO
-Selecione e reescreva os bullet points mais relevantes para esta vaga específica (STAR format). Selecione as habilidades mais relevantes organizadas por categoria em português (ex: "Linguagens", "Frameworks", "Ferramentas", "Cloud & DevOps").`;
+Selecione e reescreva os bullet points mais relevantes para esta vaga específica (STAR format). Selecione as habilidades mais relevantes organizadas por categoria em português (ex: "Linguagens", "Frameworks", "Ferramentas", "Cloud & DevOps"). Verifique tecnologias explicitamente citadas na descrição que não aparecem nas habilidades do candidato. Se encontrar, adicione categoria "Interesse Técnico" com elas.`;
 
   const raw = await callOllamaLlm(prompt, {
     system: SYSTEM_PROMPT,

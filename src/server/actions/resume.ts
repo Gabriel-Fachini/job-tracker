@@ -21,8 +21,12 @@ function sanitizeFilename(name: string): string {
     .replace(/^_|_$/g, "");
 }
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayYearMonthHHMM(): string {
+  const now = new Date();
+  const date = now.toISOString().slice(0, 7);
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  return `${date}_${hh}-${mm}`;
 }
 
 export async function generateResume(
@@ -69,8 +73,8 @@ export async function generateResume(
     fs.mkdirSync(outDir, { recursive: true });
 
     const slug = sanitizeFilename(row.companyName);
-    const date = todayIso();
-    const basename = `${slug}_${date}`;
+    const yearMonthHHMM = todayYearMonthHHMM();
+    const basename = `Gabriel_Fachini_${slug}_${yearMonthHHMM}`;
     const texPath = path.join(outDir, `${basename}.tex`);
     fs.writeFileSync(texPath, tex, "utf8");
 
