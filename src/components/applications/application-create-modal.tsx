@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Building2, FileText, FolderOpen, Loader2, Waypoints } from "lucide-react";
+import { Building2, CheckCircle2, FileText, FolderOpen, Loader2, Waypoints } from "lucide-react";
 
 import {
   createApplication,
@@ -16,7 +16,14 @@ import {
   workModelOptions,
 } from "@/lib/jobs";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Field,
   FieldDescription,
@@ -29,13 +36,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type ModalPhase = "form" | "success" | "generating" | "generated";
+type ResumePhase = "idle" | "generating" | "done" | "error";
 
 type ApplicationCreateModalProps = {
-  companies: Array<{
-    id: number;
-    name: string;
-  }>;
+  companies: Array<{ id: number; name: string }>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialValues?: Partial<ApplicationCreateInitialValues>;
@@ -78,50 +82,52 @@ export function ApplicationCreateModal({
 }: ApplicationCreateModalProps) {
   const [state, formAction, isPending] = useActionState(submitAction, null);
   const formRef = useRef<HTMLFormElement>(null);
-  const [phase, setPhase] = useState<ModalPhase>("form");
+
   const [applicationId, setApplicationId] = useState<number | null>(null);
+  const [resumePhase, setResumePhase] = useState<ResumePhase>("idle");
   const [pdfPath, setPdfPath] = useState<string | null>(null);
-  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [resumeError, setResumeError] = useState<string | null>(null);
   const [isGenerating, startGenerating] = useTransition();
+
+  const created = applicationId !== null;
 
   useEffect(() => {
     if (state?.success) {
       setApplicationId(state.id);
-      setPhase("success");
       formRef.current?.reset();
     }
   }, [state]);
 
   useEffect(() => {
     if (!open) {
-      setPhase("form");
       setApplicationId(null);
+      setResumePhase("idle");
       setPdfPath(null);
-      setGenerateError(null);
+      setResumeError(null);
     }
   }, [open]);
 
   function handleGenerateResume() {
     if (!applicationId) return;
-    setGenerateError(null);
+    setResumeError(null);
+    setResumePhase("generating");
     startGenerating(async () => {
       const result = await generateResume(applicationId);
       if (result.success) {
         setPdfPath(result.filePath);
-        setPhase("generated");
+        setResumePhase("done");
       } else {
-        setGenerateError(result.error);
-        setPhase("success");
+        setResumeError(result.error);
+        setResumePhase("error");
       }
     });
   }
 
   function handleOpenInFinder() {
-    if (!pdfPath) return;
-    openResumeInFinder(pdfPath);
+    if (pdfPath) openResumeInFinder(pdfPath);
   }
 
-  const hasError = state && !state.success;
+  const hasSubmitError = state && !state.success;
   const hasCompanies = companies.length > 0;
   const defaults = {
     title: initialValues?.title ?? "",
@@ -146,222 +152,299 @@ export function ApplicationCreateModal({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        {phase === "form" ? (
-          <>
-            <ScrollArea className="flex-1 overflow-auto">
-              <form
-                ref={formRef}
-                id="application-create-form"
-                action={formAction}
-                className="flex flex-col gap-6 px-6 pb-6"
-              >
-                {typeof initialValues?.leadId === "number" ? (
-                  <input type="hidden" name="leadId" value={String(initialValues.leadId)} />
-                ) : null}
+        <ScrollArea className="flex-1 overflow-auto">
+          <div className="flex flex-col gap-6 px-6 pb-6">
+            {/* ── Success banner ── */}
+            {created ? (
+              <div className="flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">
+                <CheckCircle2 className="size-4 shrink-0" />
+                Candidatura criada com sucesso.
+              </div>
+            ) : null}
 
-                {hasError ? (
-                  <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                    Não foi possível salvar. Revise os campos obrigatórios, incluindo a empresa selecionada, e a URL.
-                  </p>
-                ) : null}
+            {/* ── Form ── */}
+            <form
+              ref={formRef}
+              id="application-create-form"
+              action={formAction}
+              className="flex flex-col gap-6"
+            >
+              {typeof initialValues?.leadId === "number" ? (
+                <input
+                  type="hidden"
+                  name="leadId"
+                  value={String(initialValues.leadId)}
+                />
+              ) : null}
 
-                {!hasCompanies ? (
-                  <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
-                    Cadastre ao menos uma empresa antes de registrar uma candidatura.
-                  </div>
-                ) : null}
+              {hasSubmitError ? (
+                <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  Não foi possível salvar. Revise os campos obrigatórios, incluindo a empresa selecionada, e a URL.
+                </p>
+              ) : null}
 
-                <FieldGroup>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel
-                        htmlFor="title"
-                        className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
-                      >
-                        Título da vaga *
-                      </FieldLabel>
-                      <Input
-                        id="title"
-                        name="title"
-                        placeholder="Ex.: Senior Frontend Engineer"
-                        required
-                        defaultValue={defaults.title}
-                        className={controlClassName}
-                      />
-                    </Field>
+              {!hasCompanies ? (
+                <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+                  Cadastre ao menos uma empresa antes de registrar uma candidatura.
+                </div>
+              ) : null}
 
-                    <Field>
-                      <FieldLabel
-                        htmlFor="companyId"
-                        className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
-                      >
-                        Empresa *
-                      </FieldLabel>
-                      <select
-                        id="companyId"
-                        name="companyId"
-                        required
-                        defaultValue={defaults.companyId}
-                        className={controlClassName}
-                      >
-                        <option value="" disabled>
-                          Selecione uma empresa cadastrada
-                        </option>
-                        {companies.map((company) => (
-                          <option key={company.id} value={company.id}>
-                            {company.name}
-                          </option>
-                        ))}
-                      </select>
-                      <FieldDescription>
-                        A candidatura sempre precisa pertencer a uma empresa já cadastrada.
-                      </FieldDescription>
-                    </Field>
-
-                    <Field>
-                      <FieldLabel
-                        htmlFor="status"
-                        className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
-                      >
-                        Status
-                      </FieldLabel>
-                      <select
-                        id="status"
-                        name="status"
-                        defaultValue={defaults.status}
-                        className={controlClassName}
-                      >
-                        {applicationStatusOptions.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-
-                    <Field>
-                      <FieldLabel
-                        htmlFor="workModel"
-                        className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
-                      >
-                        Modelo de trabalho
-                      </FieldLabel>
-                      <select
-                        id="workModel"
-                        name="workModel"
-                        defaultValue={defaults.workModel}
-                        className={controlClassName}
-                      >
-                        <option value="">Não informado</option>
-                        {workModelOptions.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-
-                    <Field>
-                      <FieldLabel
-                        htmlFor="seniority"
-                        className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
-                      >
-                        Senioridade
-                      </FieldLabel>
-                      <select
-                        id="seniority"
-                        name="seniority"
-                        defaultValue={defaults.seniority}
-                        className={controlClassName}
-                      >
-                        <option value="">Não informado</option>
-                        {seniorityOptions.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-
-                    <Field>
-                      <FieldLabel
-                        htmlFor="sourceName"
-                        className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
-                      >
-                        Origem
-                      </FieldLabel>
-                      <select
-                        id="sourceName"
-                        name="sourceName"
-                        defaultValue={defaults.sourceName}
-                        className={controlClassName}
-                      >
-                        {sourceNameOptions.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-
-                    <Field className="sm:col-span-2">
-                      <FieldLabel
-                        htmlFor="sourceUrl"
-                        className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
-                      >
-                        URL original
-                      </FieldLabel>
-                      <Input
-                        id="sourceUrl"
-                        name="sourceUrl"
-                        type="url"
-                        placeholder="https://..."
-                        defaultValue={defaults.sourceUrl}
-                        className={controlClassName}
-                      />
-                    </Field>
-                  </div>
+              <FieldGroup>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel
+                      htmlFor="title"
+                      className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                    >
+                      Título da vaga *
+                    </FieldLabel>
+                    <Input
+                      id="title"
+                      name="title"
+                      placeholder="Ex.: Senior Frontend Engineer"
+                      required
+                      defaultValue={defaults.title}
+                      className={controlClassName}
+                      disabled={created}
+                    />
+                  </Field>
 
                   <Field>
                     <FieldLabel
-                      htmlFor="description"
+                      htmlFor="companyId"
                       className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
                     >
-                      Descrição da vaga em markdown *
+                      Empresa *
                     </FieldLabel>
-                    <Textarea
-                      id="description"
-                      name="description"
-                      placeholder="Cole aqui a descrição completa da vaga."
+                    <select
+                      id="companyId"
+                      name="companyId"
                       required
-                      defaultValue={defaults.description}
-                      className="min-h-52 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                    />
+                      defaultValue={defaults.companyId}
+                      className={controlClassName}
+                      disabled={created}
+                    >
+                      <option value="" disabled>
+                        Selecione uma empresa cadastrada
+                      </option>
+                      {companies.map((company) => (
+                        <option key={company.id} value={company.id}>
+                          {company.name}
+                        </option>
+                      ))}
+                    </select>
                     <FieldDescription>
-                      O markdown fica salvo localmente como fonte de verdade da vaga.
+                      A candidatura sempre precisa pertencer a uma empresa já cadastrada.
                     </FieldDescription>
                   </Field>
 
                   <Field>
                     <FieldLabel
-                      htmlFor="notes"
+                      htmlFor="status"
                       className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
                     >
-                      Notas
+                      Status
                     </FieldLabel>
-                    <Textarea
-                      id="notes"
-                      name="notes"
-                      placeholder="Observações sobre o processo..."
-                      defaultValue={defaults.notes}
-                      className="min-h-20 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    <select
+                      id="status"
+                      name="status"
+                      defaultValue={defaults.status}
+                      className={controlClassName}
+                      disabled={created}
+                    >
+                      {applicationStatusOptions.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="workModel"
+                      className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                    >
+                      Modelo de trabalho
+                    </FieldLabel>
+                    <select
+                      id="workModel"
+                      name="workModel"
+                      defaultValue={defaults.workModel}
+                      className={controlClassName}
+                      disabled={created}
+                    >
+                      <option value="">Não informado</option>
+                      {workModelOptions.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="seniority"
+                      className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                    >
+                      Senioridade
+                    </FieldLabel>
+                    <select
+                      id="seniority"
+                      name="seniority"
+                      defaultValue={defaults.seniority}
+                      className={controlClassName}
+                      disabled={created}
+                    >
+                      <option value="">Não informado</option>
+                      {seniorityOptions.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="sourceName"
+                      className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                    >
+                      Origem
+                    </FieldLabel>
+                    <select
+                      id="sourceName"
+                      name="sourceName"
+                      defaultValue={defaults.sourceName}
+                      className={controlClassName}
+                      disabled={created}
+                    >
+                      {sourceNameOptions.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field className="sm:col-span-2">
+                    <FieldLabel
+                      htmlFor="sourceUrl"
+                      className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                    >
+                      URL original
+                    </FieldLabel>
+                    <Input
+                      id="sourceUrl"
+                      name="sourceUrl"
+                      type="url"
+                      placeholder="https://..."
+                      defaultValue={defaults.sourceUrl}
+                      className={controlClassName}
+                      disabled={created}
                     />
                   </Field>
-                </FieldGroup>
-              </form>
-            </ScrollArea>
+                </div>
 
-            <div className="shrink-0 border-t border-border/60 px-6 py-4">
+                <Field>
+                  <FieldLabel
+                    htmlFor="description"
+                    className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                  >
+                    Descrição da vaga em markdown *
+                  </FieldLabel>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    placeholder="Cole aqui a descrição completa da vaga."
+                    required
+                    defaultValue={defaults.description}
+                    className="min-h-52 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    disabled={created}
+                  />
+                  <FieldDescription>
+                    O markdown fica salvo localmente como fonte de verdade da vaga.
+                  </FieldDescription>
+                </Field>
+
+                <Field>
+                  <FieldLabel
+                    htmlFor="notes"
+                    className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                  >
+                    Notas
+                  </FieldLabel>
+                  <Textarea
+                    id="notes"
+                    name="notes"
+                    placeholder="Observações sobre o processo..."
+                    defaultValue={defaults.notes}
+                    className="min-h-20 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    disabled={created}
+                  />
+                </Field>
+              </FieldGroup>
+            </form>
+
+            {/* ── Resume generation section ── */}
+            {created ? (
+              <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-muted/20 px-5 py-4">
+                <div className="flex items-center gap-2">
+                  <FileText className="size-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Geração de currículo</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Gera um currículo personalizado para esta vaga usando IA. Os bullet points e habilidades são selecionados e reescritos com base na descrição da vaga.
+                </p>
+
+                {resumePhase === "error" && resumeError ? (
+                  <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    {resumeError}
+                  </p>
+                ) : null}
+
+                {resumePhase === "done" && pdfPath ? (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-green-400">Currículo gerado com sucesso.</span>
+                    <Button size="sm" variant="outline" onClick={handleOpenInFinder} className="gap-1.5">
+                      <FolderOpen className="size-3.5" />
+                      Abrir no Finder
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleGenerateResume}
+                    disabled={isGenerating}
+                    className="w-fit gap-1.5"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="size-3.5 animate-spin" />
+                        Gerando...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="size-3.5" />
+                        Gerar Currículo
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </ScrollArea>
+
+        <div className="shrink-0 border-t border-border/60 px-6 py-4">
+          {created ? (
+            <div className="flex justify-end">
+              <Button onClick={() => onOpenChange(false)}>Fechar</Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
               <div className="flex items-center justify-end gap-3">
                 <Button
                   variant="outline"
@@ -379,10 +462,13 @@ export function ApplicationCreateModal({
                 </Button>
               </div>
               {!hasCompanies ? (
-                <div className="mt-3 flex justify-end">
+                <div className="flex justify-end">
                   <Link
                     href="/companies/new"
-                    className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "rounded-lg")}
+                    className={cn(
+                      buttonVariants({ variant: "ghost", size: "sm" }),
+                      "rounded-lg",
+                    )}
                   >
                     <Building2 data-icon="inline-start" />
                     Cadastrar empresa primeiro
@@ -390,64 +476,11 @@ export function ApplicationCreateModal({
                 </div>
               ) : null}
             </div>
-          </>
-        ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-10">
-            <div className="flex flex-col items-center gap-2 text-center">
-              <div className="flex size-12 items-center justify-center rounded-full bg-green-500/15">
-                <FileText className="size-6 text-green-400" />
-              </div>
-              <p className="text-base font-medium">Candidatura criada!</p>
-              <p className="text-sm text-muted-foreground">
-                Deseja gerar um currículo personalizado para esta vaga?
-              </p>
-            </div>
-
-            {generateError ? (
-              <p className="max-w-sm rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-center text-sm text-destructive">
-                {generateError}
-              </p>
-            ) : null}
-
-            {phase === "generated" && pdfPath ? (
-              <div className="flex flex-col items-center gap-3">
-                <p className="text-sm text-muted-foreground">
-                  Currículo gerado com sucesso.
-                </p>
-                <Button onClick={handleOpenInFinder} className="gap-2">
-                  <FolderOpen className="size-4" />
-                  Abrir no Finder
-                </Button>
-              </div>
-            ) : (
-              <Button
-                onClick={handleGenerateResume}
-                disabled={isGenerating}
-                className="gap-2"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    Gerando currículo...
-                  </>
-                ) : (
-                  <>
-                    <FileText className="size-4" />
-                    Gerar Currículo
-                  </>
-                )}
-              </Button>
-            )}
-
-            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-              Fechar
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-// Trigger convenience export
 export { DialogTrigger as ApplicationCreateTrigger };

@@ -80,6 +80,7 @@ Selecione e reescreva os bullet points mais relevantes para esta vaga específic
     generationOptions: { temperature: 0 },
   });
 
-  const parsed = JSON.parse(raw) as ResumeAISelection;
+  const jsonStr = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+  const parsed = JSON.parse(jsonStr) as ResumeAISelection;
   return parsed;
 }
