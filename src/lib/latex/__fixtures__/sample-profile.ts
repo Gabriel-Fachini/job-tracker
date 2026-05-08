@@ -1,12 +1,23 @@
 import type { ResumeTemplateData } from '../types';
 
+function getSampleProfileEnv(name: string, fallback: string): string {
+  const value = process.env[name]?.trim();
+  return value && value.length > 0 ? value : fallback;
+}
+
 export const sampleProfile: ResumeTemplateData = {
-  fullName: 'Gabriel Fernando Machado Fachini',
-  email: 'gabriel.fm.fachini@gmail.com',
-  phone: '+55 19994388032',
-  linkedin: 'https://linkedin.com/in/gabriel-fachini',
-  github: 'https://github.com/gabriel-fachini',
-  location: 'São Carlos, SP - Brasil',
+  fullName: getSampleProfileEnv('SAMPLE_PROFILE_FULL_NAME', 'Alex Silva'),
+  email: getSampleProfileEnv('SAMPLE_PROFILE_EMAIL', 'alex.silva@example.com'),
+  phone: getSampleProfileEnv('SAMPLE_PROFILE_PHONE', '+55 11 99999-9999'),
+  linkedin: getSampleProfileEnv(
+    'SAMPLE_PROFILE_LINKEDIN',
+    'https://linkedin.com/in/alex-silva',
+  ),
+  github: getSampleProfileEnv(
+    'SAMPLE_PROFILE_GITHUB',
+    'https://github.com/alex-silva',
+  ),
+  location: getSampleProfileEnv('SAMPLE_PROFILE_LOCATION', 'Brasil'),
 
   experiences: [
     {
