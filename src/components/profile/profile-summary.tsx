@@ -8,6 +8,7 @@ import {
   BriefcaseBusiness,
   ChevronDown,
   ChevronUp,
+  Code2,
   Globe,
   GraduationCap,
   Link as LinkIcon,
@@ -28,6 +29,7 @@ import {
   createEmptyBullet,
   createEmptyEducation,
   createEmptyExperience,
+  createEmptyProject,
   createEmptySkill,
   createProfileReviewData,
   SKILL_CATEGORY_OPTIONS,
@@ -62,6 +64,7 @@ type EditableSection =
   | "preferences"
   | "experiences"
   | "skills"
+  | "projects"
   | "education";
 
 type ProfileSummaryProps = {
@@ -241,6 +244,22 @@ export function ProfileSummary({
             ...current,
             education: current.education.map((education) =>
               education.clientId === educationId ? updater(education) : education,
+            ),
+          }
+        : current,
+    );
+  }
+
+  function updateProject(
+    projectId: string,
+    updater: (project: ProfileReviewData["projects"][number]) => ProfileReviewData["projects"][number],
+  ) {
+    setDraft((current) =>
+      current
+        ? {
+            ...current,
+            projects: current.projects.map((project) =>
+              project.clientId === projectId ? updater(project) : project,
             ),
           }
         : current,
@@ -849,6 +868,200 @@ export function ProfileSummary({
           </div>
         ) : (
           <EmptyBlock text="Nenhuma experiência registrada ainda." />
+        )}
+      </PanelCard>
+
+      <PanelCard
+        action={
+          <SectionActionButtons
+            activeSection={activeSection}
+            isPending={isPending}
+            onCancel={resetToSnapshot}
+            onEdit={() => onActiveSectionChange("projects")}
+            onSave={saveSection}
+            section="projects"
+          />
+        }
+        icon={Code2}
+        title="Projetos"
+      >
+        {activeSection === "projects" ? (
+          <div className="space-y-4">
+            {draft.projects.map((project, index) => (
+              <div
+                className="rounded-[1.3rem] border border-white/8 bg-white/[0.03] p-4"
+                key={project.clientId}
+              >
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-stone-100">Projeto {index + 1}</p>
+                    <p className="text-sm text-stone-400">Nome, stack e link do repositório.</p>
+                  </div>
+                  <Button
+                    className="border-white/10 text-stone-200 hover:bg-white/[0.04]"
+                    onClick={() =>
+                      setDraft((current) =>
+                        current
+                          ? {
+                              ...current,
+                              projects:
+                                current.projects.length > 1
+                                  ? current.projects.filter(
+                                      (item) => item.clientId !== project.clientId,
+                                    )
+                                  : [createEmptyProject()],
+                            }
+                          : current,
+                      )
+                    }
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FormField label="Nome">
+                    <Input
+                      onChange={(event) =>
+                        updateProject(project.clientId, (current) => ({
+                          ...current,
+                          name: event.target.value,
+                        }))
+                      }
+                      value={project.name}
+                    />
+                  </FormField>
+                  <FormField label="URL (repositório ou demo)">
+                    <Input
+                      onChange={(event) =>
+                        updateProject(project.clientId, (current) => ({
+                          ...current,
+                          url: event.target.value,
+                        }))
+                      }
+                      placeholder="https://github.com/..."
+                      value={project.url}
+                    />
+                  </FormField>
+                  <FormField className="md:col-span-2" label="Stack (separada por vírgulas)">
+                    <Input
+                      onChange={(event) =>
+                        updateProject(project.clientId, (current) => ({
+                          ...current,
+                          stack: event.target.value,
+                        }))
+                      }
+                      placeholder="Ex.: TypeScript, React, Node.js"
+                      value={project.stack}
+                    />
+                  </FormField>
+                  <FormField className="md:col-span-2" label="Descrição">
+                    <Textarea
+                      onChange={(event) =>
+                        updateProject(project.clientId, (current) => ({
+                          ...current,
+                          description: event.target.value,
+                        }))
+                      }
+                      rows={2}
+                      value={project.description}
+                    />
+                  </FormField>
+                  <FormField className="md:col-span-2" label="Impacto / destaques">
+                    <Textarea
+                      onChange={(event) =>
+                        updateProject(project.clientId, (current) => ({
+                          ...current,
+                          impact: event.target.value,
+                        }))
+                      }
+                      rows={2}
+                      value={project.impact}
+                    />
+                  </FormField>
+                </div>
+              </div>
+            ))}
+
+            <Button
+              className="h-11 rounded-[1rem] border-emerald-400/18 bg-emerald-500/8 text-emerald-100 hover:bg-emerald-500/14"
+              onClick={() =>
+                setDraft((current) =>
+                  current
+                    ? {
+                        ...current,
+                        projects: [...current.projects, createEmptyProject()],
+                      }
+                    : current,
+                )
+              }
+              type="button"
+              variant="outline"
+            >
+              <Plus className="size-4" />
+              Adicionar projeto
+            </Button>
+          </div>
+        ) : draft.projects.length > 0 ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {draft.projects.map((project) => {
+              const stackTags = project.stack
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .slice(0, 5);
+
+              return (
+                <article
+                  className="flex flex-col gap-3 rounded-[1.3rem] border border-white/8 bg-white/[0.03] p-4"
+                  key={project.clientId}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="text-[1.05rem] font-medium text-stone-100 leading-snug">
+                      {project.name}
+                    </h4>
+                    {project.url ? (
+                      <a
+                        className="shrink-0 text-stone-500 hover:text-emerald-300 transition-colors"
+                        href={project.url}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        <LinkIcon className="size-4" />
+                      </a>
+                    ) : null}
+                  </div>
+                  {project.description ? (
+                    <p className="text-[0.83rem] leading-6 text-stone-400/88 line-clamp-2">
+                      {project.description}
+                    </p>
+                  ) : null}
+                  {stackTags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {stackTags.map((tag) => (
+                        <span
+                          className="rounded-[0.6rem] border border-emerald-400/12 bg-emerald-500/6 px-2 py-0.5 text-[0.75rem] text-stone-300/85"
+                          key={tag}
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {project.impact ? (
+                    <p className="text-[0.79rem] leading-5 text-stone-500 line-clamp-2">
+                      {project.impact}
+                    </p>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyBlock text="Nenhum projeto cadastrado ainda." />
         )}
       </PanelCard>
 
