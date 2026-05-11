@@ -3,6 +3,7 @@ import {
   fetchGreenhouseJobs,
   extractGreenhouseBoardToken,
 } from "./greenhouse";
+import { fetchInhireJobs } from "./inhire";
 
 export type AtsProvider = "greenhouse" | "gupy" | "inhire" | "generic" | "auto";
 
@@ -51,6 +52,10 @@ export async function discoverViaProvider(
     }
 
     return fetchGreenhouseJobs(boardToken, fetchImpl);
+  }
+
+  if (resolvedProvider === "inhire") {
+    return fetchInhireJobs(company.jobsBoardUrl);
   }
 
   return null;

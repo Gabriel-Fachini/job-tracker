@@ -252,7 +252,7 @@ function extractPrimaryDescription($: cheerio.CheerioAPI) {
   return bestCandidate;
 }
 
-function detectSourceName(url: string) {
+export function detectSourceName(url: string) {
   const hostname = new URL(url).hostname.toLowerCase();
 
   if (hostname.includes("linkedin.com")) {
@@ -261,6 +261,10 @@ function detectSourceName(url: string) {
 
   if (hostname.includes("gupy.io")) {
     return "gupy";
+  }
+
+  if (hostname.includes("inhire.app")) {
+    return "inhire";
   }
 
   return "company_site";

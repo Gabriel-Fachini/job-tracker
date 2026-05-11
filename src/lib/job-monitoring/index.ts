@@ -3,7 +3,7 @@ import pLimit from "p-limit";
 import { formatJobDescriptionAsMarkdown } from "@/lib/ai/openai";
 import { classifyJobLead } from "./classification";
 import { discoverJobLinks } from "./discovery";
-import { extractJobDetail, htmlToMarkdown } from "./extraction";
+import { extractJobDetail, htmlToMarkdown, detectSourceName } from "./extraction";
 import { logMonitoringStep } from "./logger";
 import { getExistingJobLeadUrls, touchLastViewed, upsertJobLead } from "./persistence";
 import type {
@@ -124,7 +124,7 @@ export async function runMonitoringForCompany(
               title: prefetched.title,
               description: descriptionMarkdown || null,
               sourceUrl: link.url,
-              sourceName: "greenhouse",
+              sourceName: detectSourceName(link.url),
               workModel: null,
               seniority: null,
               locationText: prefetched.locationText || null,
