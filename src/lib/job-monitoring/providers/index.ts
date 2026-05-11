@@ -4,6 +4,7 @@ import {
   extractGreenhouseBoardToken,
 } from "./greenhouse";
 import { fetchInhireJobs } from "./inhire";
+import { fetchGupyJobs } from "./gupy";
 
 export type AtsProvider = "greenhouse" | "gupy" | "inhire" | "generic" | "auto";
 
@@ -56,6 +57,10 @@ export async function discoverViaProvider(
 
   if (resolvedProvider === "inhire") {
     return fetchInhireJobs(company.jobsBoardUrl);
+  }
+
+  if (resolvedProvider === "gupy") {
+    return fetchGupyJobs(company.jobsBoardUrl);
   }
 
   return null;
