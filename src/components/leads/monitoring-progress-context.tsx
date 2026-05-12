@@ -88,7 +88,6 @@ function applySSEEvent(prev: MonitoringProgress, parsed: MonitoringStreamEvent):
 
 export function MonitoringProgressProvider({ children }: { children: React.ReactNode }) {
   const [progress, setProgress] = useState<MonitoringProgress | null>(null);
-  const [mounted, setMounted] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const queryClient = useQueryClient();
 
@@ -134,8 +133,6 @@ export function MonitoringProgressProvider({ children }: { children: React.React
   }, []);
 
   useEffect(() => {
-    setMounted(true);
-
     async function hydrate() {
       try {
         const response = await fetch("/api/monitoring/current");
@@ -176,7 +173,7 @@ export function MonitoringProgressProvider({ children }: { children: React.React
   return (
     <MonitoringProgressContext.Provider
       value={{
-        progress: mounted ? progress : null,
+        progress,
         actions: { startMonitoring, cancelMonitoring },
       }}
     >

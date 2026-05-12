@@ -292,7 +292,7 @@ export function ProfileUploadPanel() {
         <FileUp data-icon="inline-start" />
         Atualizar currículo
       </DialogTrigger>
-      <DialogContent className="max-w-2xl p-0">
+      <DialogContent className="h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] p-0 sm:h-auto sm:max-w-2xl">
         <DialogHeader className="gap-1 border-b px-4 py-4">
           <DialogTitle>Upload do currículo master</DialogTitle>
           <DialogDescription>
@@ -301,7 +301,7 @@ export function ProfileUploadPanel() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-6 px-4 py-4">
+        <div className="flex flex-1 flex-col gap-6 overflow-auto px-4 py-4">
           <form
             className="flex flex-col gap-4"
             onSubmit={(e) => {

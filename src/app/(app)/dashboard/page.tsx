@@ -63,7 +63,7 @@ export default async function DashboardPage({
             Visão estratégica da busca — identifique gaps e prioridades.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           <Suspense>
             <PeriodFilter current={range} />
           </Suspense>
@@ -71,7 +71,7 @@ export default async function DashboardPage({
             <input type="hidden" name="range" value={range} />
             <button
               type="submit"
-              className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-card/40 px-3 py-2 text-xs text-muted-foreground transition-all hover:text-foreground"
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-border/50 bg-card/40 px-3 py-2 text-xs text-muted-foreground transition-all hover:text-foreground sm:w-auto"
             >
               <RefreshCw className="size-3" />
               Refresh

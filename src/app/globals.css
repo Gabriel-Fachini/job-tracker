@@ -128,11 +128,16 @@
   html {
     @apply font-sans;
   }
+
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
 
 @layer components {
   .markdown-content {
-    @apply text-sm leading-7 text-foreground;
+    @apply text-sm leading-7 break-words text-foreground;
   }
 
   .markdown-content > * + * {
@@ -171,7 +176,7 @@
   }
 
   .markdown-content a {
-    @apply text-foreground underline underline-offset-4;
+    @apply break-all text-foreground underline underline-offset-4;
   }
 
   .markdown-content code {

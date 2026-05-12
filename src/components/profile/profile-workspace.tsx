@@ -28,7 +28,14 @@ type ProfileWorkspaceProps = {
 
 export function ProfileWorkspace({ profileSnapshot }: ProfileWorkspaceProps) {
   const [activeSection, setActiveSection] = useState<
-    "basics" | "links" | "preferences" | "experiences" | "skills" | "education" | null
+    | "basics"
+    | "links"
+    | "preferences"
+    | "experiences"
+    | "skills"
+    | "projects"
+    | "education"
+    | null
   >(null);
 
   return (
@@ -37,10 +44,10 @@ export function ProfileWorkspace({ profileSnapshot }: ProfileWorkspaceProps) {
     >
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(72,161,108,0.16),transparent_32%),radial-gradient(circle_at_85%_14%,rgba(35,96,67,0.22),transparent_26%),linear-gradient(180deg,rgba(10,10,10,0.08),transparent_20%)]" />
 
-      <header className="flex flex-col gap-6 px-3 py-2 sm:px-1">
+      <header className="flex flex-col gap-6 px-1 py-2">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex max-w-3xl flex-col gap-2">
-            <h1 className="font-[family:var(--font-profile-display)] text-[3.2rem] leading-none text-stone-50 sm:text-[4rem]">
+            <h1 className="font-[family:var(--font-profile-display)] text-4xl leading-none text-stone-50 sm:text-6xl">
               Meu perfil
             </h1>
             <p className="max-w-2xl text-[1.02rem] leading-8 text-stone-400">

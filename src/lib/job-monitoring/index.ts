@@ -93,11 +93,9 @@ export async function runMonitoringForCompany(
   const limit = pLimit(LINK_PROCESSING_CONCURRENCY);
   let processedCount = 0;
 
-  const results = await Promise.allSettled(
+  await Promise.allSettled(
     newLinks.map((link, index) =>
       limit(async () => {
-        let processed = 0;
-
         try {
         logMonitoringStep(company.name, "processing-link", {
           current: index + 1,

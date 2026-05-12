@@ -95,10 +95,14 @@ export function ClassificationWidget({
                   borderRadius: "8px",
                   fontSize: "12px",
                 }}
-                formatter={(value: number, name: string) => [
-                  `${value} (${pieData.find((d) => d.name === name)?.pct ?? 0}%)`,
-                  name,
-                ]}
+                formatter={(value, name) => {
+                  const numericValue = Number(value ?? 0);
+                  const label = typeof name === "string" ? name : String(name ?? "");
+                  return [
+                    `${numericValue} (${pieData.find((d) => d.name === label)?.pct ?? 0}%)`,
+                    label,
+                  ];
+                }}
               />
             </PieChart>
           </ResponsiveContainer>

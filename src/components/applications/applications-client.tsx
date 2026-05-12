@@ -56,6 +56,7 @@ import {
 } from "@/lib/jobs";
 import { cn } from "@/lib/utils";
 import { updateApplicationStatus } from "@/server/actions/applications";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type ApplicationListItem = {
   id: number;
@@ -327,7 +328,7 @@ function DraggableApplicationCard({
       data-application-card-id={item.id}
       style={{ x, scale, zIndex: isDragging ? 120 : 1 }}
       className={cn(
-        "relative will-change-transform touch-none",
+        "relative hidden will-change-transform touch-none md:block",
         isDragging && "cursor-grabbing",
       )}
       {...bindDrag()}
@@ -526,6 +527,7 @@ function KanbanColumn({
 
 export function ApplicationsClient({ companies, items }: ApplicationsClientProps) {
   const reducedMotion = Boolean(useReducedMotion());
+  const isMobile = useIsMobile();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -624,6 +626,8 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
     : null;
 
   const totalCount = items.length;
+  const [mobileStatus, setMobileStatus] = useState<ApplicationStatus>("applied");
+  const mobileItems = board[mobileStatus];
 
   return (
     <>
@@ -646,7 +650,7 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
             id="btn-nova-candidatura"
             size="lg"
             onClick={() => setCreateOpen(true)}
-            className="h-11 min-w-44 justify-center rounded-xl bg-amber-300 px-6 text-zinc-950 shadow-[0_8px_28px_rgba(252,211,77,0.28)] transition-all hover:bg-amber-200 hover:shadow-[0_12px_36px_rgba(252,211,77,0.36)]"
+            className="h-11 w-full justify-center rounded-xl bg-amber-300 px-6 text-zinc-950 shadow-[0_8px_28px_rgba(252,211,77,0.28)] transition-all hover:bg-amber-200 hover:shadow-[0_12px_36px_rgba(252,211,77,0.36)] sm:w-auto sm:min-w-44"
           >
             <Waypoints data-icon="inline-start" />
             Nova candidatura
@@ -693,6 +697,74 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
             Registrar primeira candidatura
           </Button>
         </Empty>
+      ) : isMobile ? (
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {kanbanColumns.map((column) => (
+              <button
+                key={column.status}
+                type="button"
+                onClick={() => setMobileStatus(column.status)}
+                className={cn(
+                  "flex min-h-16 flex-col items-start gap-1 rounded-2xl border px-4 py-3 text-left transition-colors",
+                  mobileStatus === column.status
+                    ? "border-amber-300/50 bg-amber-300/10"
+                    : "border-border/60 bg-card/40",
+                )}
+              >
+                <span className="text-sm font-semibold text-foreground">
+                  {applicationStatusLabelMap[column.status]}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {board[column.status].length} candidatura{board[column.status].length === 1 ? "" : "s"}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <section className="rounded-3xl border border-border/60 bg-card/50 backdrop-blur">
+            <div className="border-b border-border/50 px-5 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    {applicationStatusLabelMap[mobileStatus]}
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    {kanbanColumns.find((column) => column.status === mobileStatus)?.description}
+                  </p>
+                </div>
+                <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                  {mobileItems.length}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 p-3">
+              {mobileItems.length === 0 ? (
+                <Empty className="border border-dashed border-border/50 bg-background/40">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <MapPin />
+                    </EmptyMedia>
+                    <EmptyTitle>Nenhuma candidatura aqui</EmptyTitle>
+                    <EmptyDescription>
+                      Quando uma candidatura entrar nesta etapa, ela aparecerá aqui.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              ) : (
+                mobileItems.map((item) => (
+                  <MobileApplicationCard
+                    key={item.id}
+                    item={item}
+                    onOpenDetails={() => handleOpenDetails(item)}
+                    onStatusChange={(targetStatus) => handleDrop(item, targetStatus)}
+                  />
+                ))
+              )}
+            </div>
+          </section>
+        </div>
       ) : (
         <div className="overflow-x-auto pb-2">
           <div className="grid min-w-max grid-flow-col auto-cols-[minmax(19rem,19rem)] gap-4">
@@ -726,5 +798,66 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
         onClose={handleCloseDetails}
       />
     </>
+  );
+}
+
+function MobileApplicationCard({
+  item,
+  onOpenDetails,
+  onStatusChange,
+}: {
+  item: ApplicationListItem;
+  onOpenDetails: () => void;
+  onStatusChange: (status: ApplicationStatus) => void;
+}) {
+  const workModelLabel = getWorkModelLabel(item.workModel);
+  const seniorityLabel = getSeniorityLabel(item.seniority);
+
+  return (
+    <Card className="border border-border/60 bg-card/92 pt-0">
+      <CardHeader className="gap-4 border-b border-border/40 pt-4">
+        <div className="min-w-0">
+          <CardTitle className="text-base leading-6 text-foreground">
+            {item.jobTitle}
+          </CardTitle>
+          <p className="mt-1.5 truncate text-sm text-muted-foreground">
+            {item.company ?? "Empresa não informada"}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <ApplicationStatusBadge status={item.status} />
+          {workModelLabel ? (
+            <span className="inline-flex items-center rounded-full border border-white/8 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              {workModelLabels[item.workModel ?? ""] ?? workModelLabel}
+            </span>
+          ) : null}
+          {seniorityLabel ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/20 bg-violet-400/8 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-violet-300/80">
+              <Zap className="size-3" />
+              {seniorityLabel}
+            </span>
+          ) : null}
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 py-4">
+        <label className="flex flex-col gap-2 text-sm text-muted-foreground">
+          <span>Status</span>
+          <select
+            value={item.status}
+            onChange={(event) => onStatusChange(event.target.value as ApplicationStatus)}
+            className="h-10 w-full rounded-xl border border-input bg-input/30 px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            {kanbanColumns.map((column) => (
+              <option key={column.status} value={column.status}>
+                {applicationStatusLabelMap[column.status]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button variant="outline" className="w-full rounded-xl" onClick={onOpenDetails}>
+          Ver detalhes
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

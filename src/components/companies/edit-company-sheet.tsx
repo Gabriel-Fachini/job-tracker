@@ -75,9 +75,9 @@ export function EditCompanySheet({
       <SheetContent
         side="right"
         showCloseButton
-        className="flex flex-col gap-0 p-0 sm:max-w-xl"
+        className="flex h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] flex-col gap-0 p-0 sm:h-full sm:max-w-xl"
       >
-        <SheetHeader className="shrink-0 border-b border-border/40 p-6">
+        <SheetHeader className="shrink-0 border-b border-border/40 p-4 sm:p-6">
           <SheetTitle>Editar empresa</SheetTitle>
           <SheetDescription>
             Atualize a ficha sem perder o vínculo com as candidaturas já
@@ -87,7 +87,7 @@ export function EditCompanySheet({
 
         <form action={action} className="flex min-h-0 flex-1 flex-col overflow-hidden gap-0">
           <ScrollArea className="flex-1 min-h-0">
-            <div className="flex flex-col gap-8 px-6 py-6">
+            <div className="flex flex-col gap-8 px-4 py-5 sm:px-6 sm:py-6">
               {hasValidationError ? (
                 <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-5 py-4 text-sm text-destructive">
                   Não foi possível atualizar a empresa. Revise o nome e as URLs
@@ -251,8 +251,8 @@ export function EditCompanySheet({
             </div>
           </ScrollArea>
 
-          <div className="shrink-0 border-t border-border/40 bg-background/20 px-6 py-5">
-            <div className="flex justify-end gap-3">
+          <div className="shrink-0 border-t border-border/40 bg-background/20 px-4 py-5 sm:px-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
               <SheetClose render={<Button type="button" variant="outline" className="rounded-xl" />}>
                 Cancelar
               </SheetClose>

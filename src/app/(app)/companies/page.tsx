@@ -48,7 +48,7 @@ function CompanyCard({ item }: { item: CompanyListItem }) {
       <CardHeader className="pb-3 pt-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <CardTitle className="truncate text-lg leading-snug text-foreground">
+            <CardTitle className="break-words text-lg leading-snug text-foreground">
               {item.name}
             </CardTitle>
             <div className="mt-1.5 flex items-center gap-1.5">
@@ -93,7 +93,7 @@ function CompanyCard({ item }: { item: CompanyListItem }) {
           </span>
         </div>
 
-        <div className="flex items-center justify-between gap-4 border-t border-border/40 pt-3">
+        <div className="flex flex-col items-start gap-3 border-t border-border/40 pt-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground/60">
             Atualizada em {formatDate(item.updatedAt)}
           </span>
@@ -101,7 +101,7 @@ function CompanyCard({ item }: { item: CompanyListItem }) {
             href={`/companies/${item.id}`}
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
-              "rounded-lg text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground/80",
+              "w-full rounded-lg text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground/80 sm:w-auto",
             )}
           >
             Ver painel
@@ -229,7 +229,7 @@ export default async function CompaniesPage() {
           </p>
         </div>
 
-        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
           <MonitoringRunButton
             action={runAllCompaniesMonitoring}
             label="Rodar varredura"
@@ -247,7 +247,7 @@ export default async function CompaniesPage() {
             href="/companies/new"
             className={cn(
               buttonVariants({ size: "lg" }),
-              "h-11 min-w-44 justify-center rounded-xl bg-amber-300 px-6 text-zinc-950 shadow-[0_8px_28px_rgba(252,211,77,0.28)] transition-all hover:bg-amber-200 hover:shadow-[0_12px_36px_rgba(252,211,77,0.36)]",
+              "h-11 w-full justify-center rounded-xl bg-amber-300 px-6 text-zinc-950 shadow-[0_8px_28px_rgba(252,211,77,0.28)] transition-all hover:bg-amber-200 hover:shadow-[0_12px_36px_rgba(252,211,77,0.36)] sm:w-auto sm:min-w-44",
             )}
           >
             <Building2 data-icon="inline-start" />
@@ -282,7 +282,7 @@ export default async function CompaniesPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2">
           {rows.map((row) => (
             <CompanyCard key={row.id} item={row} />
           ))}

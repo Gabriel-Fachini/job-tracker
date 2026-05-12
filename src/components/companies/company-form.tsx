@@ -233,7 +233,7 @@ export function CompanyForm({
                   </SelectContent>
                 </Select>
                 <FieldDescription>
-                  "Detectar automaticamente" identifica o provedor pela URL.
+                  &quot;Detectar automaticamente&quot; identifica o provedor pela URL.
                   Use outro valor para override manual.
                 </FieldDescription>
               </Field>

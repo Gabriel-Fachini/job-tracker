@@ -106,7 +106,7 @@ export function parseResumeSelectionResponse(response: string): ResumeAISelectio
             (project: unknown): project is { name?: unknown; reason?: unknown } =>
               typeof project === "object" && project !== null,
           )
-          .flatMap((project) => {
+          .flatMap((project: { name?: unknown; reason?: unknown }) => {
             const name =
               typeof project.name === "string" && project.name.trim()
                 ? project.name.trim()

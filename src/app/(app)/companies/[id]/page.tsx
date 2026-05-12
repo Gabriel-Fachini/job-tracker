@@ -115,7 +115,7 @@ export default async function CompanyDetailPage({
           Voltar para empresas
         </Link>
 
-        <section className="relative overflow-hidden rounded-[2rem] border border-border/50 bg-[radial-gradient(circle_at_top_left,rgba(52,211,153,0.16),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.14),transparent_28%),linear-gradient(180deg,rgba(24,24,27,0.96),rgba(18,18,20,0.92))] p-7 shadow-[0_24px_80px_rgba(0,0,0,0.28)] sm:p-9">
+        <section className="relative overflow-hidden rounded-[2rem] border border-border/50 bg-[radial-gradient(circle_at_top_left,rgba(52,211,153,0.16),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.14),transparent_28%),linear-gradient(180deg,rgba(24,24,27,0.96),rgba(18,18,20,0.92))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] sm:p-7 lg:p-9">
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_340px] xl:items-end">
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center gap-3">
@@ -127,7 +127,7 @@ export default async function CompanyDetailPage({
                 </span>
               </div>
               <div className="flex flex-col gap-2">
-                <h1 className="font-heading text-4xl font-semibold tracking-tight text-balance text-white sm:text-5xl">
+                <h1 className="break-words font-heading text-3xl font-semibold tracking-tight text-balance text-white sm:text-4xl lg:text-5xl">
                   {company.name}
                 </h1>
                 <p className="max-w-2xl text-base leading-7 text-zinc-300">
@@ -192,6 +192,42 @@ export default async function CompanyDetailPage({
                 </EmptyContent>
               </Empty>
             ) : (
+              <>
+              <div className="grid gap-3 md:hidden">
+                {relatedApplications.map((application) => (
+                  <Card key={application.applicationId} className="border-border/50 bg-background/25">
+                    <CardContent className="flex flex-col gap-3 p-4">
+                      <div className="flex flex-col gap-2">
+                        <span className="font-medium text-foreground">{application.title}</span>
+                        {application.status && isApplicationStatus(application.status) ? (
+                          <ApplicationStatusBadge status={application.status} />
+                        ) : null}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm text-muted-foreground">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground/70">Modelo</p>
+                          <p>{formatWorkModel(application.workModel)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground/70">Atualizada</p>
+                          <p>{formatDate(application.updatedAt)}</p>
+                        </div>
+                      </div>
+                      {application.notes ? (
+                        <p className="text-sm leading-6 text-muted-foreground">{application.notes}</p>
+                      ) : null}
+                      <Link
+                        href={`/applications?applicationId=${application.applicationId}`}
+                        className={cn(buttonVariants({ variant: "outline" }), "w-full rounded-xl")}
+                      >
+                        Abrir card
+                      </Link>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -239,6 +275,8 @@ export default async function CompanyDetailPage({
                   ))}
                 </TableBody>
               </Table>
+              </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -246,7 +284,7 @@ export default async function CompanyDetailPage({
         <div className="grid gap-6">
           <Card className="border-border/60 bg-card/85 shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
             <CardHeader className="border-b border-border/40 pb-5">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex flex-col gap-1">
                   <CardTitle className="font-heading text-2xl">
                     Leitura atual
@@ -403,12 +441,12 @@ function SummaryRow({
             href={href}
             target="_blank"
             rel="noreferrer"
-            className="truncate text-sm font-medium text-foreground underline-offset-4 hover:underline"
+            className="break-all text-sm font-medium text-foreground underline-offset-4 hover:underline"
           >
             {value}
           </a>
         ) : (
-          <span className="text-sm font-medium text-foreground">{value}</span>
+          <span className="break-words text-sm font-medium text-foreground">{value}</span>
         )}
       </div>
     </div>

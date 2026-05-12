@@ -1,7 +1,7 @@
 "use client";
 
 import type { KeyboardEvent, MouseEvent } from "react";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -111,12 +111,6 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
     initialData: items,
     staleTime: 30_000,
   });
-
-  useEffect(() => {
-    if (monitoringProgress?.isRunning) {
-      setShowProgressDisplay(true);
-    }
-  }, [monitoringProgress?.isRunning]);
 
   const activeTab = normalizeLeadTab(searchParams.get("tab"));
   const filters = normalizeLeadFilters({
@@ -250,12 +244,12 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
           <MonitoringRunButton
             label="Rodar radar completo"
             pendingLabel="Rodando radar..."
-            className="h-11 rounded-xl bg-amber-300 px-5 text-zinc-950 hover:bg-amber-200"
+            className="h-11 w-full rounded-xl bg-amber-300 px-5 text-zinc-950 hover:bg-amber-200 sm:w-auto"
             useStream
           />
         </div>
 
-        {monitoringProgress && showProgressDisplay && (
+        {monitoringProgress && (monitoringProgress.isRunning || showProgressDisplay) && (
           <MonitoringProgressDisplay
             isRunning={monitoringProgress.isRunning}
             currentCompany={monitoringProgress.currentCompany}
@@ -305,8 +299,8 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
                 <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground/70">
                   Filas de triagem
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {(["triage", "approved"] as const).map((tab) => (
+              <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+                {(["triage", "approved"] as const).map((tab) => (
                     <button
                       key={tab}
                       type="button"
@@ -370,10 +364,10 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
                 </select>
               </div>
 
-              <div className="flex items-end gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:items-end">
                 <button
                   type="submit"
-                  className={cn(buttonVariants(), "h-10 rounded-xl px-4")}
+                  className={cn(buttonVariants(), "h-10 w-full rounded-xl px-4 sm:w-auto")}
                 >
                   <Search data-icon="inline-start" className="size-4" />
                   Filtrar
@@ -390,7 +384,7 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
                         params.delete("leadId");
                       });
                     }}
-                    className={cn(buttonVariants({ variant: "outline" }), "h-10 rounded-xl px-4")}
+                    className={cn(buttonVariants({ variant: "outline" }), "h-10 w-full rounded-xl px-4 sm:w-auto")}
                   >
                     Limpar
                   </button>
@@ -485,7 +479,7 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
         submitLabel="Criar candidatura"
         pendingLabel="Criando..."
         title="Criar candidatura a partir do lead"
-        description="Revise os dados detectados pelo radar, ajuste o que faltar e crie a candidatura efetiva."
+        descriptionValue="Revise os dados detectados pelo radar, ajuste o que faltar e crie a candidatura efetiva."
       />
     </>
   );
@@ -591,12 +585,12 @@ function LeadCard({
           <span>Atualizada em {formatDate(lead.updatedAt)}</span>
         </div>
 
-        <div className="flex flex-wrap gap-3" onClick={stopPropagation}>
+        <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap" onClick={stopPropagation}>
           <a
             href={lead.sourceUrl}
             target="_blank"
             rel="noreferrer"
-            className={cn(buttonVariants({ variant: "outline" }), "rounded-xl")}
+            className={cn(buttonVariants({ variant: "outline" }), "w-full rounded-xl sm:w-auto")}
           >
             <ExternalLink data-icon="inline-start" />
             Abrir vaga
@@ -620,7 +614,7 @@ function LeadCard({
                     toast.success("Lead aprovado");
                   });
                 }}
-                className={cn(buttonVariants(), "rounded-xl")}
+                className={cn(buttonVariants(), "w-full rounded-xl sm:w-auto")}
               >
                 {isApproving ? (
                   "Aprovando..."
@@ -646,7 +640,7 @@ function LeadCard({
                     toast.success("Lead descartado");
                   });
                 }}
-                className={cn(buttonVariants({ variant: "outline" }), "rounded-xl")}
+                className={cn(buttonVariants({ variant: "outline" }), "w-full rounded-xl sm:w-auto")}
               >
                 {isDiscarding ? "Descartando..." : "Descartar"}
               </button>
@@ -655,7 +649,7 @@ function LeadCard({
             <button
               type="button"
               onClick={onCreateApplication}
-              className={cn(buttonVariants(), "rounded-xl")}
+              className={cn(buttonVariants(), "w-full rounded-xl sm:w-auto")}
             >
               <BriefcaseBusiness data-icon="inline-start" />
               Criar candidatura

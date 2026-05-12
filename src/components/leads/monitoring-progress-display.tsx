@@ -87,8 +87,8 @@ export function MonitoringProgressDisplay({
       <style>{animationStyle}</style>
       <Card className="border-border/60 bg-card/85">
         <CardHeader className="pb-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 flex-1">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-1 items-center gap-3">
               <Radar className="size-5 text-muted-foreground shrink-0" />
               <div className="space-y-1 flex-1">
                 <h3 className={cn("text-lg font-semibold", getHeaderTitleColor())}>
@@ -108,7 +108,7 @@ export function MonitoringProgressDisplay({
                 variant="outline"
                 size="sm"
                 onClick={onCancel}
-                className="rounded-lg"
+                className="w-full rounded-lg sm:w-auto"
               >
                 <X className="size-4" />
                 Cancelar
@@ -120,7 +120,7 @@ export function MonitoringProgressDisplay({
                 variant="outline"
                 size="sm"
                 onClick={onDismiss}
-                className="rounded-lg"
+                className="w-full rounded-lg sm:w-auto"
               >
                 Fechar
               </Button>
@@ -159,7 +159,7 @@ export function MonitoringProgressDisplay({
           )}
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <StatBox
               label="Salvos"
               value={stats.leadsSaved}

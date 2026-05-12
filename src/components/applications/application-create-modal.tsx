@@ -185,8 +185,8 @@ export function ApplicationCreateModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[90vh] sm:max-w-3xl flex-col gap-0 p-0">
-        <DialogHeader className="shrink-0 px-6 pt-6 pb-4">
+      <DialogContent className="flex h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] flex-col gap-0 p-0 sm:h-auto sm:max-h-[90vh] sm:max-w-3xl">
+        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pt-5 pb-4 sm:px-6 sm:pt-6">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <Waypoints className="size-5 text-muted-foreground" />
             {title}
@@ -195,7 +195,7 @@ export function ApplicationCreateModal({
         </DialogHeader>
 
         <ScrollArea className="flex-1 overflow-auto">
-          <div className="flex flex-col gap-6 px-6 pb-6">
+          <div className="flex flex-col gap-6 px-4 pb-6 sm:px-6">
             {/* ── Success banner ── */}
             {created ? (
               <div className="flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">

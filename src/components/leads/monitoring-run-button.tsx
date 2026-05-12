@@ -87,12 +87,12 @@ export function MonitoringRunButton({
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <div className="flex items-center gap-2">
+      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
         <Button
           type="button"
           onClick={handleClick}
           disabled={isRunning}
-          className={className}
+          className={cn("w-full sm:w-auto", className)}
         >
           <RefreshCw className={cn(isRunning && "animate-spin")} />
           {displayLabel}
@@ -104,7 +104,7 @@ export function MonitoringRunButton({
             variant="outline"
             size="sm"
             onClick={cancelMonitoring}
-            className="rounded-lg"
+            className="w-full rounded-lg sm:w-auto"
           >
             Cancelar
           </Button>

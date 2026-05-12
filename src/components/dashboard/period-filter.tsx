@@ -25,12 +25,12 @@ export function PeriodFilter({ current }: PeriodFilterProps) {
   }
 
   return (
-    <div className="flex items-center gap-1 rounded-xl border border-border/50 bg-card/40 p-1">
+    <div className="grid w-full grid-cols-3 gap-1 rounded-xl border border-border/50 bg-card/40 p-1 sm:flex sm:w-auto sm:items-center">
       {OPTIONS.map((opt) => (
         <button
           key={opt.value}
           onClick={() => select(opt.value)}
-          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+          className={`rounded-lg px-3 py-2 text-xs font-medium transition-all ${
             current === opt.value
               ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"

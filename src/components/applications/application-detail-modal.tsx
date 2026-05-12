@@ -161,8 +161,8 @@ export function ApplicationDetailModal({
 
   return (
     <Dialog open={!!application} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex max-h-[92vh] flex-col gap-0 p-0 sm:max-w-6xl">
-        <DialogHeader className="shrink-0 border-b border-border/50 px-6 pb-5 pt-6">
+      <DialogContent className="flex h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] flex-col gap-0 p-0 sm:h-auto sm:max-h-[92vh] sm:max-w-6xl">
+        <DialogHeader className="shrink-0 border-b border-border/50 px-4 pb-5 pt-5 sm:px-6 sm:pt-6">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -189,7 +189,7 @@ export function ApplicationDetailModal({
         </DialogHeader>
 
         <ScrollArea className="flex-1 overflow-auto">
-          <div className="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(18rem,0.85fr)] lg:items-start">
+          <div className="grid gap-6 px-4 py-4 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(18rem,0.85fr)] lg:items-start">
             <div className="flex min-w-0 flex-col gap-6">
               <CurrentStageCard currentStage={currentStage} />
 

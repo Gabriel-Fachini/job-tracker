@@ -6,6 +6,14 @@ Resumo dos projetos do portfólio para inserção manual no banco de dados.
 
 ## Projetos
 
+### Job Tracker
+- **Repo:** https://github.com/Gabriel-Fachini/job-tracker
+- **Descrição:** Aplicação local-first para organizar a busca por vagas com perfil profissional estruturado, monitoramento manual de job boards, triagem de leads com IA e acompanhamento do pipeline de candidaturas.
+- **Stack:** TypeScript, Next.js, SQLite, Drizzle ORM, TanStack Query, SSE, Ollama, OpenAI
+- **Destaques:** Radar manual de vagas com progresso em tempo real via SSE; triagem separada de leads antes da candidatura; classificação assistida por IA com runtime Ollama configurável por ambiente
+
+---
+
 ### Valorize UI
 - **Repo:** https://github.com/Gabriel-Fachini/valorize-ui
 - **Descrição:** Plataforma corporativa de engajamento com reconhecimento de colaboradores, gamificação e sistema de recompensas. Monorepo com 4 apps: dashboard do colaborador, painel admin (RH/gestor), backoffice multi-tenant e landing page.
@@ -52,6 +60,15 @@ Resumo dos projetos do portfólio para inserção manual no banco de dados.
 sqlite3 ./job-tracker.db <<'SQL'
 INSERT INTO profile_projects (profile_id, name, description, stack, url, impact, created_at)
 VALUES
+  (
+    (SELECT id FROM profile LIMIT 1),
+    'Job Tracker',
+    'Aplicação local-first para organizar a busca por vagas com perfil profissional estruturado, monitoramento manual de job boards, triagem de leads com IA e acompanhamento do pipeline de candidaturas.',
+    '["TypeScript","Next.js","SQLite","Drizzle ORM","TanStack Query","SSE","Ollama","OpenAI"]',
+    'https://github.com/Gabriel-Fachini/job-tracker',
+    'Radar manual de vagas com progresso em tempo real via SSE; triagem separada de leads antes da candidatura; classificação assistida por IA com runtime Ollama configurável por ambiente',
+    CURRENT_TIMESTAMP
+  ),
   (
     (SELECT id FROM profile LIMIT 1),
     'Valorize UI',
