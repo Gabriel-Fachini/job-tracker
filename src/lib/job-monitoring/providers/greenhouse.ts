@@ -1,11 +1,19 @@
+import pLimit from "p-limit";
+
 import type { DiscoveredLink } from "../types";
+
+const DETAIL_CONCURRENCY = 5;
+
+const HEADERS = {
+  "user-agent":
+    "Mozilla/5.0 (compatible; JobTrackerRadar/1.0; +https://local.job-tracker)",
+};
 
 type GreenhouseJobsResponse = {
   jobs: Array<{
     id: number;
     title: string;
     updated_at: string;
-    content: string;
     location?: { name: string };
     absolute_url: string;
     departments?: Array<{ name: string }>;
@@ -14,73 +22,82 @@ type GreenhouseJobsResponse = {
   meta?: { total: number };
 };
 
-type GreenhousePrefetchedData = {
+type GreenhouseJobDetail = {
+  id: number;
   title: string;
-  descriptionHtml: string;
-  descriptionMarkdown?: string;
-  locationText?: string;
-  departments?: string[];
-  offices?: string[];
-  updatedAt?: string;
-  externalId: string;
+  content: string;
+  updated_at: string;
+  location?: { name: string };
+  absolute_url: string;
+  departments?: Array<{ name: string }>;
+  offices?: Array<{ name: string; location: string }>;
 };
 
 export async function fetchGreenhouseJobs(
   boardToken: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<DiscoveredLink[]> {
-  const url = `https://boards-api.greenhouse.io/v1/boards/${boardToken}/jobs?content=true`;
+  // Phase 1: list all jobs — no ?content=true, always valid JSON
+  const listUrl = `https://boards-api.greenhouse.io/v1/boards/${boardToken}/jobs`;
 
-  try {
-    const response = await fetchImpl(url, {
-      headers: {
-        "user-agent":
-          "Mozilla/5.0 (compatible; JobTrackerRadar/1.0; +https://local.job-tracker)",
-      },
-      cache: "no-store",
-    });
+  const listResponse = await fetchImpl(listUrl, {
+    headers: HEADERS,
+    cache: "no-store",
+  });
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(
-          `Greenhouse board token inválido ou inacessível: ${boardToken}`,
-        );
-      }
+  if (!listResponse.ok) {
+    if (listResponse.status === 404) {
       throw new Error(
-        `Erro ao acessar Greenhouse API: ${response.status}`,
+        `Greenhouse board token inválido ou inacessível: ${boardToken}`,
       );
     }
-
-    const data: GreenhouseJobsResponse = await response.json();
-
-    if (!data.jobs || !Array.isArray(data.jobs)) {
-      return [];
-    }
-
-    const links: DiscoveredLink[] = data.jobs.map((job) => {
-      const prefetchedData: GreenhousePrefetchedData = {
-        title: job.title,
-        descriptionHtml: job.content || "",
-        locationText: formatLocations(job.location, job.offices),
-        departments: job.departments?.map((d) => d.name),
-        offices: job.offices?.map((o) => o.name),
-        updatedAt: job.updated_at,
-        externalId: String(job.id),
-      };
-
-      return {
-        url: job.absolute_url,
-        text: job.title,
-        prefetched: prefetchedData,
-      };
-    });
-
-    return links;
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Erro desconhecido";
-    throw new Error(`Falha ao buscar vagas Greenhouse: ${message}`);
+    throw new Error(`Erro ao acessar Greenhouse API: ${listResponse.status}`);
   }
+
+  const data: GreenhouseJobsResponse = await listResponse.json();
+
+  if (!data.jobs?.length) {
+    return [];
+  }
+
+  // Phase 2: fetch content per job in parallel — individual endpoints return valid JSON
+  const limit = pLimit(DETAIL_CONCURRENCY);
+
+  return Promise.all(
+    data.jobs.map((job) =>
+      limit(async () => {
+        const detailUrl = `https://boards-api.greenhouse.io/v1/boards/${boardToken}/jobs/${job.id}`;
+        try {
+          const detailRes = await fetchImpl(detailUrl, {
+            headers: HEADERS,
+            cache: "no-store",
+          });
+
+          if (!detailRes.ok) {
+            throw new Error(`HTTP ${detailRes.status}`);
+          }
+
+          const detail: GreenhouseJobDetail = await detailRes.json();
+
+          return {
+            url: job.absolute_url,
+            text: job.title,
+            prefetched: {
+              title: job.title,
+              descriptionHtml: detail.content || "",
+              locationText: formatLocations(job.location, job.offices),
+              departments: job.departments?.map((d) => d.name),
+              offices: job.offices?.map((o) => o.name),
+              updatedAt: job.updated_at,
+              externalId: String(job.id),
+            },
+          } satisfies DiscoveredLink;
+        } catch {
+          return { url: job.absolute_url, text: job.title } satisfies DiscoveredLink;
+        }
+      }),
+    ),
+  );
 }
 
 function formatLocations(

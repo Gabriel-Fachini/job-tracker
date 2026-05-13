@@ -54,6 +54,14 @@ Resumo dos projetos do portfólio para inserção manual no banco de dados.
 
 ---
 
+### Fachina
+- **Repo:** https://github.com/Gabriel-Fachini/fachina
+- **Descrição:** App iOS open source para limpeza de galeria de fotos via swipe. 100% local, gratuito, privacy-first. Zero dependências externas, zero analytics.
+- **Stack:** Swift 6, SwiftUI (iOS 26+), Liquid Glass, PhotoKit, SwiftData, MVVM, Swift Concurrency
+- **Destaques:** Swipe intuitivo para deletar/manter fotos; seção "Neste Dia" com fotos de anos anteriores; dashboard com grid de meses; revisão antes de deletar; undo ilimitado; suporte pt-BR e en
+
+---
+
 ## Inserir no banco de dados
 
 ```bash
@@ -112,6 +120,15 @@ VALUES
     '["Python","FastAPI","LangGraph","Claude (Anthropic)","GPT-4","BigQuery","Pydantic","Poetry"]',
     'https://github.com/Gabriel-Fachini/media-traffic-ai-analyst',
     'Roteador de intenção; normalização de datas em PT-BR; tool calling auditável (LLM nunca executa SQL direto); suporte multi-turno com contexto por thread',
+    CURRENT_TIMESTAMP
+  ),
+  (
+    (SELECT id FROM profile LIMIT 1),
+    'Fachina',
+    'App iOS open source para limpeza de galeria de fotos via swipe. 100% local, gratuito, privacy-first. Zero dependências externas, zero analytics.',
+    '["Swift 6","SwiftUI","Liquid Glass","PhotoKit","SwiftData","MVVM","Swift Concurrency"]',
+    'https://github.com/Gabriel-Fachini/fachina',
+    'Swipe intuitivo para deletar/manter fotos; seção "Neste Dia" com fotos de anos anteriores; dashboard com grid de meses; revisão antes de deletar; undo ilimitado; suporte pt-BR e en',
     CURRENT_TIMESTAMP
   );
 SQL
