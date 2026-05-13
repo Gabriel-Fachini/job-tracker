@@ -84,7 +84,7 @@ export async function fetchGreenhouseJobs(
             text: job.title,
             prefetched: {
               title: job.title,
-              descriptionHtml: detail.content || "",
+              descriptionHtml: decodeHtmlEntities(detail.content || ""),
               locationText: formatLocations(job.location, job.offices),
               departments: job.departments?.map((d) => d.name),
               offices: job.offices?.map((o) => o.name),
@@ -97,6 +97,26 @@ export async function fetchGreenhouseJobs(
         }
       }),
     ),
+  );
+}
+
+// Greenhouse API returns HTML-encoded content (e.g. &lt;h2&gt; instead of <h2>).
+// Single-pass decode so htmlToMarkdown/Turndown receives actual HTML structure.
+function decodeHtmlEntities(encoded: string): string {
+  return encoded.replace(
+    /&(?:amp|lt|gt|quot|apos|#(\d+)|#x([0-9a-f]+));/gi,
+    (match, dec, hex) => {
+      if (dec !== undefined) return String.fromCharCode(parseInt(dec, 10));
+      if (hex !== undefined) return String.fromCharCode(parseInt(hex, 16));
+      const map: Record<string, string> = {
+        "&amp;": "&",
+        "&lt;": "<",
+        "&gt;": ">",
+        "&quot;": '"',
+        "&apos;": "'",
+      };
+      return map[match] ?? match;
+    },
   );
 }
 
