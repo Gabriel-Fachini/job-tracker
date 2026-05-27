@@ -100,3 +100,48 @@ npm run db:backup
 - SQLite WAL mode suporta concurrent writes — `pLimit(5)` estável; reduzir para 3 se `SQLITE_BUSY`
 - SSE suficiente para real-time UX sem separação de processos
 - Uploads path configurável via `UPLOADS_PATH` (default: `./uploads`)
+
+## Claude Code Harness
+
+Configuração local do agente vive em `.claude/` + `.mcp.json`.
+
+### Hooks (`.claude/hooks/`)
+
+| Hook | Evento | Função |
+|---|---|---|
+| `session-start-health.sh` | `SessionStart` | Checa git status, dev server :3000, idade do backup (warn >24h), env vars Ollama |
+| `session-end-cleanup.sh` | `SessionEnd` | Mata `next dev` órfão e processos na porta 3000 |
+| `pre-schema-edit.sh` | `PreToolUse` (Edit/Write) | Lembra `npm run db:backup` antes + `db:generate`/`db:migrate` depois ao tocar `src/lib/db/schema.ts` |
+| `post-edit-typecheck.sh` | `PostToolUse` (Edit/Write) | Roda `tsc --noEmit --incremental`, reporta apenas erros do arquivo editado (instrução: não chase cascade) |
+| `post-api-route-check.sh` | `PostToolUse` (Edit/Write) | Sanity check em `src/app/api/**/route.ts`: HTTP export presente, SSE precisa `runtime=nodejs` + `dynamic=force-dynamic`, params async |
+
+### MCP Servers (`.mcp.json`, project scope)
+
+- **`playwright`** — browser automation p/ debug de scrapers (Greenhouse/Gupy/InHire) + verificar UI em browser real. Acessibility tree (sem screenshots) → barato em tokens
+- **`context7`** — docs lookup up-to-date (Next.js 16, Drizzle, TanStack Query, shadcn). Usar `resolve-library-id` antes de `get-library-docs`
+
+MCP global em user scope:
+- **`shadcn`** — registry manager p/ adicionar componentes
+
+### Skills (auto-trigger via descrição)
+
+Project (`.claude/skills/`):
+- `next-best-practices`, `react-best-practices`, `vercel-react-best-practices`
+- `tanstack-query-best-practices`, `shadcn`, `playwright-cli`
+
+User scope (globais):
+- `webapp-testing` — Playwright frontend testing
+- `frontend-design` — UI/dashboards/landing pages
+- `vercel-composition-patterns` — refactor de componentes
+- `prompt-engineering-patterns` — otimização de prompts Ollama/OpenAI
+- `spec-driven-development`, `find-skills`
+
+### Permissions allowlist
+
+`.claude/settings.json` libera (sem prompt) read-only db ops, lint/typecheck, drizzle-kit, git read, lsof :3000.
+
+### Dev flow
+
+- Agente **pode** iniciar `npm run dev` se precisar verificar algo — `SessionEnd` faz cleanup
+- Schema edit: hook lembra backup; depois rodar `npm run db:generate && npm run db:migrate` manual
+- Após cada Edit em `.ts`/`.tsx`: typecheck incremental injeta erros do arquivo editado
