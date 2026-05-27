@@ -1,0 +1,78 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run db:backup)",
+      "Bash(npm run db:backup:*)",
+      "Bash(npm run db:generate)",
+      "Bash(npm run db:generate:*)",
+      "Bash(npm run db:migrate)",
+      "Bash(npm run db:migrate:*)",
+      "Bash(npm run db:restore:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run typecheck)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx tsc --noEmit --incremental)",
+      "Bash(node --test:*)",
+      "Bash(npx drizzle-kit introspect:*)",
+      "Bash(npx drizzle-kit check:*)",
+      "Bash(sqlite3 *.db .schema)",
+      "Bash(sqlite3 *.db .tables)",
+      "Bash(ls backups/*)",
+      "Bash(cat .specs/*)",
+      "Bash(lsof -ti:3000)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/gabriel_fachini/Desktop/repos/job-tracker/.claude/hooks/session-start-health.sh"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/gabriel_fachini/Desktop/repos/job-tracker/.claude/hooks/session-end-cleanup.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/gabriel_fachini/Desktop/repos/job-tracker/.claude/hooks/pre-schema-edit.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/gabriel_fachini/Desktop/repos/job-tracker/.claude/hooks/post-edit-typecheck.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash /Users/gabriel_fachini/Desktop/repos/job-tracker/.claude/hooks/post-api-route-check.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
