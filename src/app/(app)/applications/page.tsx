@@ -102,66 +102,63 @@ export default async function ApplicationsPage() {
       label: "Ofertas",
       count: offerCount,
       icon: Sparkles,
-      colorClass: "border-emerald-300/20 bg-emerald-300/8",
-      iconClass: "text-emerald-200/80",
-      textClass: "text-emerald-100",
+      colorClass: "border-amber-300/20 bg-amber-300/8",
+      iconClass: "text-amber-200/80",
+      textClass: "text-amber-100",
     },
     {
       label: "Finalizadas",
       count: closedCount,
       icon: Activity,
-      colorClass: "border-emerald-400/20 bg-emerald-400/8",
-      iconClass: "text-emerald-300/80",
-      textClass: "text-emerald-100",
+      colorClass: "border-zinc-400/20 bg-zinc-400/8",
+      iconClass: "text-zinc-400/80",
+      textClass: "text-zinc-300",
     },
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-8 overflow-x-hidden">
-      {/* Page header */}
-      <div className="flex flex-col gap-1.5">
-        <h1 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-          Candidaturas
-        </h1>
-        <p className="text-base text-muted-foreground">
-          Acompanhe o status de cada processo seletivo.
-        </p>
-      </div>
+        <div className="flex flex-1 flex-col gap-8 overflow-x-hidden">
+          {/* Page header */}
+          <div className="flex flex-col gap-1.5">
+            <h1 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+              Candidaturas
+            </h1>
+          </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {statCards.map(({ label, count, icon: Icon, colorClass, iconClass, textClass }) => (
-          <div
-            key={label}
-            className={`relative overflow-hidden rounded-2xl border p-4 transition-all ${colorClass}`}
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {statCards.map(({ label, count, icon: Icon, colorClass, iconClass, textClass }) => (
+              <div
+                key={label}
+                className={`relative overflow-hidden rounded-2xl border p-4 transition-all ${colorClass}`}
+              >
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/12 to-transparent" />
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {label}
+                  </p>
+                  <Icon className={`size-4 shrink-0 ${iconClass}`} />
+                </div>
+                <p className={`mt-3 text-3xl font-semibold tabular-nums ${textClass}`}>
+                  {count}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-border/40" />
+
+          {/* Client section: toolbar + cards + modals */}
+          <Suspense
+            fallback={
+              <div className="rounded-3xl border border-border/50 bg-card/40 px-5 py-10 text-sm text-muted-foreground">
+                Carregando board de candidaturas...
+              </div>
+            }
           >
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/12 to-transparent" />
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                {label}
-              </p>
-              <Icon className={`size-3.5 shrink-0 ${iconClass}`} />
-            </div>
-            <p className={`mt-3 text-3xl font-semibold tabular-nums ${textClass}`}>
-              {count}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {/* Divider */}
-      <div className="h-px bg-border/40" />
-
-      {/* Client section: toolbar + cards + modals */}
-      <Suspense
-        fallback={
-          <div className="rounded-3xl border border-border/50 bg-card/40 px-5 py-10 text-sm text-muted-foreground">
-            Carregando board de candidaturas...
-          </div>
-        }
-      >
-        <ApplicationsClient key={boardKey} items={items} companies={companyOptions} />
-      </Suspense>
-    </div>
+            <ApplicationsClient key={boardKey} items={items} companies={companyOptions} />
+          </Suspense>
+        </div>
   );
 }

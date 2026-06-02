@@ -1,22 +1,14 @@
 "use client";
 
 import {
-  useEffect,
-  useRef,
   useState,
   useTransition as useReactTransition,
 } from "react";
-import {
-  animated,
-  config,
-  useReducedMotion,
-  useSpring,
-} from "@react-spring/web";
-import { useDrag } from "@use-gesture/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Building2,
-  MapPin,
+  CalendarDays,
+  Inbox,
   Waypoints,
   Zap,
 } from "lucide-react";
@@ -32,12 +24,6 @@ import {
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -46,7 +32,6 @@ import {
 } from "@/components/ui/empty";
 import {
   applicationStatusLabelMap,
-  isApplicationStatus,
   type ApplicationStatus,
 } from "@/lib/applications";
 import {
@@ -56,7 +41,6 @@ import {
 } from "@/lib/jobs";
 import { cn } from "@/lib/utils";
 import { updateApplicationStatus } from "@/server/actions/applications";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 type ApplicationListItem = {
   id: number;
@@ -88,49 +72,20 @@ type ApplicationsClientProps = {
   items: ApplicationListItem[];
 };
 
-type BoardColumnDefinition = {
-  status: ApplicationStatus;
-  description: string;
-};
-
 type BoardState = Record<ApplicationStatus, ApplicationListItem[]>;
 
 type FeedbackState =
   | { tone: "muted" | "danger"; message: string }
   | null;
 
-const kanbanColumns: BoardColumnDefinition[] = [
-  {
-    status: "applied",
-    description: "Candidaturas enviadas e aguardando retorno inicial.",
-  },
-  {
-    status: "in_process",
-    description: "Processos com entrevistas, testes ou próximas etapas abertas.",
-  },
-  {
-    status: "offer",
-    description: "Propostas recebidas e ainda em avaliação.",
-  },
-  {
-    status: "approved",
-    description: "Processos concluídos com resultado positivo.",
-  },
-  {
-    status: "rejected",
-    description: "Processos encerrados por rejeição.",
-  },
-  {
-    status: "withdrawn",
-    description: "Candidaturas encerradas por desistência.",
-  },
+const STATUS_ORDER: ApplicationStatus[] = [
+  "applied",
+  "in_process",
+  "offer",
+  "approved",
+  "rejected",
+  "withdrawn",
 ];
-
-const workModelLabels: Record<string, string> = {
-  remote: "Remoto",
-  hybrid: "Híbrido",
-  onsite: "Presencial",
-};
 
 function createBoard(items: ApplicationListItem[]): BoardState {
   const board: BoardState = {
@@ -153,64 +108,27 @@ function moveCard(
   board: BoardState,
   applicationId: number,
   targetStatus: ApplicationStatus,
-) {
+): BoardState {
   let moved: ApplicationListItem | null = null;
 
   const nextBoard = Object.fromEntries(
     Object.entries(board).map(([status, items]) => {
       const typedStatus = status as ApplicationStatus;
       const nextItems = items.filter((item) => {
-        if (item.id !== applicationId) {
-          return true;
-        }
-
+        if (item.id !== applicationId) return true;
         moved = { ...item, status: targetStatus };
         return false;
       });
-
       return [typedStatus, nextItems];
     }),
   ) as BoardState;
 
-  if (!moved) {
-    return board;
-  }
+  if (!moved) return board;
 
   return {
     ...nextBoard,
     [targetStatus]: [moved, ...nextBoard[targetStatus]],
   };
-}
-
-function getHoveredColumn(
-  clientX: number,
-  clientY: number,
-  draggedId: number,
-): ApplicationStatus | null {
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  const elements = document.elementsFromPoint(clientX, clientY);
-
-  for (const element of elements) {
-    const draggedCard = element.closest<HTMLElement>(
-      `[data-application-card-id="${draggedId}"]`,
-    );
-
-    if (draggedCard) {
-      continue;
-    }
-
-    const column = element.closest<HTMLElement>("[data-kanban-column]");
-    const status = column?.dataset.kanbanColumn;
-
-    if (status && isApplicationStatus(status)) {
-      return status;
-    }
-  }
-
-  return null;
 }
 
 function buildApplicationDetail(item: ApplicationListItem): ApplicationDetailData {
@@ -243,302 +161,120 @@ function findApplicationById(
 ): ApplicationListItem | null {
   for (const items of Object.values(board)) {
     const match = items.find((item) => item.id === applicationId);
-    if (match) {
-      return match;
-    }
+    if (match) return match;
   }
-
   return null;
 }
 
 function parseSelectedApplicationId(value: string | null): number | null {
-  if (!value) {
-    return null;
-  }
-
+  if (!value) return null;
   const parsed = Number(value);
-
   return Number.isInteger(parsed) ? parsed : null;
 }
 
-function DraggableApplicationCard({
+function formatCardDate(date: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function ApplicationListRow({
   item,
-  activeDragId,
-  onDragStart,
-  onDragHoverColumn,
-  onDrop,
   onOpenDetails,
-  reducedMotion,
+  onStatusChange,
 }: {
   item: ApplicationListItem;
-  activeDragId: number | null;
-  onDragStart: (item: ApplicationListItem) => void;
-  onDragHoverColumn: (status: ApplicationStatus | null) => void;
-  onDrop: (item: ApplicationListItem, targetStatus: ApplicationStatus | null) => void;
   onOpenDetails: () => void;
-  reducedMotion: boolean;
+  onStatusChange: (status: ApplicationStatus) => void;
 }) {
   const workModelLabel = getWorkModelLabel(item.workModel);
   const seniorityLabel = getSeniorityLabel(item.seniority);
   const sourceNameLabel = getSourceNameLabel(item.sourceName);
-  const isDragging = activeDragId === item.id;
-  const [{ x, scale }, api] = useSpring(() => ({
-    x: 0,
-    scale: 1,
-    config: config.stiff,
-  }));
-
-  const bindDrag = useDrag(
-    ({ first, last, movement: [mx], xy: [clientX, clientY] }) => {
-      if (first) {
-        onDragStart(item);
-      }
-
-      if (!last) {
-        const hoveredColumn = getHoveredColumn(clientX, clientY, item.id);
-        onDragHoverColumn(hoveredColumn);
-
-        api.start({
-          x: mx,
-          scale: reducedMotion ? 1 : 1.02,
-          immediate: (key) => key === "x",
-        });
-
-        return;
-      }
-
-      const hoveredColumn = getHoveredColumn(clientX, clientY, item.id);
-      onDragHoverColumn(null);
-      onDrop(item, hoveredColumn);
-      api.start({
-        x: 0,
-        scale: 1,
-        immediate: false,
-      });
-    },
-    {
-      filterTaps: true,
-      threshold: 4,
-      pointer: { touch: true },
-    },
-  );
 
   return (
-    <animated.div
-      data-application-card-id={item.id}
-      style={{ x, scale, zIndex: isDragging ? 120 : 1 }}
-      className={cn(
-        "relative hidden will-change-transform touch-none md:block",
-        isDragging && "cursor-grabbing",
-      )}
-      {...bindDrag()}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpenDetails}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpenDetails();
+        }
+      }}
+      className="group flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.06] focus-visible:bg-white/[0.08] outline-none cursor-pointer"
     >
-      <Card
-        role="button"
-        tabIndex={0}
-        aria-haspopup="dialog"
-        onClick={onOpenDetails}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onOpenDetails();
-          }
-        }}
-        className={cn(
-          "cursor-grab border border-border/60 bg-card/92 pt-0 transition-shadow duration-200 outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70",
-          isDragging
-            ? "cursor-grabbing shadow-[0_28px_96px_rgba(0,0,0,0.5)] ring-1 ring-amber-300/30"
-            : "hover:shadow-[0_12px_36px_rgba(0,0,0,0.22)]",
-        )}
-      >
-        <CardHeader className="border-b border-border/40 pt-4">
-          <div className="flex items-start gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <CardTitle className="truncate text-base text-foreground">
-                    {item.jobTitle}
-                  </CardTitle>
-                  {item.company ? (
-                    <div className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Building2 className="size-3.5 shrink-0 text-muted-foreground/70" />
-                      <span className="truncate">{item.company}</span>
-                    </div>
-                  ) : (
-                    <p className="mt-1.5 text-sm italic text-muted-foreground/70">
-                      Empresa não informada
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="flex flex-col gap-4 py-4">
-          <div className="flex flex-wrap gap-2">
-            <ApplicationStatusBadge status={item.status} />
-            {workModelLabel ? (
-              <span className="inline-flex items-center rounded-full border border-white/8 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                {workModelLabels[item.workModel ?? ""] ?? workModelLabel}
-              </span>
-            ) : null}
-            {seniorityLabel ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/20 bg-violet-400/8 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-violet-300/80">
-                <Zap className="size-3" />
-                {seniorityLabel}
-              </span>
-            ) : null}
-            {sourceNameLabel ? (
-              <span className="inline-flex items-center rounded-full border border-sky-400/20 bg-sky-400/8 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-sky-300/80">
-                {sourceNameLabel}
-              </span>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
-    </animated.div>
-  );
-}
-
-function PreviewDropSlot({
-  active,
-  reducedMotion,
-}: {
-  active: boolean;
-  reducedMotion: boolean;
-}) {
-  const [style, api] = useSpring(() => ({
-    opacity: 0,
-    height: 0,
-    scale: 0.98,
-    marginBottom: 0,
-    config: config.gentle,
-  }));
-
-  useEffect(() => {
-    api.start({
-      opacity: active ? 1 : 0,
-      height: active ? 156 : 0,
-      scale: active ? 1 : 0.98,
-      marginBottom: active ? 12 : 0,
-      immediate: reducedMotion,
-    });
-  }, [active, api, reducedMotion]);
-
-  return (
-    <animated.div style={style} className="overflow-hidden">
-      <div className="flex h-full rounded-2xl border border-dashed border-amber-300/35 bg-amber-300/8" />
-    </animated.div>
-  );
-}
-
-function KanbanColumn({
-  activeColumn,
-  activeDragId,
-  containsActiveDrag,
-  dragOriginStatus,
-  items,
-  onDragStart,
-  onDragHoverColumn,
-  onDrop,
-  onOpenDetails,
-  reducedMotion,
-  status,
-}: {
-  activeColumn: ApplicationStatus | null;
-  activeDragId: number | null;
-  containsActiveDrag: boolean;
-  dragOriginStatus: ApplicationStatus | null;
-  items: ApplicationListItem[];
-  onDragStart: (item: ApplicationListItem) => void;
-  onDragHoverColumn: (status: ApplicationStatus | null) => void;
-  onDrop: (item: ApplicationListItem, targetStatus: ApplicationStatus | null) => void;
-  onOpenDetails: (item: ApplicationListItem) => void;
-  reducedMotion: boolean;
-  status: BoardColumnDefinition;
-}) {
-  const hasPreviewSlot =
-    activeDragId !== null &&
-    activeColumn === status.status &&
-    dragOriginStatus !== null &&
-    dragOriginStatus !== status.status;
-
-  return (
-    <section
-      data-kanban-column={status.status}
-      className={cn(
-        "relative z-0 flex h-full min-h-[38rem] flex-col overflow-visible rounded-3xl border border-border/60 bg-card/50 backdrop-blur",
-        containsActiveDrag && "z-[140]",
-        activeColumn === status.status && "border-amber-300/50 bg-amber-300/8",
-      )}
-    >
-      <div className="border-b border-border/50 px-5 py-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">
-              {applicationStatusLabelMap[status.status]}
-            </p>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              {status.description}
-            </p>
-          </div>
-          <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-            {items.length}
-          </span>
+      {/* Title + company */}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-foreground group-hover:text-foreground/90">
+          {item.jobTitle}
+        </p>
+        <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Building2 className="size-3 shrink-0 text-muted-foreground/60" />
+          <span className="truncate">{item.company ?? "—"}</span>
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-3 p-3">
-        <PreviewDropSlot active={hasPreviewSlot} reducedMotion={reducedMotion} />
-        {items.length === 0 ? (
-          <Empty className="flex-1 border border-dashed border-border/50 bg-background/40">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <MapPin />
-              </EmptyMedia>
-              <EmptyTitle>Nenhuma candidatura aqui</EmptyTitle>
-              <EmptyDescription>
-                {activeDragId
-                  ? "Solte o card nesta coluna para mover o processo."
-                  : "Quando uma candidatura entrar nesta etapa, ela aparecerá aqui."}
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          items.map((item) => (
-            <div key={item.id} className={cn("relative", activeDragId === item.id && "z-[160]")}>
-              <DraggableApplicationCard
-                item={item}
-                activeDragId={activeDragId}
-                onDragStart={onDragStart}
-                onDragHoverColumn={onDragHoverColumn}
-                onDrop={onDrop}
-                onOpenDetails={() => onOpenDetails(item)}
-                reducedMotion={reducedMotion}
-              />
-            </div>
-          ))
-        )}
+      {/* Badges */}
+      <div className="hidden md:flex items-center gap-1.5 shrink-0">
+        {workModelLabel ? (
+          <span className="inline-flex items-center rounded-full border border-white/8 bg-white/5 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            {workModelLabel}
+          </span>
+        ) : null}
+        {seniorityLabel ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/20 bg-violet-400/8 px-2 py-0.5 text-xs font-medium text-violet-300/80">
+            <Zap className="size-3" />
+            {seniorityLabel}
+          </span>
+        ) : null}
+        {sourceNameLabel ? (
+          <span className="inline-flex items-center rounded-full border border-sky-400/20 bg-sky-400/8 px-2 py-0.5 text-xs font-medium text-sky-300/80">
+            {sourceNameLabel}
+          </span>
+        ) : null}
       </div>
-    </section>
+
+      {/* Date */}
+      <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground/50 shrink-0 whitespace-nowrap">
+        <CalendarDays className="size-3 shrink-0" />
+        <span>{formatCardDate(item.appliedAt ?? item.createdAt)}</span>
+      </div>
+
+      {/* Status select */}
+      <select
+        value={item.status}
+        onChange={(e) => {
+          e.stopPropagation();
+          onStatusChange(e.target.value as ApplicationStatus);
+        }}
+        onClick={(e) => e.stopPropagation()}
+        className="h-8 shrink-0 rounded-lg border border-input bg-input/30 px-2 text-xs text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        {STATUS_ORDER.map((status) => (
+          <option key={status} value={status}>
+            {applicationStatusLabelMap[status]}
+          </option>
+        ))}
+      </select>
+
+    </div>
   );
 }
 
 export function ApplicationsClient({ companies, items }: ApplicationsClientProps) {
-  const reducedMotion = Boolean(useReducedMotion());
-  const isMobile = useIsMobile();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [createOpen, setCreateOpen] = useState(false);
   const [board, setBoard] = useState(() => createBoard(items));
   const [feedback, setFeedback] = useState<FeedbackState>(null);
-  const [activeColumn, setActiveColumn] = useState<ApplicationStatus | null>(null);
-  const [activeDragId, setActiveDragId] = useState<number | null>(null);
-  const [dragOriginStatus, setDragOriginStatus] = useState<ApplicationStatus | null>(null);
   const [isSavingMove, startSavingMove] = useReactTransition();
-  const dragSnapshotRef = useRef<BoardState>(createBoard(items));
+
+  const initialTab = STATUS_ORDER.find((s) => createBoard(items)[s].length > 0) ?? "applied";
+  const [activeTab, setActiveTab] = useState<ApplicationStatus>(initialTab);
 
   function setApplicationQuery(applicationId: number | null) {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -564,35 +300,14 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
     setApplicationQuery(null);
   }
 
-  function handleDragStart(item: ApplicationListItem) {
-    dragSnapshotRef.current = board;
-    setActiveDragId(item.id);
-    setDragOriginStatus(item.status);
-    setFeedback(null);
-  }
+  function handleStatusChange(item: ApplicationListItem, targetStatus: ApplicationStatus) {
+    if (targetStatus === item.status) return;
 
-  function handleDragHoverColumn(status: ApplicationStatus | null) {
-    setActiveColumn(status);
-  }
-
-  function handleDrop(
-    item: ApplicationListItem,
-    targetStatus: ApplicationStatus | null,
-  ) {
-    if (!targetStatus || targetStatus === item.status) {
-      setActiveColumn(null);
-      setActiveDragId(null);
-      setDragOriginStatus(null);
-      return;
-    }
-
-    const snapshot = dragSnapshotRef.current;
+    const snapshot = board;
     const nextBoard = moveCard(snapshot, item.id, targetStatus);
 
     setBoard(nextBoard);
-    setActiveColumn(null);
-    setActiveDragId(null);
-    setDragOriginStatus(null);
+    setFeedback(null);
 
     startSavingMove(async () => {
       const result = await updateApplicationStatus(item.id, targetStatus);
@@ -601,15 +316,14 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
         setBoard(snapshot);
         setFeedback({
           tone: "danger",
-          message:
-            "Não foi possível atualizar o status da candidatura. O board voltou ao estado anterior.",
+          message: "Não foi possível atualizar o status. O estado foi revertido.",
         });
         return;
       }
 
       setFeedback({
         tone: "muted",
-        message: `Status atualizado para ${applicationStatusLabelMap[targetStatus]}.`,
+        message: `Movido para ${applicationStatusLabelMap[targetStatus]}.`,
       });
     });
   }
@@ -626,39 +340,34 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
     : null;
 
   const totalCount = items.length;
-  const [mobileStatus, setMobileStatus] = useState<ApplicationStatus>("applied");
-  const mobileItems = board[mobileStatus];
+  const activeItems = board[activeTab];
 
   return (
     <>
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col items-start gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-col gap-0.5">
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground/70">
-              Board Kanban
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {totalCount === 0
-                ? "Nenhuma candidatura registrada ainda"
-                : totalCount === 1
-                  ? "1 candidatura registrada"
-                  : `${totalCount} candidaturas registradas`}
-            </p>
-          </div>
+        {/* Toolbar */}
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            {totalCount === 0
+              ? "Nenhuma candidatura registrada ainda"
+              : totalCount === 1
+                ? "1 candidatura registrada"
+                : `${totalCount} candidaturas registradas`}
+          </p>
 
           <Button
-            id="btn-nova-candidatura"
             size="lg"
             onClick={() => setCreateOpen(true)}
-            className="h-11 w-full justify-center rounded-xl bg-amber-300 px-6 text-zinc-950 shadow-[0_8px_28px_rgba(252,211,77,0.28)] transition-all hover:bg-amber-200 hover:shadow-[0_12px_36px_rgba(252,211,77,0.36)] sm:w-auto sm:min-w-44"
+            className="h-10 w-full gap-2 rounded-xl border border-amber-300/25 bg-amber-300/8 px-5 text-foreground transition-colors hover:bg-amber-300/14 hover:border-amber-300/35 sm:w-auto"
           >
-            <Waypoints data-icon="inline-start" />
+            <Waypoints className="size-4 shrink-0" />
             Nova candidatura
           </Button>
         </div>
 
+        {/* Feedback */}
         {(feedback !== null || isSavingMove) && (
-          <div className="flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-border/50 bg-card/40 px-4 py-3">
+          <div className="flex min-h-9 items-center justify-between gap-3 rounded-xl border border-border/50 bg-card/40 px-4 py-2">
             <p
               className={cn(
                 "text-sm",
@@ -670,8 +379,8 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
               {feedback?.message}
             </p>
             {isSavingMove ? (
-              <span className="text-xs font-medium uppercase tracking-[0.16em] text-amber-200">
-                Salvando movimento...
+              <span className="text-xs font-medium text-amber-200">
+                Salvando...
               </span>
             ) : null}
           </div>
@@ -682,108 +391,83 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
         <Empty className="rounded-3xl border border-dashed border-border/50 bg-card/40 py-20">
           <EmptyHeader>
             <EmptyMedia variant="icon">
-              <MapPin />
+              <Inbox />
             </EmptyMedia>
             <EmptyTitle>Nenhuma candidatura registrada</EmptyTitle>
             <EmptyDescription className="max-w-xs">
-              Registre sua primeira candidatura e acompanhe o processo seletivo em um board Kanban.
+              Registre sua primeira candidatura e acompanhe o processo seletivo.
             </EmptyDescription>
           </EmptyHeader>
           <Button
             onClick={() => setCreateOpen(true)}
-            className="mt-1 h-10 rounded-xl bg-amber-300 px-5 text-zinc-950 hover:bg-amber-200"
+            className="mt-1 h-10 rounded-xl border border-border/60 bg-card/60 px-5 text-foreground hover:bg-white/6"
           >
             <Waypoints data-icon="inline-start" />
             Registrar primeira candidatura
           </Button>
         </Empty>
-      ) : isMobile ? (
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {kanbanColumns.map((column) => (
-              <button
-                key={column.status}
-                type="button"
-                onClick={() => setMobileStatus(column.status)}
-                className={cn(
-                  "flex min-h-16 flex-col items-start gap-1 rounded-2xl border px-4 py-3 text-left transition-colors",
-                  mobileStatus === column.status
-                    ? "border-amber-300/50 bg-amber-300/10"
-                    : "border-border/60 bg-card/40",
-                )}
-              >
-                <span className="text-sm font-semibold text-foreground">
-                  {applicationStatusLabelMap[column.status]}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {board[column.status].length} candidatura{board[column.status].length === 1 ? "" : "s"}
-                </span>
-              </button>
-            ))}
+      ) : (
+        <div className="rounded-2xl border border-border/60 bg-card/50 overflow-hidden">
+          {/* Tab bar */}
+          <div className="flex overflow-x-auto border-b border-border/50 scrollbar-none">
+            {STATUS_ORDER.map((status) => {
+              const count = board[status].length;
+              const isActive = activeTab === status;
+
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => setActiveTab(status)}
+                  className={cn(
+                    "relative flex shrink-0 items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors",
+                    isActive
+                      ? "text-foreground after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-amber-300"
+                      : "text-muted-foreground hover:text-foreground/80",
+                  )}
+                >
+                  {applicationStatusLabelMap[status]}
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 py-0.5 text-xs tabular-nums font-medium",
+                      isActive
+                        ? "bg-amber-300/20 text-amber-200"
+                        : "bg-white/6 text-muted-foreground",
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
-          <section className="rounded-3xl border border-border/60 bg-card/50 backdrop-blur">
-            <div className="border-b border-border/50 px-5 py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">
-                    {applicationStatusLabelMap[mobileStatus]}
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    {kanbanColumns.find((column) => column.status === mobileStatus)?.description}
-                  </p>
-                </div>
-                <span className="rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                  {mobileItems.length}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3 p-3">
-              {mobileItems.length === 0 ? (
-                <Empty className="border border-dashed border-border/50 bg-background/40">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <MapPin />
-                    </EmptyMedia>
-                    <EmptyTitle>Nenhuma candidatura aqui</EmptyTitle>
-                    <EmptyDescription>
-                      Quando uma candidatura entrar nesta etapa, ela aparecerá aqui.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              ) : (
-                mobileItems.map((item) => (
-                  <MobileApplicationCard
+          {/* List */}
+          <div key={activeTab} className="animate-in fade-in-0 slide-in-from-bottom-1 duration-150">
+            {activeItems.length === 0 ? (
+              <Empty className="py-14">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Inbox />
+                  </EmptyMedia>
+                  <EmptyTitle>Nenhuma candidatura aqui</EmptyTitle>
+                  <EmptyDescription>
+                    Quando uma candidatura entrar nesta etapa, ela aparecerá aqui.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              <div className="divide-y divide-border/30">
+                {activeItems.map((item) => (
+                  <ApplicationListRow
                     key={item.id}
                     item={item}
                     onOpenDetails={() => handleOpenDetails(item)}
-                    onStatusChange={(targetStatus) => handleDrop(item, targetStatus)}
+                    onStatusChange={(status) => handleStatusChange(item, status)}
                   />
-                ))
-              )}
-            </div>
-          </section>
-        </div>
-      ) : (
-        <div className="overflow-x-auto pb-2">
-          <div className="grid min-w-max grid-flow-col auto-cols-[minmax(19rem,19rem)] gap-4">
-            {kanbanColumns.map((column) => (
-              <KanbanColumn
-                key={column.status}
-                status={column}
-                items={board[column.status]}
-                activeColumn={activeColumn}
-                activeDragId={activeDragId}
-                containsActiveDrag={board[column.status].some((item) => item.id === activeDragId)}
-                dragOriginStatus={dragOriginStatus}
-                onDragStart={handleDragStart}
-                onDragHoverColumn={handleDragHoverColumn}
-                onDrop={handleDrop}
-                onOpenDetails={handleOpenDetails}
-                reducedMotion={reducedMotion}
-              />
-            ))}
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -798,66 +482,5 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
         onClose={handleCloseDetails}
       />
     </>
-  );
-}
-
-function MobileApplicationCard({
-  item,
-  onOpenDetails,
-  onStatusChange,
-}: {
-  item: ApplicationListItem;
-  onOpenDetails: () => void;
-  onStatusChange: (status: ApplicationStatus) => void;
-}) {
-  const workModelLabel = getWorkModelLabel(item.workModel);
-  const seniorityLabel = getSeniorityLabel(item.seniority);
-
-  return (
-    <Card className="border border-border/60 bg-card/92 pt-0">
-      <CardHeader className="gap-4 border-b border-border/40 pt-4">
-        <div className="min-w-0">
-          <CardTitle className="text-base leading-6 text-foreground">
-            {item.jobTitle}
-          </CardTitle>
-          <p className="mt-1.5 truncate text-sm text-muted-foreground">
-            {item.company ?? "Empresa não informada"}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <ApplicationStatusBadge status={item.status} />
-          {workModelLabel ? (
-            <span className="inline-flex items-center rounded-full border border-white/8 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              {workModelLabels[item.workModel ?? ""] ?? workModelLabel}
-            </span>
-          ) : null}
-          {seniorityLabel ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/20 bg-violet-400/8 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-violet-300/80">
-              <Zap className="size-3" />
-              {seniorityLabel}
-            </span>
-          ) : null}
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3 py-4">
-        <label className="flex flex-col gap-2 text-sm text-muted-foreground">
-          <span>Status</span>
-          <select
-            value={item.status}
-            onChange={(event) => onStatusChange(event.target.value as ApplicationStatus)}
-            className="h-10 w-full rounded-xl border border-input bg-input/30 px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            {kanbanColumns.map((column) => (
-              <option key={column.status} value={column.status}>
-                {applicationStatusLabelMap[column.status]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Button variant="outline" className="w-full rounded-xl" onClick={onOpenDetails}>
-          Ver detalhes
-        </Button>
-      </CardContent>
-    </Card>
   );
 }
