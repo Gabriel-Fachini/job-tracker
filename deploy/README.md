@@ -11,6 +11,8 @@ Deploy automático **pull-based**: um timer systemd no servidor verifica `origin
 
 Um commit que falhou não é tentado de novo até existir um commit mais novo (ou `FORCE=1`).
 
+O deploy **aborta sem tocar em nada** se o `DATABASE_URL` do env não for um caminho absoluto para um banco que existe. Nesse caso o commit não fica marcado como falho: corrigido o env, o próximo ciclo faz o deploy sozinho. Em produção o app também se recusa a iniciar sem o arquivo do banco, em vez de criar um banco vazio.
+
 Nenhum segredo fica no GitHub: o servidor só lê o repositório público. Etapas que executam código do repo rodam como `jobtracker`. O script que roda como root fica em `/usr/local/sbin` e só muda quando `install.sh` é executado de novo.
 
 ## Layout no servidor
@@ -35,7 +37,7 @@ sudo bash /opt/job-tracker/deploy/install.sh
 sudo /usr/local/sbin/job-tracker-deploy
 
 # 3. ativa os timers (deploy a cada 5 min + backup diário às 03:00)
-sudo bash /srv/job-tracker/repo/deploy/install.sh
+sudo bash /srv/job-tracker/current/deploy/install.sh
 
 # 4. depois de validar o app, remove o clone antigo
 sudo rm -rf /opt/job-tracker
@@ -83,6 +85,6 @@ sudo systemctl start job-tracker job-tracker-deploy.timer
 
 **Upgrade do Playwright:** quando a versão do `playwright` mudar, as bibliotecas de sistema do Chromium precisam de root e ficam como passo manual: `cd /srv/job-tracker/current && sudo npx playwright install-deps chromium`.
 
-**Mudou `deploy.sh` ou `systemd/*`:** rode `sudo bash /srv/job-tracker/repo/deploy/install.sh` depois que o commit chegar ao servidor.
+**Mudou `deploy.sh` ou `systemd/*`:** depois que o deploy automático colocar o commit no ar, rode `sudo bash /srv/job-tracker/current/deploy/install.sh`. Use a release ativa (`current/`): o `repo/` só recebe `git fetch` e continua com os arquivos antigos.
 
 > Os backups ficam no mesmo disco da VPS: protegem contra erro/corrupção, não contra perda da VM. Backup externo (ex.: restic → Backblaze B2) é um próximo passo.

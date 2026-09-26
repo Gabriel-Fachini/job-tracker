@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import Database from "better-sqlite3";
 import {
   drizzle,
@@ -15,11 +17,26 @@ const globalForDatabase = globalThis as {
   db?: DatabaseClient;
 };
 
-const sqlite =
-  globalForDatabase.sqlite ??
-  new Database(databaseUrl, {
-    fileMustExist: false,
-  });
+// Em produção o banco nunca é criado implicitamente: um DATABASE_URL errado deve
+// falhar com erro claro em vez de abrir um banco vazio.
+function openDatabase() {
+  const fileMustExist = process.env.NODE_ENV === "production";
+
+  try {
+    return new Database(databaseUrl, { fileMustExist });
+  } catch (error) {
+    if (!fileMustExist) {
+      throw error;
+    }
+
+    throw new Error(
+      `Não foi possível abrir o banco SQLite em "${path.resolve(databaseUrl)}" (DATABASE_URL="${databaseUrl}"). Em produção o arquivo precisa existir; ele não é criado automaticamente.`,
+      { cause: error },
+    );
+  }
+}
+
+const sqlite = globalForDatabase.sqlite ?? openDatabase();
 
 const db =
   globalForDatabase.db ??
