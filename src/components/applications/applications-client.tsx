@@ -1,28 +1,20 @@
 "use client";
 
-import {
-  useState,
-  useTransition as useReactTransition,
-} from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  Building2,
-  CalendarDays,
-  Inbox,
-  Waypoints,
-  Zap,
-} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Building2, CalendarDays, Inbox, Plus } from "lucide-react";
+import { toast } from "sonner";
 
-import {
-  ApplicationCreateModal,
-} from "@/components/applications/application-create-modal";
+import { ApplicationCreateModal } from "@/components/applications/application-create-modal";
 import {
   ApplicationDetailModal,
   type ApplicationDetailData,
   type ApplicationStageData,
 } from "@/components/applications/application-detail-modal";
-import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
+import { ApplicationStatusSelect } from "@/components/applications/application-status-select";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import {
   Empty,
   EmptyDescription,
@@ -30,8 +22,10 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { useSearchParamsUpdater } from "@/hooks/use-search-params-updater";
 import {
   applicationStatusLabelMap,
+  isApplicationStatus,
   type ApplicationStatus,
 } from "@/lib/applications";
 import {
@@ -70,13 +64,11 @@ type ApplicationsClientProps = {
     name: string;
   }>;
   items: ApplicationListItem[];
+  /** Server-rendered overview shown between the header and the list. */
+  summary?: React.ReactNode;
 };
 
 type BoardState = Record<ApplicationStatus, ApplicationListItem[]>;
-
-type FeedbackState =
-  | { tone: "muted" | "danger"; message: string }
-  | null;
 
 const STATUS_ORDER: ApplicationStatus[] = [
   "applied",
@@ -192,139 +184,129 @@ function ApplicationListRow({
   const workModelLabel = getWorkModelLabel(item.workModel);
   const seniorityLabel = getSeniorityLabel(item.seniority);
   const sourceNameLabel = getSourceNameLabel(item.sourceName);
+  const dateLabel = formatCardDate(item.appliedAt ?? item.createdAt);
+  const hasChips = Boolean(workModelLabel || seniorityLabel || sourceNameLabel);
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpenDetails}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onOpenDetails();
-        }
-      }}
-      className="group flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.06] focus-visible:bg-white/[0.08] outline-none cursor-pointer"
-    >
-      {/* Title + company */}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-foreground group-hover:text-foreground/90">
-          {item.jobTitle}
-        </p>
-        <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Building2 className="size-3 shrink-0 text-muted-foreground/60" />
-          <span className="truncate">{item.company ?? "—"}</span>
+    <li className="group relative transition-colors duration-150 hover:bg-foreground/[0.04] has-[>button:active]:bg-foreground/[0.06]">
+      <button
+        type="button"
+        onClick={onOpenDetails}
+        aria-label={`Abrir candidatura: ${item.jobTitle}`}
+        className="absolute inset-0 outline-none focus-visible:bg-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      />
+
+      <div className="flex flex-col gap-2.5 px-4 py-3.5 md:flex-row md:items-center md:gap-4 md:px-5">
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 text-sm leading-snug font-medium text-foreground md:truncate">
+            {item.jobTitle}
+          </p>
+          <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+            <Building2 aria-hidden className="size-3 shrink-0" />
+            <span className="truncate">{item.company ?? "Empresa não informada"}</span>
+            <span aria-hidden className="md:hidden">·</span>
+            <span className="shrink-0 md:hidden">{dateLabel}</span>
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 md:shrink-0">
+          {hasChips ? (
+            <div className="flex min-w-0 flex-1 flex-wrap gap-1.5 md:flex-none">
+              {workModelLabel ? <Chip>{workModelLabel}</Chip> : null}
+              {seniorityLabel ? <Chip>{seniorityLabel}</Chip> : null}
+              {sourceNameLabel ? <Chip tone="info">{sourceNameLabel}</Chip> : null}
+            </div>
+          ) : (
+            <div className="flex-1 md:hidden" />
+          )}
+
+          <span className="hidden shrink-0 items-center gap-1 text-xs whitespace-nowrap text-muted-foreground md:flex">
+            <CalendarDays aria-hidden className="size-3 shrink-0" />
+            {dateLabel}
+          </span>
+
+          <ApplicationStatusSelect
+            value={item.status}
+            onChange={onStatusChange}
+            className="relative z-10"
+          />
         </div>
       </div>
-
-      {/* Badges */}
-      <div className="hidden md:flex items-center gap-1.5 shrink-0">
-        {workModelLabel ? (
-          <span className="inline-flex items-center rounded-full border border-white/8 bg-white/5 px-2 py-0.5 text-xs font-medium text-muted-foreground">
-            {workModelLabel}
-          </span>
-        ) : null}
-        {seniorityLabel ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/20 bg-violet-400/8 px-2 py-0.5 text-xs font-medium text-violet-300/80">
-            <Zap className="size-3" />
-            {seniorityLabel}
-          </span>
-        ) : null}
-        {sourceNameLabel ? (
-          <span className="inline-flex items-center rounded-full border border-sky-400/20 bg-sky-400/8 px-2 py-0.5 text-xs font-medium text-sky-300/80">
-            {sourceNameLabel}
-          </span>
-        ) : null}
-      </div>
-
-      {/* Date */}
-      <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground/50 shrink-0 whitespace-nowrap">
-        <CalendarDays className="size-3 shrink-0" />
-        <span>{formatCardDate(item.appliedAt ?? item.createdAt)}</span>
-      </div>
-
-      {/* Status select */}
-      <select
-        value={item.status}
-        onChange={(e) => {
-          e.stopPropagation();
-          onStatusChange(e.target.value as ApplicationStatus);
-        }}
-        onClick={(e) => e.stopPropagation()}
-        className="h-8 shrink-0 rounded-lg border border-input bg-input/30 px-2 text-xs text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
-      >
-        {STATUS_ORDER.map((status) => (
-          <option key={status} value={status}>
-            {applicationStatusLabelMap[status]}
-          </option>
-        ))}
-      </select>
-
-    </div>
+    </li>
   );
 }
 
-export function ApplicationsClient({ companies, items }: ApplicationsClientProps) {
-  const router = useRouter();
-  const pathname = usePathname();
+export function ApplicationsClient({ companies, items, summary }: ApplicationsClientProps) {
   const searchParams = useSearchParams();
+  const updateSearchParams = useSearchParamsUpdater();
   const [createOpen, setCreateOpen] = useState(false);
   const [board, setBoard] = useState(() => createBoard(items));
-  const [feedback, setFeedback] = useState<FeedbackState>(null);
-  const [isSavingMove, startSavingMove] = useReactTransition();
 
-  const initialTab = STATUS_ORDER.find((s) => createBoard(items)[s].length > 0) ?? "applied";
-  const [activeTab, setActiveTab] = useState<ApplicationStatus>(initialTab);
+  // Server refreshes (after saving a stage, notes...) hand us new items; adopt
+  // them without remounting so an open detail sheet stays put.
+  const [syncedItems, setSyncedItems] = useState(items);
+  if (items !== syncedItems) {
+    setSyncedItems(items);
+    setBoard(createBoard(items));
+  }
+
+  const statusParam = searchParams.get("status");
+  const activeTab: ApplicationStatus =
+    statusParam && isApplicationStatus(statusParam)
+      ? statusParam
+      : (STATUS_ORDER.find((status) => board[status].length > 0) ?? "applied");
+
+  const tabListRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Partial<Record<ApplicationStatus, HTMLButtonElement | null>>>({});
+
+  // Keep the active status visible in the scrollable tab row (e.g. a deep link
+  // to "Desistiu"). Horizontal only, so the page itself never jumps.
+  useEffect(() => {
+    const list = tabListRef.current;
+    const tab = tabRefs.current[activeTab];
+    if (!list || !tab) return;
+
+    const tabStart = tab.offsetLeft;
+    const tabEnd = tabStart + tab.offsetWidth;
+    if (tabStart < list.scrollLeft || tabEnd > list.scrollLeft + list.clientWidth) {
+      list.scrollTo({ left: tabStart - 16, behavior: "smooth" });
+    }
+  }, [activeTab]);
+
+  function setActiveTab(status: ApplicationStatus) {
+    updateSearchParams((params) => {
+      params.set("status", status);
+    }, "replace");
+  }
 
   function setApplicationQuery(applicationId: number | null) {
-    const nextParams = new URLSearchParams(searchParams.toString());
-
-    if (applicationId === null) {
-      nextParams.delete("applicationId");
-    } else {
-      nextParams.set("applicationId", String(applicationId));
-    }
-
-    const nextUrl = nextParams.size
-      ? `${pathname}?${nextParams.toString()}`
-      : pathname;
-
-    router.push(nextUrl, { scroll: false });
+    updateSearchParams(
+      (params) => {
+        if (applicationId === null) {
+          params.delete("applicationId");
+        } else {
+          params.set("applicationId", String(applicationId));
+        }
+      },
+      applicationId === null ? "replace" : "push",
+    );
   }
 
-  function handleOpenDetails(item: ApplicationListItem) {
-    setApplicationQuery(item.id);
-  }
-
-  function handleCloseDetails() {
-    setApplicationQuery(null);
-  }
-
-  function handleStatusChange(item: ApplicationListItem, targetStatus: ApplicationStatus) {
-    if (targetStatus === item.status) return;
+  function handleStatusChange(applicationId: number, targetStatus: ApplicationStatus) {
+    const current = findApplicationById(board, applicationId);
+    if (!current || targetStatus === current.status) return;
 
     const snapshot = board;
-    const nextBoard = moveCard(snapshot, item.id, targetStatus);
+    setBoard(moveCard(snapshot, applicationId, targetStatus));
 
-    setBoard(nextBoard);
-    setFeedback(null);
-
-    startSavingMove(async () => {
-      const result = await updateApplicationStatus(item.id, targetStatus);
-
+    void updateApplicationStatus(applicationId, targetStatus).then((result) => {
       if (!result.success) {
         setBoard(snapshot);
-        setFeedback({
-          tone: "danger",
-          message: "Não foi possível atualizar o status. O estado foi revertido.",
-        });
+        toast.error("Não foi possível atualizar o status. O estado foi revertido.");
         return;
       }
 
-      setFeedback({
-        tone: "muted",
-        message: `Movido para ${applicationStatusLabelMap[targetStatus]}.`,
-      });
+      toast.success(`Movida para ${applicationStatusLabelMap[targetStatus]}`);
     });
   }
 
@@ -339,77 +321,67 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
     ? buildApplicationDetail(selectedApplication)
     : null;
 
-  const totalCount = items.length;
+  const totalCount = STATUS_ORDER.reduce((sum, status) => sum + board[status].length, 0);
   const activeItems = board[activeTab];
 
   return (
     <>
-      <div className="flex flex-col gap-4">
-        {/* Toolbar */}
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            {totalCount === 0
-              ? "Nenhuma candidatura registrada ainda"
-              : totalCount === 1
-                ? "1 candidatura registrada"
-                : `${totalCount} candidaturas registradas`}
-          </p>
-
+      <PageHeader
+        title="Candidaturas"
+        description={
+          totalCount === 0
+            ? "Nenhuma candidatura registrada ainda."
+            : totalCount === 1
+              ? "1 candidatura registrada."
+              : `${totalCount} candidaturas registradas.`
+        }
+        actions={
           <Button
+            variant="brand"
             size="lg"
             onClick={() => setCreateOpen(true)}
-            className="h-10 w-full gap-2 rounded-xl border border-amber-300/25 bg-amber-300/8 px-5 text-foreground transition-colors hover:bg-amber-300/14 hover:border-amber-300/35 sm:w-auto"
+            className="h-10 rounded-xl px-4 sm:h-11 sm:px-5"
           >
-            <Waypoints className="size-4 shrink-0" />
-            Nova candidatura
+            <Plus data-icon="inline-start" />
+            <span className="sm:hidden">Nova</span>
+            <span className="hidden sm:inline">Nova candidatura</span>
           </Button>
-        </div>
+        }
+      />
 
-        {/* Feedback */}
-        {(feedback !== null || isSavingMove) && (
-          <div className="flex min-h-9 items-center justify-between gap-3 rounded-xl border border-border/50 bg-card/40 px-4 py-2">
-            <p
-              className={cn(
-                "text-sm",
-                feedback?.tone === "danger"
-                  ? "text-destructive"
-                  : "text-muted-foreground",
-              )}
-            >
-              {feedback?.message}
-            </p>
-            {isSavingMove ? (
-              <span className="text-xs font-medium text-amber-200">
-                Salvando...
-              </span>
-            ) : null}
-          </div>
-        )}
-      </div>
+      {summary}
 
       {totalCount === 0 ? (
-        <Empty className="rounded-3xl border border-dashed border-border/50 bg-card/40 py-20">
+        <Empty className="rounded-3xl border border-dashed border-border/50 bg-card/40 py-16">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <Inbox />
             </EmptyMedia>
             <EmptyTitle>Nenhuma candidatura registrada</EmptyTitle>
             <EmptyDescription className="max-w-xs">
-              Registre sua primeira candidatura e acompanhe o processo seletivo.
+              Registre a vaga, o status inicial e acompanhe cada etapa do processo seletivo aqui.
             </EmptyDescription>
           </EmptyHeader>
           <Button
+            variant="outline"
             onClick={() => setCreateOpen(true)}
-            className="mt-1 h-10 rounded-xl border border-border/60 bg-card/60 px-5 text-foreground hover:bg-white/6"
+            className="mt-1 h-10 rounded-xl px-5"
           >
-            <Waypoints data-icon="inline-start" />
+            <Plus data-icon="inline-start" />
             Registrar primeira candidatura
           </Button>
         </Empty>
       ) : (
-        <div className="rounded-2xl border border-border/60 bg-card/50 overflow-hidden">
-          {/* Tab bar */}
-          <div className="flex overflow-x-auto border-b border-border/50 scrollbar-none">
+        <section
+          aria-label="Candidaturas por status"
+          className="-mx-4 border-y border-border/60 bg-card/50 sm:mx-0 sm:overflow-hidden sm:rounded-2xl sm:border"
+        >
+          <div
+            ref={tabListRef}
+            role="tablist"
+            aria-label="Status"
+            className="relative flex snap-x overflow-x-auto border-b border-border/50 px-2 scrollbar-none sm:px-0"
+          >
             {STATUS_ORDER.map((status) => {
               const count = board[status].length;
               const isActive = activeTab === status;
@@ -417,22 +389,25 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
               return (
                 <button
                   key={status}
+                  ref={(node) => {
+                    tabRefs.current[status] = node;
+                  }}
                   type="button"
+                  role="tab"
+                  aria-selected={isActive}
                   onClick={() => setActiveTab(status)}
                   className={cn(
-                    "relative flex shrink-0 items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors",
+                    "relative flex h-12 shrink-0 snap-start items-center gap-2 px-3.5 text-sm font-medium whitespace-nowrap transition-colors duration-150 outline-none focus-visible:bg-foreground/5 sm:px-4",
                     isActive
-                      ? "text-foreground after:absolute after:bottom-0 after:inset-x-0 after:h-0.5 after:bg-amber-300"
-                      : "text-muted-foreground hover:text-foreground/80",
+                      ? "text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand"
+                      : "text-muted-foreground hover:text-foreground/85",
                   )}
                 >
                   {applicationStatusLabelMap[status]}
                   <span
                     className={cn(
-                      "rounded-full px-1.5 py-0.5 text-xs tabular-nums font-medium",
-                      isActive
-                        ? "bg-amber-300/20 text-amber-200"
-                        : "bg-white/6 text-muted-foreground",
+                      "min-w-5 rounded-full px-1.5 text-center text-xs leading-5 font-medium tabular-nums",
+                      isActive ? "bg-brand/20 text-brand" : "bg-foreground/6 text-muted-foreground",
                     )}
                   >
                     {count}
@@ -442,34 +417,38 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
             })}
           </div>
 
-          {/* List */}
-          <div key={activeTab} className="animate-in fade-in-0 slide-in-from-bottom-1 duration-150">
+          <div
+            key={activeTab}
+            role="tabpanel"
+            aria-label={applicationStatusLabelMap[activeTab]}
+            className="animate-in fade-in-0 duration-150"
+          >
             {activeItems.length === 0 ? (
-              <Empty className="py-14">
+              <Empty className="py-12">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
                     <Inbox />
                   </EmptyMedia>
-                  <EmptyTitle>Nenhuma candidatura aqui</EmptyTitle>
+                  <EmptyTitle>Nada em {applicationStatusLabelMap[activeTab]}</EmptyTitle>
                   <EmptyDescription>
-                    Quando uma candidatura entrar nesta etapa, ela aparecerá aqui.
+                    Mude o status de uma candidatura para ela aparecer nesta etapa.
                   </EmptyDescription>
                 </EmptyHeader>
               </Empty>
             ) : (
-              <div className="divide-y divide-border/30">
+              <ul className="divide-y divide-border/40">
                 {activeItems.map((item) => (
                   <ApplicationListRow
                     key={item.id}
                     item={item}
-                    onOpenDetails={() => handleOpenDetails(item)}
-                    onStatusChange={(status) => handleStatusChange(item, status)}
+                    onOpenDetails={() => setApplicationQuery(item.id)}
+                    onStatusChange={(status) => handleStatusChange(item.id, status)}
                   />
                 ))}
-              </div>
+              </ul>
             )}
           </div>
-        </div>
+        </section>
       )}
 
       <ApplicationCreateModal
@@ -479,7 +458,10 @@ export function ApplicationsClient({ companies, items }: ApplicationsClientProps
       />
       <ApplicationDetailModal
         application={detailApp}
-        onClose={handleCloseDetails}
+        onClose={() => setApplicationQuery(null)}
+        onStatusChange={(status) =>
+          detailApp ? handleStatusChange(detailApp.id, status) : undefined
+        }
       />
     </>
   );

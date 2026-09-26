@@ -67,11 +67,11 @@ export function KpiStrip({ current, previous }: KpiStripProps) {
         return (
           <div
             key={key}
-            className={`relative overflow-hidden rounded-2xl border p-4 transition-all ${colorClass}`}
+            className={`relative overflow-hidden rounded-2xl border p-3.5 sm:p-4 ${colorClass}`}
           >
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/12 to-transparent" />
             <div className="flex items-start justify-between gap-2">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              <p className="text-[11px] leading-4 font-medium tracking-[0.12em] text-balance text-muted-foreground uppercase sm:tracking-[0.18em]">
                 {label}
               </p>
               <Icon className={`size-3.5 shrink-0 ${iconClass}`} />

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Briefcase, PanelLeftIcon } from "lucide-react";
+import { Briefcase } from "lucide-react";
 
 import { appNavigation } from "@/lib/navigation";
 import {
@@ -19,12 +19,11 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { isMobile, setOpenMobile, state } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   function handleNavigationClick() {
     if (isMobile) {
@@ -117,36 +116,5 @@ export function AppSidebar() {
         </div>
       </SidebarFooter>
     </Sidebar>
-  );
-}
-
-export function MobileAppHeader() {
-  const { setOpenMobile } = useSidebar();
-
-  return (
-    <div className="sticky top-0 z-30 border-b border-border/50 bg-background/90 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-3 backdrop-blur md:hidden">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button
-            type="button"
-            aria-label="Abrir menu"
-            className="size-10 rounded-xl border border-border/60 bg-card/70"
-            onClick={() => setOpenMobile(true)}
-            variant="ghost"
-            size="icon-sm"
-          >
-            <PanelLeftIcon />
-          </Button>
-          <div className="min-w-0">
-            <p className="truncate font-heading text-base font-semibold text-foreground">
-              Job Tracker
-            </p>
-            <p className="truncate text-xs uppercase tracking-[0.16em] text-muted-foreground/70">
-              Navegação principal
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }

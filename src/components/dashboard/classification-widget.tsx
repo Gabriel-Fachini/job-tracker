@@ -70,7 +70,7 @@ export function ClassificationWidget({
         Distribuição de classificação
       </h3>
 
-      <div className="mt-4 flex gap-4">
+      <div className="mt-4 flex flex-col items-center gap-4 min-[420px]:flex-row min-[420px]:items-stretch">
         {/* Pie */}
         <div className="h-40 w-40 min-w-0 shrink-0">
           <ResponsiveContainer width="100%" height="100%" debounce={50}>
@@ -109,7 +109,7 @@ export function ClassificationWidget({
         </div>
 
         {/* Legend + stats */}
-        <div className="flex flex-1 flex-col justify-center gap-2">
+        <div className="flex w-full flex-1 flex-col justify-center gap-2">
           {pieData.map((d) => (
             <div key={d.name} className="flex items-center gap-2">
               <span

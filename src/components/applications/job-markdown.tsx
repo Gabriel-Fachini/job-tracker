@@ -19,7 +19,7 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           h1: ({ className, ...props }) => (
             <h1
               className={cn(
-                "mb-5 text-3xl leading-tight font-heading font-semibold tracking-tight text-foreground",
+                "mb-4 text-xl leading-tight font-heading font-semibold tracking-tight text-balance text-foreground sm:mb-5 sm:text-2xl",
                 className,
               )}
               {...props}
@@ -28,7 +28,7 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           h2: ({ className, ...props }) => (
             <h2
               className={cn(
-                "mt-8 mb-4 text-xl leading-tight font-heading font-semibold tracking-tight text-foreground",
+                "mt-7 mb-3 text-lg leading-tight font-heading font-semibold tracking-tight text-balance text-foreground sm:mt-8 sm:mb-4 sm:text-xl",
                 className,
               )}
               {...props}
@@ -37,7 +37,7 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           h3: ({ className, ...props }) => (
             <h3
               className={cn(
-                "mt-6 mb-3 text-lg leading-tight font-heading font-semibold tracking-tight text-foreground",
+                "mt-6 mb-2.5 text-base leading-tight font-heading font-semibold tracking-tight text-foreground sm:mb-3 sm:text-lg",
                 className,
               )}
               {...props}
@@ -46,7 +46,7 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           p: ({ className, ...props }) => (
             <p
               className={cn(
-                "mb-4 text-sm leading-7 text-foreground last:mb-0",
+                "mb-4 text-[15px] leading-7 text-pretty text-foreground last:mb-0 sm:text-sm",
                 className,
               )}
               {...props}
@@ -55,7 +55,7 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           ul: ({ className, ...props }) => (
             <ul
               className={cn(
-                "mb-4 list-disc pl-6 text-sm leading-7 text-foreground marker:text-muted-foreground",
+                "mb-4 list-disc pl-5 text-[15px] leading-7 text-foreground marker:text-muted-foreground sm:pl-6 sm:text-sm",
                 className,
               )}
               {...props}
@@ -64,7 +64,7 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           ol: ({ className, ...props }) => (
             <ol
               className={cn(
-                "mb-4 list-decimal pl-6 text-sm leading-7 text-foreground marker:text-muted-foreground",
+                "mb-4 list-decimal pl-5 text-[15px] leading-7 text-foreground marker:text-muted-foreground sm:pl-6 sm:text-sm",
                 className,
               )}
               {...props}
@@ -82,7 +82,7 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           a: ({ className, ...props }) => (
             <a
               className={cn(
-                "text-foreground underline underline-offset-4",
+                "break-all text-foreground underline underline-offset-4",
                 className,
               )}
               {...props}
@@ -106,6 +106,27 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
                 "mb-4 overflow-x-auto rounded-lg border border-border bg-background px-4 py-3 text-sm",
                 className,
               )}
+              {...props}
+            />
+          ),
+          // Wide tables scroll inside their own box instead of widening the page.
+          table: ({ className, ...props }) => (
+            <div className="mb-4 max-w-full overflow-x-auto rounded-lg border border-border">
+              <table className={cn("w-full text-sm", className)} {...props} />
+            </div>
+          ),
+          th: ({ className, ...props }) => (
+            <th
+              className={cn(
+                "border-b border-border bg-muted/30 px-3 py-2 text-left font-medium whitespace-nowrap text-foreground",
+                className,
+              )}
+              {...props}
+            />
+          ),
+          td: ({ className, ...props }) => (
+            <td
+              className={cn("border-b border-border/50 px-3 py-2 align-top text-foreground/90", className)}
               {...props}
             />
           ),

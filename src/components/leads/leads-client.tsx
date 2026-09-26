@@ -1,19 +1,19 @@
 "use client";
 
-import type { KeyboardEvent, MouseEvent } from "react";
-import { useMemo, useState, useTransition } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   BriefcaseBusiness,
+  ChevronDown,
   ExternalLink,
-  Globe,
   MapPin,
   Radar,
   ScanSearch,
   Search,
   Sparkles,
+  X,
 } from "lucide-react";
 
 import {
@@ -21,20 +21,16 @@ import {
   type ApplicationCreateInitialValues,
 } from "@/components/applications/application-create-modal";
 import { JobMarkdown } from "@/components/applications/job-markdown";
+import { scoreTone, useLeadDecisions } from "@/components/leads/lead-decisions";
 import { LeadDetailModal } from "@/components/leads/lead-detail-modal";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
 import type { LeadListItem, LeadTab } from "@/components/leads/types";
 import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
 import { MonitoringProgressDisplay } from "@/components/leads/monitoring-progress-display";
 import { useMonitoringActions, useMonitoringProgress } from "@/components/leads/monitoring-progress-context";
-import { buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import {
   Empty,
   EmptyContent,
@@ -43,18 +39,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { getSourceNameLabel } from "@/lib/jobs";
+import { useSearchParamsUpdater } from "@/hooks/use-search-params-updater";
+import { getSeniorityLabel, getSourceNameLabel, getWorkModelLabel } from "@/lib/jobs";
 import { cn } from "@/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { getLeads } from "@/server/actions/leads";
-import {
-  approveLead,
-  discardLead,
-  promoteApprovedLeadToApplication,
-} from "@/server/actions/job-monitoring";
+import { promoteApprovedLeadToApplication } from "@/server/actions/job-monitoring";
 
 type LeadsClientProps = {
   companies: Array<{
@@ -64,42 +53,35 @@ type LeadsClientProps = {
   items: LeadListItem[];
 };
 
-type LeadFilters = {
-  q: string;
-  rawQ: string;
-  status: string | null;
-  companyId: number | null;
-};
+type ClassificationFilter = "interesting" | "review" | null;
 
 const tabCopy: Record<
   LeadTab,
-  {
-    label: string;
-    description: string;
-    emptyTitle: string;
-    emptyDescription: string;
-  }
+  { label: string; emptyTitle: string; emptyDescription: string }
 > = {
   triage: {
     label: "Triagem",
-    description: "Leads sem decisão manual aguardando aprovação ou descarte.",
     emptyTitle: "Nenhum lead pendente na triagem",
     emptyDescription:
       "Rode o radar para descobrir novas vagas ou ajuste os filtros ativos.",
   },
   approved: {
     label: "Aprovados",
-    description: "Leads aprovados manualmente e prontos para virar candidatura.",
     emptyTitle: "Nenhum lead aprovado ainda",
     emptyDescription:
       "Aprove os melhores leads na triagem para separá-los nesta fila.",
   },
 };
 
+const classificationOptions: Array<{ value: ClassificationFilter; label: string }> = [
+  { value: null, label: "Todas" },
+  { value: "interesting", label: "Interessantes" },
+  { value: "review", label: "Revisar" },
+];
+
 export function LeadsClient({ companies, items }: LeadsClientProps) {
-  const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const updateSearchParams = useSearchParamsUpdater();
   const [createLead, setCreateLead] = useState<LeadListItem | null>(null);
   const [showProgressDisplay, setShowProgressDisplay] = useState(true);
   const monitoringProgress = useMonitoringProgress();
@@ -113,46 +95,66 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
   });
 
   const activeTab = normalizeLeadTab(searchParams.get("tab"));
-  const filters = normalizeLeadFilters({
-    q: searchParams.get("q") ?? undefined,
-    status: searchParams.get("status") ?? undefined,
-    companyId: searchParams.get("companyId") ?? undefined,
-  });
+  const status = normalizeClassification(searchParams.get("status"));
+  const companyId = normalizeCompanyId(searchParams.get("companyId"));
+
+  // Search filters live while typing; the URL follows (debounced) so a reload
+  // or shared link keeps the query.
+  const [query, setQuery] = useState(() => (searchParams.get("q") ?? "").trim());
+  const deferredQuery = useDeferredValue(query);
+  const normalizedQuery = deferredQuery.trim().toLocaleLowerCase("pt-BR");
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const current = new URLSearchParams(window.location.search).get("q") ?? "";
+      const next = query.trim();
+
+      if (current === next) {
+        return;
+      }
+
+      updateSearchParams((params) => {
+        if (next) params.set("q", next);
+        else params.delete("q");
+      }, "replace");
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [query, updateSearchParams]);
 
   const companyOptions = useMemo(
     () =>
-      companies
-        .map((company) => ({ ...company }))
-        .sort((left, right) => left.name.localeCompare(right.name, "pt-BR")),
+      [...companies].sort((left, right) =>
+        left.name.localeCompare(right.name, "pt-BR"),
+      ),
     [companies],
   );
 
-  const tabItems = liveItems.filter((item) => {
-    if (item.promotedToApplicationId !== null) {
+  const pendingItems = liveItems.filter(
+    (item) => item.promotedToApplicationId === null,
+  );
+  const triageCount = pendingItems.filter((item) => item.userDecision === "none").length;
+  const approvedCount = pendingItems.filter(
+    (item) => item.userDecision === "approved",
+  ).length;
+
+  const tabItems = pendingItems.filter((item) =>
+    activeTab === "triage"
+      ? item.userDecision === "none"
+      : item.userDecision === "approved",
+  );
+
+  // Counts on the classification chips reflect every other active filter.
+  const facetItems = tabItems.filter((item) => {
+    if (companyId !== null && item.companyId !== companyId) {
       return false;
     }
 
-    if (activeTab === "triage") {
-      return item.userDecision === "none";
-    }
-
-    return item.userDecision === "approved";
-  });
-
-  const filteredItems = tabItems.filter((item) => {
-    if (filters.status && item.classificationStatus !== filters.status) {
-      return false;
-    }
-
-    if (filters.companyId !== null && item.companyId !== filters.companyId) {
-      return false;
-    }
-
-    if (!filters.q) {
+    if (!normalizedQuery) {
       return true;
     }
 
-    const haystack = [
+    return [
       item.title,
       item.companyName,
       item.classificationReason,
@@ -161,61 +163,70 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
     ]
       .filter(Boolean)
       .join(" ")
-      .toLocaleLowerCase("pt-BR");
-
-    return haystack.includes(filters.q);
+      .toLocaleLowerCase("pt-BR")
+      .includes(normalizedQuery);
   });
 
-  const triageCount = liveItems.filter(
-    (item) => item.userDecision === "none" && item.promotedToApplicationId === null,
-  ).length;
-  const approvedCount = liveItems.filter(
-    (item) => item.userDecision === "approved" && item.promotedToApplicationId === null,
-  ).length;
-  const reviewCount = filteredItems.filter(
-    (item) => item.classificationStatus === "review",
-  ).length;
-  const interestingCount = filteredItems.filter(
-    (item) => item.classificationStatus === "interesting",
-  ).length;
-  const hasActiveFilters =
-    Boolean(filters.q) || Boolean(filters.status) || filters.companyId !== null;
+  const classificationCounts = {
+    all: facetItems.length,
+    interesting: facetItems.filter((item) => item.classificationStatus === "interesting").length,
+    review: facetItems.filter((item) => item.classificationStatus === "review").length,
+  };
+
+  const filteredItems = status
+    ? facetItems.filter((item) => item.classificationStatus === status)
+    : facetItems;
+
+  const hasActiveFilters = Boolean(query.trim()) || status !== null || companyId !== null;
 
   const selectedLeadId = parseSelectedLeadId(searchParams.get("leadId"));
   const selectedLead =
     selectedLeadId === null
       ? null
-      : filteredItems.find((item) => item.id === selectedLeadId) ?? null;
-
-  function buildQuery(mutator: (params: URLSearchParams) => void) {
-    const nextParams = new URLSearchParams(searchParams.toString());
-    mutator(nextParams);
-    const nextUrl = nextParams.size ? `${pathname}?${nextParams.toString()}` : pathname;
-    router.push(nextUrl, { scroll: false });
-  }
+      : liveItems.find((item) => item.id === selectedLeadId) ?? null;
 
   function setTab(tab: LeadTab) {
-    buildQuery((params) => {
+    updateSearchParams((params) => {
       params.set("tab", tab);
       params.delete("leadId");
-    });
+    }, "replace");
+  }
+
+  function setClassification(value: ClassificationFilter) {
+    updateSearchParams((params) => {
+      if (value) params.set("status", value);
+      else params.delete("status");
+    }, "replace");
+  }
+
+  function setCompany(value: number | null) {
+    updateSearchParams((params) => {
+      if (value === null) params.delete("companyId");
+      else params.set("companyId", String(value));
+    }, "replace");
+  }
+
+  function clearFilters() {
+    setQuery("");
+    updateSearchParams((params) => {
+      params.delete("q");
+      params.delete("status");
+      params.delete("companyId");
+      params.delete("leadId");
+    }, "replace");
   }
 
   function openLead(leadId: number) {
-    buildQuery((params) => {
+    updateSearchParams((params) => {
       params.set("tab", activeTab);
       params.set("leadId", String(leadId));
     });
   }
 
   function closeLead() {
-    buildQuery((params) => {
+    updateSearchParams((params) => {
       params.delete("leadId");
-    });
-  }
-
-  function openCreateModal(lead: LeadListItem) {
-    setCreateLead(lead);
+    }, "replace");
   }
 
   function closeCreateModal(open: boolean) {
@@ -230,24 +241,21 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
 
   return (
     <>
-      <div className="flex flex-1 flex-col gap-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex flex-col gap-1.5">
-            <h1 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-              Leads monitorados
-            </h1>
-            <p className="max-w-2xl text-base text-muted-foreground">
-              Aprove, descarte e promova oportunidades descobertas automaticamente.
-            </p>
-          </div>
-
-          <MonitoringRunButton
-            label="Rodar radar completo"
-            pendingLabel="Rodando radar..."
-            className="h-11 w-full rounded-xl bg-amber-300 px-5 text-zinc-950 hover:bg-amber-200 sm:w-auto"
-            useStream
-          />
-        </div>
+      <div className="flex flex-1 flex-col gap-5 sm:gap-8">
+        <PageHeader
+          title="Leads"
+          description="Aprove, descarte e promova as vagas que o radar encontrou."
+          actions={
+            <MonitoringRunButton
+              label="Rodar radar completo"
+              shortLabel="Radar"
+              pendingLabel="Rodando…"
+              className="h-10 rounded-xl px-4 sm:h-11 sm:px-5"
+              showCancel={false}
+              useStream
+            />
+          }
+        />
 
         {monitoringProgress && (monitoringProgress.isRunning || showProgressDisplay) && (
           <MonitoringProgressDisplay
@@ -265,148 +273,200 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
           />
         )}
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {/* Phones read these counts from the queue and filter controls instead. */}
+        <div className="hidden gap-3 md:grid md:grid-cols-4">
           <StatCard
             label="Na triagem"
-            value={String(triageCount)}
+            value={triageCount}
             icon={ScanSearch}
             className="border-sky-400/20 bg-sky-400/8"
           />
           <StatCard
             label="Aprovados"
-            value={String(approvedCount)}
+            value={approvedCount}
             icon={BriefcaseBusiness}
             className="border-emerald-400/20 bg-emerald-400/8"
           />
           <StatCard
             label="Interessantes"
-            value={String(interestingCount)}
+            value={classificationCounts.interesting}
             icon={Sparkles}
             className="border-violet-400/20 bg-violet-400/8"
           />
           <StatCard
             label="Para revisar"
-            value={String(reviewCount)}
+            value={classificationCounts.review}
             icon={Radar}
             className="border-amber-400/20 bg-amber-400/8"
           />
         </div>
 
-        <Card className="border-border/60 bg-card/85">
-          <CardContent className="flex flex-col gap-6 pt-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div className="space-y-2">
-                <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground/70">
-                  Filas de triagem
-                </p>
-              <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
-                {(["triage", "approved"] as const).map((tab) => (
-                    <button
-                      key={tab}
-                      type="button"
-                      onClick={() => setTab(tab)}
+        <section aria-label="Filtros de leads" className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div
+              role="group"
+              aria-label="Fila"
+              className="grid grid-cols-2 gap-1 rounded-xl border border-border/60 bg-card/60 p-1 lg:w-80 lg:shrink-0"
+            >
+              {(["triage", "approved"] as const).map((tab) => {
+                const isActive = activeTab === tab;
+                const count = tab === "triage" ? triageCount : approvedCount;
+
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => setTab(tab)}
+                    className={cn(
+                      "flex h-9 items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-10",
+                      isActive
+                        ? "bg-foreground/10 text-foreground"
+                        : "text-muted-foreground hover:text-foreground active:bg-foreground/5",
+                    )}
+                  >
+                    {tabCopy[tab].label}
+                    <span
                       className={cn(
-                        buttonVariants({ variant: activeTab === tab ? "default" : "outline" }),
-                        "rounded-xl",
-                        activeTab === tab && "bg-primary text-primary-foreground",
+                        "min-w-5 rounded-full px-1.5 text-xs leading-5 tabular-nums",
+                        isActive ? "bg-brand/20 text-brand" : "bg-foreground/6",
                       )}
                     >
-                      {tabCopy[tab].label}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-sm text-muted-foreground">{tabCopy[activeTab].description}</p>
-              </div>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
-            <form className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_repeat(2,minmax(0,1fr))_auto]">
-              <input type="hidden" name="tab" value={activeTab} />
-
-              <div className="space-y-2">
-                <Label htmlFor="lead-search">Buscar</Label>
-                <Input
-                  id="lead-search"
-                  name="q"
-                  defaultValue={filters.rawQ}
-                  placeholder="Título, empresa, motivo, local..."
-                  className="h-10 rounded-xl"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="lead-status">Classificação</Label>
-                <select
-                  id="lead-status"
-                  name="status"
-                  defaultValue={filters.status ?? ""}
-                  className="h-10 w-full rounded-xl border border-input bg-input/30 px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  <option value="">Todas</option>
-                  <option value="interesting">Interessante</option>
-                  <option value="review">Revisar</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="lead-company">Empresa</Label>
-                <select
-                  id="lead-company"
-                  name="companyId"
-                  defaultValue={filters.companyId?.toString() ?? ""}
-                  className="h-10 w-full rounded-xl border border-input bg-input/30 px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  <option value="">Todas</option>
-                  {companyOptions.map((company) => (
-                    <option key={company.id} value={company.id}>
-                      {company.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:items-end">
+            <form
+              role="search"
+              className="relative flex-1"
+              onSubmit={(event) => {
+                event.preventDefault();
+                (document.activeElement as HTMLElement | null)?.blur();
+              }}
+            >
+              <label htmlFor="lead-search" className="sr-only">
+                Buscar leads
+              </label>
+              <Search
+                aria-hidden
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                id="lead-search"
+                type="search"
+                inputMode="search"
+                enterKeyHint="search"
+                autoComplete="off"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Buscar por título, empresa, local…"
+                className="h-11 w-full rounded-xl border border-input bg-input/30 pr-10 pl-9 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
+              />
+              {query ? (
                 <button
-                  type="submit"
-                  className={cn(buttonVariants(), "h-10 w-full rounded-xl px-4 sm:w-auto")}
+                  type="button"
+                  onClick={() => setQuery("")}
+                  aria-label="Limpar busca"
+                  className="absolute top-1/2 right-1 flex size-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground active:bg-foreground/5"
                 >
-                  <Search data-icon="inline-start" className="size-4" />
-                  Filtrar
+                  <X className="size-4" />
                 </button>
-                {hasActiveFilters ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      buildQuery((params) => {
-                        params.set("tab", activeTab);
-                        params.delete("q");
-                        params.delete("status");
-                        params.delete("companyId");
-                        params.delete("leadId");
-                      });
-                    }}
-                    className={cn(buttonVariants({ variant: "outline" }), "h-10 w-full rounded-xl px-4 sm:w-auto")}
-                  >
-                    Limpar
-                  </button>
-                ) : null}
-              </div>
+              ) : null}
             </form>
+          </div>
 
-            <p className="text-sm text-muted-foreground">
-              Mostrando {filteredItems.length} de {tabItems.length} leads na aba atual.
+          <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-0.5 scrollbar-none sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+            {classificationOptions.map((option) => {
+              const isActive = status === option.value;
+              const count =
+                option.value === null
+                  ? classificationCounts.all
+                  : classificationCounts[option.value];
+
+              return (
+                <button
+                  key={option.label}
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() => setClassification(option.value)}
+                  className={cn(
+                    "flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium whitespace-nowrap transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    isActive
+                      ? "border-foreground/25 bg-foreground/10 text-foreground"
+                      : "border-border/70 text-muted-foreground hover:text-foreground active:bg-foreground/5",
+                  )}
+                >
+                  {option.label}
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+
+            {/* Styled pill over a transparent native select: system picker on
+                phones, and the select stays 16px so iOS doesn't zoom. */}
+            <div
+              className={cn(
+                "relative flex h-9 shrink-0 items-center gap-1.5 rounded-full border pr-3 pl-3.5 text-sm font-medium transition-colors has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-ring",
+                companyId !== null
+                  ? "border-foreground/25 bg-foreground/10 text-foreground"
+                  : "border-border/70 text-muted-foreground",
+              )}
+            >
+              <span aria-hidden className="max-w-[11rem] truncate">
+                {companyOptions.find((company) => company.id === companyId)?.name ??
+                  "Todas as empresas"}
+              </span>
+              <ChevronDown aria-hidden className="size-3.5 shrink-0" />
+              <select
+                aria-label="Filtrar por empresa"
+                value={companyId?.toString() ?? ""}
+                onChange={(event) =>
+                  setCompany(event.target.value ? Number(event.target.value) : null)
+                }
+                className="absolute inset-0 cursor-pointer appearance-none rounded-full text-base opacity-0 outline-none [&>option]:bg-popover [&>option]:text-popover-foreground"
+              >
+                <option value="">Todas as empresas</option>
+                {companyOptions.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex min-h-6 items-center justify-between gap-3 text-sm text-muted-foreground">
+            <p aria-live="polite">
+              {filteredItems.length === tabItems.length
+                ? pluralizeLeads(filteredItems.length)
+                : `${filteredItems.length} de ${pluralizeLeads(tabItems.length)}`}
             </p>
-          </CardContent>
-        </Card>
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="-my-2 rounded-md px-2 py-2 font-medium text-foreground/80 underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Limpar filtros
+              </button>
+            ) : null}
+          </div>
+        </section>
 
-        {items.length === 0 ? (
-          <Empty className="rounded-2xl border border-dashed border-border/50 bg-card/40 py-20">
+        {items.length === 0 && liveItems.length === 0 ? (
+          <Empty className="rounded-2xl border border-dashed border-border/50 bg-card/40 py-16">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <ScanSearch />
               </EmptyMedia>
               <EmptyTitle>Nenhum lead salvo ainda</EmptyTitle>
               <EmptyDescription>
-                Rode a varredura a partir das empresas em monitoramento para encher esta caixa de triagem.
+                O radar percorre os job boards das empresas monitoradas e traz as vagas para cá.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
@@ -414,12 +474,12 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
                 href="/companies"
                 className={cn(buttonVariants({ variant: "outline" }), "rounded-xl")}
               >
-                Ir para empresas
+                Ver empresas monitoradas
               </Link>
             </EmptyContent>
           </Empty>
         ) : filteredItems.length === 0 ? (
-          <Empty className="rounded-2xl border border-dashed border-border/50 bg-card/40 py-20">
+          <Empty className="rounded-2xl border border-dashed border-border/50 bg-card/40 py-16">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <ScanSearch />
@@ -429,44 +489,32 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
             </EmptyHeader>
             {hasActiveFilters ? (
               <EmptyContent>
-                <button
-                  type="button"
-                  onClick={() => {
-                    buildQuery((params) => {
-                      params.set("tab", activeTab);
-                      params.delete("q");
-                      params.delete("status");
-                      params.delete("companyId");
-                      params.delete("leadId");
-                    });
-                  }}
-                  className={cn(buttonVariants({ variant: "outline" }), "rounded-xl")}
-                >
+                <Button type="button" variant="outline" onClick={clearFilters} className="rounded-xl">
                   Limpar filtros
-                </button>
+                </Button>
               </EmptyContent>
             ) : null}
           </Empty>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-2">
+          <ul className="grid gap-3 sm:gap-4 xl:grid-cols-2">
             {filteredItems.map((lead) => (
-              <LeadCard
-                key={lead.id}
-                lead={lead}
-                tab={activeTab}
-                onOpen={() => openLead(lead.id)}
-                onCreateApplication={() => openCreateModal(lead)}
-              />
+              <li key={lead.id} className="min-w-0">
+                <LeadCard
+                  lead={lead}
+                  tab={activeTab}
+                  onOpen={() => openLead(lead.id)}
+                  onCreateApplication={() => setCreateLead(lead)}
+                />
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </div>
 
       <LeadDetailModal
         lead={selectedLead}
-        tab={activeTab}
         onClose={closeLead}
-        onCreateApplication={openCreateModal}
+        onCreateApplication={setCreateLead}
       />
 
       <ApplicationCreateModal
@@ -477,7 +525,7 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
         initialValues={createInitialValues}
         submitAction={promoteApprovedLeadToApplication}
         submitLabel="Criar candidatura"
-        pendingLabel="Criando..."
+        pendingLabel="Criando…"
         title="Criar candidatura a partir do lead"
         descriptionValue="Revise os dados detectados pelo radar, ajuste o que faltar e crie a candidatura efetiva."
       />
@@ -496,173 +544,139 @@ function LeadCard({
   onOpen: () => void;
   onCreateApplication: () => void;
 }) {
-  const queryClient = useQueryClient();
-  const [isApproving, startApproveTransition] = useTransition();
-  const [isDiscarding, startDiscardTransition] = useTransition();
-
-  function stopPropagation(event: MouseEvent<HTMLElement>) {
-    event.stopPropagation();
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onOpen();
-    }
-  }
+  const { approve, discard, isApproving, isDiscarding } = useLeadDecisions(lead.id);
+  const seniorityLabel = getSeniorityLabel(lead.seniority) ?? lead.seniority;
+  const workModelLabel = getWorkModelLabel(lead.workModel) ?? lead.workModel;
+  const isBusy = isApproving || isDiscarding;
 
   return (
-    <Card
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={handleKeyDown}
-      className="cursor-pointer border-border/60 bg-card/85 shadow-[0_20px_60px_rgba(0,0,0,0.22)] transition-colors hover:border-border"
-    >
-      <CardHeader className="gap-4 border-b border-border/40 pb-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <CardTitle className="text-xl leading-7 text-balance">{lead.title}</CardTitle>
-            <CardDescription className="mt-1 text-sm leading-6 text-muted-foreground">
+    <article className="group relative flex h-full flex-col rounded-2xl border border-border/60 bg-card/85 transition-colors duration-150 hover:border-border has-[>button:active]:bg-card">
+      {/* Stretched target: the whole card opens the detail sheet. */}
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Ver detalhes: ${lead.title}`}
+        className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      />
+
+      <div className="flex flex-1 flex-col gap-3 p-4 sm:gap-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="line-clamp-3 text-base leading-snug font-semibold text-balance text-foreground sm:text-lg">
+              {lead.title}
+            </h3>
+            <p className="mt-1 truncate text-sm text-muted-foreground">
               {lead.companyName}
-            </CardDescription>
+            </p>
           </div>
           <LeadStatusBadge status={lead.classificationStatus} />
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {lead.classificationScore !== null && (
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
-                lead.classificationScore >= 80
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
-                  : lead.classificationScore >= 50
-                    ? "border-amber-500/30 bg-amber-500/10 text-amber-700"
-                    : "border-muted-foreground/30 bg-muted text-muted-foreground"
-              )}
-            >
-              <Radar className="size-3" />
-              Score {lead.classificationScore}
-            </span>
-          )}
-          {lead.seniority && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-700">
-              <Sparkles className="size-3" />
-              {formatSeniority(lead.seniority)}
-            </span>
-          )}
-          {lead.workModel && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-500/30 bg-slate-500/10 px-2.5 py-1 text-xs font-medium text-slate-700">
-              <Globe className="size-3" />
-              {formatWorkModel(lead.workModel)}
-            </span>
-          )}
-          {lead.locationText && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-xs font-medium text-sky-700">
-              <MapPin className="size-3" />
-              {lead.locationText}
-            </span>
-          )}
-        </div>
-      </CardHeader>
+        {lead.classificationScore !== null || seniorityLabel || workModelLabel || lead.locationText ? (
+          <div className="flex flex-wrap gap-1.5">
+            {lead.classificationScore !== null ? (
+              <Chip tone={scoreTone(lead.classificationScore)}>
+                <Radar aria-hidden />
+                Score {lead.classificationScore}
+              </Chip>
+            ) : null}
+            {seniorityLabel ? <Chip>{seniorityLabel}</Chip> : null}
+            {workModelLabel ? <Chip>{workModelLabel}</Chip> : null}
+            {lead.locationText ? (
+              <Chip className="max-w-[16rem]">
+                <MapPin aria-hidden />
+                <span className="truncate">{lead.locationText}</span>
+              </Chip>
+            ) : null}
+          </div>
+        ) : null}
 
-      <CardContent className="flex flex-col gap-5 pt-5">
-        <p className="text-sm leading-6 text-muted-foreground">
+        <p className="line-clamp-3 text-sm leading-6 text-pretty text-muted-foreground sm:line-clamp-none">
           {lead.classificationReason || "Sem justificativa resumida."}
         </p>
 
         {lead.description ? (
           <JobMarkdown
             content={lead.description}
-            className="max-h-40 overflow-hidden rounded-xl border border-border/50 bg-muted/15 p-4 [mask-image:linear-gradient(to_bottom,black_72%,transparent)]"
+            className="hidden max-h-40 overflow-hidden rounded-xl border border-border/50 bg-muted/15 p-4 [mask-image:linear-gradient(to_bottom,black_72%,transparent)] sm:block"
           />
         ) : null}
 
-        <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-          <span>Fonte: {getSourceNameLabel(lead.sourceName) ?? "Outra origem"}</span>
-          {lead.salaryText ? <span>Faixa: {lead.salaryText}</span> : null}
-          <span>Atualizada em {formatDate(lead.updatedAt)}</span>
-        </div>
+        <p className="mt-auto text-xs text-muted-foreground">
+          {[
+            getSourceNameLabel(lead.sourceName) ?? "Outra origem",
+            lead.salaryText,
+            `atualizado em ${formatDate(lead.updatedAt)}`,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap" onClick={stopPropagation}>
-          <a
-            href={lead.sourceUrl}
-            target="_blank"
-            rel="noreferrer"
-            className={cn(buttonVariants({ variant: "outline" }), "w-full rounded-xl sm:w-auto")}
-          >
-            <ExternalLink data-icon="inline-start" />
-            Abrir vaga
-          </a>
+      <div className="relative z-10 flex items-center gap-2 border-t border-border/50 px-4 py-3 sm:px-5">
+        <a
+          href={lead.sourceUrl}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Abrir vaga original"
+          className={cn(
+            buttonVariants({ variant: "outline", size: "icon-lg" }),
+            "shrink-0 rounded-xl sm:w-auto sm:px-3",
+          )}
+        >
+          <ExternalLink />
+          <span className="hidden sm:inline">Abrir vaga</span>
+        </a>
 
-          {tab === "triage" ? (
-            <>
-              <button
-                type="button"
-                disabled={isApproving}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startApproveTransition(async () => {
-                    queryClient.setQueryData(["leads"], (old: LeadListItem[] | undefined) =>
-                      old?.map((item) =>
-                        item.id === lead.id ? { ...item, userDecision: "approved" as const } : item
-                      )
-                    );
-                    await approveLead(lead.id);
-                    queryClient.invalidateQueries({ queryKey: ["leads"] });
-                    toast.success("Lead aprovado");
-                  });
-                }}
-                className={cn(buttonVariants(), "w-full rounded-xl sm:w-auto")}
-              >
-                {isApproving ? (
-                  "Aprovando..."
-                ) : (
-                  <>
-                    <BriefcaseBusiness data-icon="inline-start" />
-                    Aprovar lead
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                disabled={isDiscarding}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startDiscardTransition(async () => {
-                    queryClient.setQueryData(["leads"], (old: LeadListItem[] | undefined) =>
-                      old?.filter((item) => item.id !== lead.id)
-                    );
-                    await discardLead(lead.id);
-                    queryClient.invalidateQueries({ queryKey: ["leads"] });
-                    toast.success("Lead descartado");
-                  });
-                }}
-                className={cn(buttonVariants({ variant: "outline" }), "w-full rounded-xl sm:w-auto")}
-              >
-                {isDiscarding ? "Descartando..." : "Descartar"}
-              </button>
-            </>
-          ) : (
-            <button
+        {tab === "triage" ? (
+          <>
+            <Button
               type="button"
-              onClick={onCreateApplication}
-              className={cn(buttonVariants(), "w-full rounded-xl sm:w-auto")}
+              variant="outline"
+              size="lg"
+              disabled={isBusy}
+              onClick={discard}
+              className="flex-1 rounded-xl sm:flex-none"
+            >
+              {isDiscarding ? "Descartando…" : "Descartar"}
+            </Button>
+            <Button
+              type="button"
+              size="lg"
+              disabled={isBusy}
+              onClick={approve}
+              className="flex-1 rounded-xl sm:flex-none"
             >
               <BriefcaseBusiness data-icon="inline-start" />
-              Criar candidatura
-            </button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+              {isApproving ? "Aprovando…" : "Aprovar"}
+            </Button>
+          </>
+        ) : (
+          <Button
+            type="button"
+            size="lg"
+            onClick={onCreateApplication}
+            className="flex-1 rounded-xl sm:flex-none"
+          >
+            <BriefcaseBusiness data-icon="inline-start" />
+            Criar candidatura
+          </Button>
+        )}
+      </div>
+    </article>
   );
 }
 
 function normalizeLeadTab(value: string | null): LeadTab {
   return value === "approved" ? "approved" : "triage";
+}
+
+function normalizeClassification(value: string | null): ClassificationFilter {
+  return value === "interesting" || value === "review" ? value : null;
+}
+
+function normalizeCompanyId(value: string | null) {
+  return value && Number.isInteger(Number(value)) ? Number(value) : null;
 }
 
 function parseSelectedLeadId(value: string | null) {
@@ -674,28 +688,8 @@ function parseSelectedLeadId(value: string | null) {
   return Number.isInteger(parsed) ? parsed : null;
 }
 
-function normalizeLeadFilters(query: {
-  q?: string;
-  status?: string;
-  companyId?: string;
-}): LeadFilters {
-  const rawQ = (query.q ?? "").trim();
-  const q = rawQ ? rawQ.toLocaleLowerCase("pt-BR") : "";
-  const status =
-    query.status === "interesting" || query.status === "review"
-      ? query.status
-      : null;
-  const companyId =
-    query.companyId && Number.isInteger(Number(query.companyId))
-      ? Number(query.companyId)
-      : null;
-
-  return {
-    rawQ,
-    q,
-    status,
-    companyId,
-  };
+function pluralizeLeads(count: number) {
+  return count === 1 ? "1 lead" : `${count} leads`;
 }
 
 function buildInitialValues(lead: LeadListItem): ApplicationCreateInitialValues {
@@ -732,17 +726,17 @@ function StatCard({
   className: string;
   icon: typeof Radar;
   label: string;
-  value: string;
+  value: number;
 }) {
   return (
     <div className={cn("rounded-2xl border p-4", className)}>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        <p className="text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
           {label}
         </p>
         <Icon className="size-3.5 shrink-0 text-foreground/70" />
       </div>
-      <p className="mt-3 text-3xl font-semibold tabular-nums text-foreground">{value}</p>
+      <p className="mt-3 text-3xl font-semibold text-foreground tabular-nums">{value}</p>
     </div>
   );
 }
@@ -757,36 +751,4 @@ function formatDate(date: Date | string | null) {
     month: "2-digit",
     year: "numeric",
   }).format(new Date(date));
-}
-
-function formatWorkModel(value: string) {
-  switch (value) {
-    case "remote":
-      return "Remoto";
-    case "hybrid":
-      return "Híbrido";
-    case "onsite":
-      return "Presencial";
-    default:
-      return value;
-  }
-}
-
-function formatSeniority(value: string) {
-  switch (value) {
-    case "intern":
-      return "Estágio";
-    case "junior":
-      return "Júnior";
-    case "mid":
-      return "Pleno";
-    case "senior":
-      return "Sênior";
-    case "staff":
-      return "Staff";
-    case "lead":
-      return "Lead";
-    default:
-      return value;
-  }
 }

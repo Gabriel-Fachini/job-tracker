@@ -6,6 +6,8 @@ const projectRoot = fileURLToPath(new URL(".", import.meta.url));
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['192.168.15.187'],
+  // Bottom-left would cover the phone tab bar while developing.
+  devIndicators: { position: "top-left" },
   outputFileTracingIncludes: {
     "/*": [
       "./uploads/**/*",

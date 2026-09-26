@@ -68,7 +68,7 @@ export type ApplicationCreateInitialValues = {
 };
 
 const controlClassName =
-  "h-10 w-full rounded-xl border border-border/70 bg-background/70 px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-10 w-full rounded-xl border border-input bg-input/30 px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 export function ApplicationCreateModal({
   companies,
@@ -77,7 +77,7 @@ export function ApplicationCreateModal({
   initialValues,
   submitAction = createApplication,
   submitLabel = "Salvar candidatura",
-  pendingLabel = "Salvando...",
+  pendingLabel = "Salvando…",
   title = "Nova candidatura",
   descriptionValue = "Registre a vaga e o status inicial do seu processo seletivo.",
 }: ApplicationCreateModalProps) {
@@ -181,17 +181,17 @@ export function ApplicationCreateModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] flex-col gap-0 p-0 sm:h-auto sm:max-h-[90vh] sm:max-w-3xl">
-        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pt-5 pb-4 sm:px-6 sm:pt-6">
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <Waypoints className="size-5 text-muted-foreground" />
+      <DialogContent sheetSize="full" className="flex flex-col gap-0 p-0 sm:max-h-[90vh] sm:max-w-3xl">
+        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pt-5 pr-14 pb-4 sm:px-6 sm:pt-6">
+          <DialogTitle className="flex items-center gap-2 text-lg leading-tight sm:text-xl">
+            <Waypoints aria-hidden className="size-5 shrink-0 text-muted-foreground" />
             {title}
           </DialogTitle>
           <DialogDescription>{descriptionValue}</DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 overflow-auto">
-          <div className="flex flex-col gap-6 px-4 pb-6 sm:px-6">
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="flex flex-col gap-6 px-4 py-5 sm:px-6">
             {/* ── Success banner ── */}
             {created ? (
               <div className="flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">
@@ -232,7 +232,7 @@ export function ApplicationCreateModal({
                   <Field>
                     <FieldLabel
                       htmlFor="title"
-                      className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                      className="text-sm font-medium text-foreground/85"
                     >
                       Título da vaga *
                     </FieldLabel>
@@ -250,7 +250,7 @@ export function ApplicationCreateModal({
                   <Field>
                     <FieldLabel
                       htmlFor="companyId"
-                      className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                      className="text-sm font-medium text-foreground/85"
                     >
                       Empresa *
                     </FieldLabel>
@@ -279,7 +279,7 @@ export function ApplicationCreateModal({
                   <Field>
                     <FieldLabel
                       htmlFor="status"
-                      className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                      className="text-sm font-medium text-foreground/85"
                     >
                       Status
                     </FieldLabel>
@@ -301,7 +301,7 @@ export function ApplicationCreateModal({
                   <Field>
                     <FieldLabel
                       htmlFor="workModel"
-                      className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                      className="text-sm font-medium text-foreground/85"
                     >
                       Modelo de trabalho
                     </FieldLabel>
@@ -324,7 +324,7 @@ export function ApplicationCreateModal({
                   <Field>
                     <FieldLabel
                       htmlFor="seniority"
-                      className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                      className="text-sm font-medium text-foreground/85"
                     >
                       Senioridade
                     </FieldLabel>
@@ -347,7 +347,7 @@ export function ApplicationCreateModal({
                   <Field>
                     <FieldLabel
                       htmlFor="sourceName"
-                      className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                      className="text-sm font-medium text-foreground/85"
                     >
                       Origem
                     </FieldLabel>
@@ -369,7 +369,7 @@ export function ApplicationCreateModal({
                   <Field className="sm:col-span-2">
                     <FieldLabel
                       htmlFor="sourceUrl"
-                      className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                      className="text-sm font-medium text-foreground/85"
                     >
                       URL original
                     </FieldLabel>
@@ -389,9 +389,9 @@ export function ApplicationCreateModal({
                   <div className="flex items-start justify-between gap-3">
                     <FieldLabel
                       htmlFor="description"
-                      className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                      className="text-sm font-medium text-foreground/85"
                     >
-                      Descrição da vaga em markdown *
+                      Descrição da vaga (markdown) *
                     </FieldLabel>
                     <Button
                       type="button"
@@ -403,12 +403,12 @@ export function ApplicationCreateModal({
                     >
                       {isFormatting ? (
                         <>
-                          <Loader2 className="mr-2 size-3.5 animate-spin" />
-                          Formatando...
+                          <Loader2 data-icon="inline-start" className="animate-spin" />
+                          Formatando…
                         </>
                       ) : (
                         <>
-                          <Sparkles className="mr-2 size-3.5" />
+                          <Sparkles data-icon="inline-start" />
                           Formatar
                         </>
                       )}
@@ -424,7 +424,7 @@ export function ApplicationCreateModal({
                       setDescription(e.target.value);
                       setDescriptionError(null);
                     }}
-                    className="min-h-52 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    className="min-h-52 rounded-xl border border-input bg-input/30 px-3 py-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                     disabled={created}
                   />
                   <FieldDescription className="mt-2">
@@ -438,7 +438,7 @@ export function ApplicationCreateModal({
                 <Field>
                   <FieldLabel
                     htmlFor="notes"
-                    className="text-[0.78rem] uppercase tracking-[0.16em] text-muted-foreground"
+                    className="text-sm font-medium text-foreground/85"
                   >
                     Notas
                   </FieldLabel>
@@ -447,7 +447,7 @@ export function ApplicationCreateModal({
                     name="notes"
                     placeholder="Observações sobre o processo..."
                     defaultValue={defaults.notes}
-                    className="min-h-20 rounded-2xl border border-border/70 bg-background/70 px-4 py-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    className="min-h-20 rounded-xl border border-input bg-input/30 px-3 py-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                     disabled={created}
                   />
                 </Field>
@@ -465,7 +465,7 @@ export function ApplicationCreateModal({
                 {resumePhase === "generating" ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="size-4 animate-spin" />
-                    Gerando currículo com IA...
+                    Gerando currículo com IA…
                   </div>
                 ) : resumePhase === "done" && pdfPath ? (
                   <div className="flex items-center gap-3">
@@ -490,25 +490,31 @@ export function ApplicationCreateModal({
           </div>
         </ScrollArea>
 
-        <div className="shrink-0 border-t border-border/60 px-6 py-4">
+        <div className="shrink-0 border-t border-border/60 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4">
           {created ? (
             <div className="flex justify-end">
-              <Button onClick={() => onOpenChange(false)}>Fechar</Button>
+              <Button size="lg" onClick={() => onOpenChange(false)} className="w-full rounded-xl sm:w-auto">
+                Fechar
+              </Button>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-end gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:justify-end sm:gap-3">
                 <Button
                   variant="outline"
+                  size="lg"
                   onClick={() => onOpenChange(false)}
                   disabled={isPending}
+                  className="rounded-xl"
                 >
                   Cancelar
                 </Button>
                 <Button
                   type="submit"
+                  size="lg"
                   form="application-create-form"
                   disabled={isPending || !hasCompanies}
+                  className="rounded-xl"
                 >
                   {isPending ? pendingLabel : submitLabel}
                 </Button>

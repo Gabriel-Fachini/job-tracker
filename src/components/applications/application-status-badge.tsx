@@ -4,7 +4,7 @@ import {
   type ApplicationStatus,
 } from "@/lib/applications";
 
-const statusClassNameMap: Record<ApplicationStatus, string> = {
+export const applicationStatusClassNameMap: Record<ApplicationStatus, string> = {
   applied:
     "border-sky-400/30 bg-sky-400/12 text-sky-100 ring-1 ring-sky-300/10",
   in_process:
@@ -25,7 +25,7 @@ type ApplicationStatusBadgeProps = {
 
 export function ApplicationStatusBadge({ status }: ApplicationStatusBadgeProps) {
   return (
-    <Badge variant="outline" className={statusClassNameMap[status]}>
+    <Badge variant="outline" className={applicationStatusClassNameMap[status]}>
       {applicationStatusLabelMap[status]}
     </Badge>
   );

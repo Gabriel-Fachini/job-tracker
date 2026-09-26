@@ -1,10 +1,10 @@
 "use client";
 
-import { X, Radar } from "lucide-react";
+import { Radar, X } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import ShinyText from "@/components/ui/shiny-text";
+import { cn } from "@/lib/utils";
 
 type MonitoringProgressEvent = {
   id: string;
@@ -33,22 +33,6 @@ type MonitoringProgressDisplayProps = {
   onDismiss: () => void;
 };
 
-const animationStyle = `
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  .animate-fade-in-up {
-    animation: fadeInUp 0.3s ease-out;
-  }
-`;
-
 export function MonitoringProgressDisplay({
   isRunning,
   currentCompany,
@@ -67,197 +51,171 @@ export function MonitoringProgressDisplay({
   }
 
   const currentEvent = events[0];
+  const progress = linksTotal > 0 ? Math.min(1, linksProcessed / linksTotal) : 0;
 
-  const getHeaderTitle = () => {
-    if (isRunning) return "Monitoramento em andamento";
-    if (result?.success === true) return "Radar concluído";
-    if (result?.success === false) return "Radar falhou";
-    return "Último monitoramento";
-  };
-
-  const getHeaderTitleColor = () => {
-    if (isRunning) return "";
-    if (result?.success === true) return "text-emerald-600";
-    if (result?.success === false) return "text-destructive";
-    return "";
-  };
+  const title = isRunning
+    ? "Radar em andamento"
+    : result?.success === false
+      ? "Radar falhou"
+      : result?.success === true
+        ? "Radar concluído"
+        : "Última varredura";
 
   return (
-    <>
-      <style>{animationStyle}</style>
-      <Card className="border-border/60 bg-card/85">
-        <CardHeader className="pb-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-1 items-center gap-3">
-              <Radar className="size-5 text-muted-foreground shrink-0" />
-              <div className="space-y-1 flex-1">
-                <h3 className={cn("text-lg font-semibold", getHeaderTitleColor())}>
-                  {getHeaderTitle()}
-                </h3>
-                {currentCompany && (
-                  <p className="text-sm text-muted-foreground">
-                    {currentCompany} ({companyIndex}/{totalCompanies})
-                    {linksTotal > 0 && ` • ${linksProcessed}/${linksTotal} vagas processadas`}
+    <section
+      aria-live="polite"
+      className="animate-in rounded-2xl border border-border/60 bg-card/80 fade-in-0 slide-in-from-top-1 duration-200"
+    >
+      <div className="flex items-start gap-3 p-4 sm:p-5">
+        <span
+          className={cn(
+            "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full border",
+            isRunning
+              ? "border-brand/30 bg-brand/10 text-brand"
+              : "border-border bg-foreground/5 text-muted-foreground",
+          )}
+        >
+          <Radar className={cn("size-4", isRunning && "motion-safe:animate-pulse")} />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <h2
+            className={cn(
+              "text-base font-semibold text-foreground",
+              result?.success === false && !isRunning && "text-destructive",
+            )}
+          >
+            {title}
+          </h2>
+          {currentCompany ? (
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">
+              {currentCompany}
+              <span className="tabular-nums">
+                {" "}
+                · {companyIndex}/{totalCompanies}
+              </span>
+            </p>
+          ) : null}
+        </div>
+
+        {isRunning ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onCancel}
+            className="shrink-0 rounded-lg"
+          >
+            <X data-icon="inline-start" />
+            Cancelar
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onDismiss}
+            aria-label="Fechar resumo do radar"
+            className="-mt-1 -mr-1 shrink-0 rounded-full text-muted-foreground"
+          >
+            <X />
+          </Button>
+        )}
+      </div>
+
+      {isRunning ? (
+        <div className="flex flex-col gap-3 px-4 pb-4 sm:px-5">
+          {currentEvent ? (
+            <div
+              key={currentEvent.id}
+              className="flex min-w-0 animate-in items-start gap-2.5 fade-in-0 slide-in-from-bottom-1 duration-300"
+            >
+              <span
+                className={cn("mt-2 size-1.5 shrink-0 rounded-full", eventDotClass[currentEvent.type])}
+              />
+              <div className="min-w-0">
+                <ShinyText
+                  text={currentEvent.message}
+                  color="#8a8a8a"
+                  shineColor="#ffffff"
+                  speed={2}
+                  className="text-sm font-medium"
+                />
+                {currentEvent.detail ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {currentEvent.detail}
                   </p>
-                )}
+                ) : null}
               </div>
             </div>
+          ) : null}
 
-            {isRunning && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onCancel}
-                className="w-full rounded-lg sm:w-auto"
+          {linksTotal > 0 ? (
+            <div className="flex items-center gap-3">
+              <div
+                role="progressbar"
+                aria-label="Vagas processadas"
+                aria-valuemin={0}
+                aria-valuemax={linksTotal}
+                aria-valuenow={linksProcessed}
+                className="h-1.5 flex-1 overflow-hidden rounded-full bg-foreground/8"
               >
-                <X className="size-4" />
-                Cancelar
-              </Button>
-            )}
-
-            {!isRunning && events.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onDismiss}
-                className="w-full rounded-lg sm:w-auto"
-              >
-                Fechar
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-
-          {/* Current Action - only while running */}
-          {isRunning && currentEvent && (
-            <Card className="border-border/60 bg-card/50">
-              <CardContent className="pt-4">
-                <div className="animate-fade-in-up">
-                  <TimelineEvent event={currentEvent} hideTime={true} isCurrentAction={true} />
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Vagas progress bar */}
-          {isRunning && linksTotal > 0 && (
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">
-                Vagas: {linksProcessed}/{linksTotal}
-              </p>
-              <div className="h-2 w-full rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-linear-to-r from-emerald-500 to-teal-500 transition-all"
-                  style={{
-                    width: `${(linksProcessed / linksTotal) * 100}%`,
-                  }}
+                  className="h-full origin-left rounded-full bg-emerald-400 transition-transform duration-300 ease-(--ease-out-quart)"
+                  style={{ transform: `scaleX(${progress})` }}
                 />
               </div>
+              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                {linksProcessed}/{linksTotal}
+              </span>
             </div>
-          )}
+          ) : null}
+        </div>
+      ) : null}
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <StatBox
-              label="Salvos"
-              value={stats.leadsSaved}
-              className="bg-emerald-500/10 border-emerald-500/20"
-            />
-            <StatBox
-              label="Revisar"
-              value={stats.reviewsSaved}
-              className="bg-amber-500/10 border-amber-500/20"
-            />
-            <StatBox
-              label="Descartados"
-              value={stats.discarded}
-              className="bg-red-500/10 border-red-500/20"
-            />
-            <StatBox
-              label="Falhas"
-              value={stats.failed}
-              className="bg-orange-500/10 border-orange-500/20"
-            />
-          </div>
-        </CardContent>
-      </Card>
-    </>
+      <dl className="grid grid-cols-4 divide-x divide-border/60 border-t border-border/60">
+        <StatBox label="Salvos" value={stats.leadsSaved} valueClassName="text-emerald-300" />
+        <StatBox label="Revisar" value={stats.reviewsSaved} valueClassName="text-amber-200" />
+        <StatBox label="Descartados" value={stats.discarded} />
+        <StatBox
+          label="Falhas"
+          value={stats.failed}
+          valueClassName={stats.failed > 0 ? "text-rose-300" : undefined}
+        />
+      </dl>
+    </section>
   );
 }
+
+const eventDotClass: Record<MonitoringProgressEvent["type"], string> = {
+  "company-start": "bg-sky-400",
+  "link-done": "bg-emerald-400",
+  "company-done": "bg-amber-300",
+  error: "bg-rose-400",
+};
 
 function StatBox({
   label,
   value,
-  className,
+  valueClassName,
 }: {
   label: string;
   value: number;
-  className: string;
+  valueClassName?: string;
 }) {
   return (
-    <div className={cn("rounded-lg border p-2 text-center", className)}>
-      <p className="text-2xl font-bold tabular-nums">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </div>
-  );
-}
-
-function TimelineEvent({
-  event,
-  hideTime = false,
-  isCurrentAction = false,
-}: {
-  event: MonitoringProgressEvent;
-  hideTime?: boolean;
-  isCurrentAction?: boolean;
-}) {
-  const timeStr = event.timestamp.toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-
-  const dotColor = {
-    "company-start": "bg-blue-500",
-    "link-done": "bg-emerald-500",
-    "company-done": "bg-amber-500",
-    error: "bg-red-500",
-  }[event.type];
-
-  return (
-    <div className={cn("flex gap-3", isCurrentAction ? "text-lg" : "text-xs")}>
-      <div
+    <div className="flex min-w-0 flex-col-reverse items-center gap-1 px-1 py-3">
+      <dt className="max-w-full truncate text-[11px] text-muted-foreground">
+        {label}
+      </dt>
+      <dd
         className={cn(
-          "mt-1 size-2 rounded-full shrink-0",
-          dotColor,
-          isCurrentAction && "size-3"
+          "text-lg leading-none font-semibold text-foreground tabular-nums",
+          valueClassName,
         )}
-      />
-      <div className="flex-1 space-y-0.5">
-        <div className="flex items-center justify-between gap-2">
-          {isCurrentAction ? (
-            <ShinyText
-              text={event.message}
-              color="#6b7280"
-              shineColor="#ffffff"
-              speed={2}
-              className="text-base font-semibold"
-            />
-          ) : (
-            <p className="font-medium text-foreground">
-              {event.message}
-            </p>
-          )}
-          {!hideTime && <span className="text-muted-foreground">{timeStr}</span>}
-        </div>
-        {event.detail && (
-          <p className={cn("text-muted-foreground", isCurrentAction && "text-sm")}>
-            {event.detail}
-          </p>
-        )}
-      </div>
+      >
+        {value}
+      </dd>
     </div>
   );
 }

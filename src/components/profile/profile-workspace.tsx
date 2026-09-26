@@ -44,18 +44,18 @@ export function ProfileWorkspace({ profileSnapshot }: ProfileWorkspaceProps) {
     >
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(72,161,108,0.16),transparent_32%),radial-gradient(circle_at_85%_14%,rgba(35,96,67,0.22),transparent_26%),linear-gradient(180deg,rgba(10,10,10,0.08),transparent_20%)]" />
 
-      <header className="flex flex-col gap-6 px-1 py-2">
+      <header className="flex flex-col gap-4 sm:gap-6 sm:px-1 sm:py-2">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex max-w-3xl flex-col gap-2">
-            <h1 className="font-[family:var(--font-profile-display)] text-4xl leading-none text-stone-50 sm:text-6xl">
+          <div className="flex max-w-3xl flex-col gap-1.5 sm:gap-2">
+            <h1 className="font-[family:var(--font-profile-display)] text-[2.6rem] leading-none text-stone-50 sm:text-6xl">
               Meu perfil
             </h1>
-            <p className="max-w-2xl text-[1.02rem] leading-8 text-stone-400">
+            <p className="max-w-2xl text-sm leading-6 text-stone-400 sm:text-[1.02rem] sm:leading-8">
               Seu perfil profissional e materiais principais.
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3">
             <ProfileUploadPanel />
 
             {profileSnapshot ? (
@@ -65,8 +65,9 @@ export function ProfileWorkspace({ profileSnapshot }: ProfileWorkspaceProps) {
                 size="lg"
                 type="button"
               >
-                  <FilePenLine data-icon="inline-start" />
-                  Editar perfil
+                <FilePenLine data-icon="inline-start" />
+                <span className="sm:hidden">Editar</span>
+                <span className="hidden sm:inline">Editar perfil</span>
               </Button>
             ) : null}
           </div>
@@ -74,7 +75,7 @@ export function ProfileWorkspace({ profileSnapshot }: ProfileWorkspaceProps) {
 
         {profileSnapshot ? (
           <div className="flex flex-wrap items-center gap-3 text-sm text-stone-400">
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/18 bg-emerald-500/6 px-3 py-1.5 text-emerald-200">
+            <span className="hidden items-center gap-2 rounded-full border border-emerald-400/18 bg-emerald-500/6 px-3 py-1.5 text-emerald-200 sm:inline-flex">
               <Sparkles className="size-4 text-emerald-300" />
               Edição inline por seção disponível
             </span>

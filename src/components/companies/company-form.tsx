@@ -61,11 +61,19 @@ type CompanyFormProps = {
   values: CompanyFormValues;
 };
 
+const atsProviderOptions = [
+  { value: "auto", label: "Detectar automaticamente" },
+  { value: "greenhouse", label: "Greenhouse" },
+  { value: "gupy", label: "Gupy" },
+  { value: "inhire", label: "InHire" },
+  { value: "generic", label: "Genérico (HTML)" },
+] as const;
+
 const inputClassName =
-  "h-11 w-full rounded-xl border border-border/70 bg-background/75 px-3 text-sm text-foreground transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-11 w-full rounded-xl border border-input bg-input/30 px-3 text-sm text-foreground transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 const textareaClassName =
-  "min-h-36 rounded-2xl border border-border/70 bg-background/75 px-4 py-3 text-sm text-foreground transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "min-h-36 rounded-xl border border-input bg-input/30 px-3 py-3 text-sm text-foreground transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 export function CompanyForm({
   action,
@@ -78,9 +86,9 @@ export function CompanyForm({
 }: CompanyFormProps) {
   return (
     <form action={action} className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_320px]">
-      <Card className="overflow-hidden border-border/60 bg-card/85 shadow-[0_24px_80px_rgba(0,0,0,0.24)]">
-        <CardHeader className="border-b border-border/40 pb-5">
-          <CardTitle className="font-heading text-2xl text-balance">
+      <Card className="overflow-hidden border-border/60 bg-card/85">
+        <CardHeader className="border-b border-border/40 pb-4 sm:pb-5">
+          <CardTitle className="font-heading text-lg text-balance sm:text-2xl">
             {title}
           </CardTitle>
           <CardDescription className="max-w-2xl text-sm leading-6 text-muted-foreground">
@@ -88,7 +96,7 @@ export function CompanyForm({
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="flex flex-col gap-8 pt-6">
+        <CardContent className="flex flex-col gap-8 pt-5 sm:pt-6">
           <FieldSet>
             <FieldLegend>Identidade da empresa</FieldLegend>
             <FieldDescription>
@@ -104,7 +112,7 @@ export function CompanyForm({
                   name="name"
                   required
                   defaultValue={values.name}
-                  placeholder="Ex.: Nubank"
+                  placeholder="Ex.: Nimbus Pagamentos"
                   className={inputClassName}
                 />
               </Field>
@@ -124,6 +132,8 @@ export function CompanyForm({
                   id="company-website"
                   name="website"
                   type="url"
+                  inputMode="url"
+                  autoComplete="url"
                   defaultValue={values.website}
                   placeholder="https://empresa.com"
                   className={inputClassName}
@@ -131,7 +141,7 @@ export function CompanyForm({
               </Field>
               <Field>
                 <FieldLabel htmlFor="company-size">Porte</FieldLabel>
-                <Select defaultValue={values.size || undefined} name="size">
+                <Select items={companySizeOptions} defaultValue={values.size || undefined} name="size">
                   <SelectTrigger className="h-11 w-full rounded-xl">
                     <SelectValue placeholder="Selecione o porte" />
                   </SelectTrigger>
@@ -163,6 +173,7 @@ export function CompanyForm({
                   id="company-jobs-board"
                   name="jobsBoardUrl"
                   type="url"
+                  inputMode="url"
                   defaultValue={values.jobsBoardUrl}
                   placeholder="https://careers.empresa.com"
                   className={inputClassName}
@@ -174,6 +185,7 @@ export function CompanyForm({
                   id="company-glassdoor"
                   name="glassdoorUrl"
                   type="url"
+                  inputMode="url"
                   defaultValue={values.glassdoorUrl}
                   placeholder="https://www.glassdoor.com/..."
                   className={inputClassName}
@@ -184,6 +196,7 @@ export function CompanyForm({
                   Navegação do job board
                 </FieldLabel>
                 <Select
+                  items={companyJobBoardNavigationModeOptions}
                   defaultValue={values.jobBoardNavigationMode || "fetch"}
                   name="jobBoardNavigationMode"
                 >
@@ -213,6 +226,7 @@ export function CompanyForm({
                   Provedor de ATS
                 </FieldLabel>
                 <Select
+                  items={atsProviderOptions}
                   defaultValue={values.atsProvider || "auto"}
                   name="atsProvider"
                 >
@@ -224,11 +238,11 @@ export function CompanyForm({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value="auto">Detectar automaticamente</SelectItem>
-                      <SelectItem value="greenhouse">Greenhouse</SelectItem>
-                      <SelectItem value="gupy">Gupy</SelectItem>
-                      <SelectItem value="inhire">InHire</SelectItem>
-                      <SelectItem value="generic">Genérico (HTML)</SelectItem>
+                      {atsProviderOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
                     </SelectGroup>
                   </SelectContent>
                 </Select>
@@ -239,7 +253,7 @@ export function CompanyForm({
               </Field>
               <Field className="md:col-span-2">
                 <FieldLabel htmlFor="company-status">Status da empresa</FieldLabel>
-                <Select defaultValue={values.status || "monitoring"} name="status">
+                <Select items={companyStatusOptions} defaultValue={values.status || "monitoring"} name="status">
                   <SelectTrigger className="h-11 w-full rounded-xl" id="company-status">
                     <SelectValue placeholder="Selecione o status" />
                   </SelectTrigger>
@@ -274,23 +288,25 @@ export function CompanyForm({
           </Field>
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-3 border-t border-border/40 bg-background/20 px-6 py-5 sm:flex-row sm:justify-end">
+        <CardFooter className="grid grid-cols-2 gap-2 border-t border-border/40 bg-background/20 px-4 py-4 sm:flex sm:justify-end sm:gap-3 sm:px-6 sm:py-5">
           <Link
             href={cancelHref}
-            className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto")}
+            className={cn(buttonVariants({ variant: "outline", size: "lg" }), "rounded-xl")}
           >
             Cancelar
           </Link>
           <FormSubmitButton
             pendingLabel={submitPendingLabel}
-            className="w-full sm:w-auto"
+            size="lg"
+            className="rounded-xl"
           >
             {submitLabel}
           </FormSubmitButton>
         </CardFooter>
       </Card>
 
-      <div className="grid gap-4">
+      {/* Context notes; on phones they'd only push the form further down. */}
+      <div className="hidden gap-4 lg:grid">
         <Card className="border-emerald-400/20 bg-emerald-400/6">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base text-emerald-100">
