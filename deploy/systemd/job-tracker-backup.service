@@ -1,0 +1,12 @@
+[Unit]
+Description=Job Tracker daily SQLite backup
+
+[Service]
+Type=oneshot
+User=jobtracker
+Group=jobtracker
+EnvironmentFile=/etc/job-tracker/env
+Environment=BACKUP_DIR=/var/lib/job-tracker/backups
+ExecStart=/srv/job-tracker/current/scripts/backup-db.sh
+NoNewPrivileges=true
+PrivateTmp=true

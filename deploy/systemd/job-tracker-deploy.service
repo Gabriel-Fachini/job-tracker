@@ -1,0 +1,11 @@
+[Unit]
+Description=Job Tracker auto-deploy (origin/main)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/job-tracker-deploy
+# Build (~5 min) + waiting for an in-progress monitoring run (up to 30 min).
+TimeoutStartSec=60min
+Nice=10

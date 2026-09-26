@@ -4,7 +4,9 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-BACKUP_DIR="$PROJECT_ROOT/backups"
+# DATABASE_URL / BACKUP_DIR let the server reuse this script; without them it uses the local project paths.
+DB_PATH="${DATABASE_URL:-$PROJECT_ROOT/job-tracker.db}"
+BACKUP_DIR="${BACKUP_DIR:-$PROJECT_ROOT/backups}"
 DAILY_DIR="$BACKUP_DIR/daily"
 WEEKLY_DIR="$BACKUP_DIR/weekly"
 MONTHLY_DIR="$BACKUP_DIR/monthly"
@@ -25,8 +27,9 @@ log_message() {
 log_message "Backup started"
 
 # Online backup via sqlite3 API
-TEMP_DB="/tmp/job-tracker-snap.db"
-if ! sqlite3 "$PROJECT_ROOT/job-tracker.db" ".backup $TEMP_DB" 2>&1 | tee -a "$LOG_FILE"; then
+TEMP_DB="$(mktemp "${TMPDIR:-/tmp}/job-tracker-snap.XXXXXX")"
+trap 'rm -f "$TEMP_DB" "$TEMP_DB.gz"' EXIT
+if ! sqlite3 "$DB_PATH" ".backup '$TEMP_DB'" 2>&1 | tee -a "$LOG_FILE"; then
   log_message "ERROR: sqlite3 backup failed"
   exit 1
 fi
