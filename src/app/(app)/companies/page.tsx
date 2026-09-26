@@ -26,6 +26,8 @@ import { applications, companies, jobs } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
 import { runAllCompaniesMonitoring } from "@/server/actions/job-monitoring";
 
+export const dynamic = "force-dynamic";
+
 type CompanyListItem = {
   id: number;
   name: string;

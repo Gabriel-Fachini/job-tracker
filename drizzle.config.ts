@@ -5,7 +5,7 @@ export default defineConfig({
   schema: "./src/lib/db/schema.ts",
   dialect: "sqlite",
   dbCredentials: {
-    url: "./job-tracker.db",
+    url: process.env.DATABASE_URL ?? "./job-tracker.db",
   },
   strict: true,
   verbose: true,

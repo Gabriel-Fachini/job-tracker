@@ -2,14 +2,14 @@
 
 import { useActionState, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Building2, CheckCircle2, FileText, FolderOpen, Loader2, Sparkles, Waypoints } from "lucide-react";
+import { Building2, CheckCircle2, ExternalLink, FileText, Loader2, Sparkles, Waypoints } from "lucide-react";
 
 import {
   createApplication,
   type ApplicationCreateResult,
   formatApplicationDescriptionWithAi,
 } from "@/server/actions/applications";
-import { generateResume, openResumeInFinder } from "@/server/actions/resume";
+import { generateResume } from "@/server/actions/resume";
 import { applicationStatusOptions } from "@/lib/applications";
 import {
   seniorityOptions,
@@ -140,10 +140,6 @@ export function ApplicationCreateModal({
 
   const [state, formAction, isPending] = useActionState(handleSubmit, null);
   const hasSubmitError = state && !state.success;
-
-  function handleOpenInFinder() {
-    if (pdfPath) openResumeInFinder(pdfPath);
-  }
 
   async function handleFormatDescription() {
     if (!defaults.description && !description) return;
@@ -474,10 +470,15 @@ export function ApplicationCreateModal({
                 ) : resumePhase === "done" && pdfPath ? (
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-green-400">Currículo gerado com sucesso.</span>
-                    <Button size="sm" variant="outline" onClick={handleOpenInFinder} className="gap-1.5">
-                      <FolderOpen className="size-3.5" />
-                      Abrir no Finder
-                    </Button>
+                    <a
+                      href={`/api/applications/${applicationId}/generated-resume`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+                    >
+                      <ExternalLink className="size-3.5" />
+                      Abrir PDF
+                    </a>
                   </div>
                 ) : resumePhase === "error" && resumeError ? (
                   <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">

@@ -7,6 +7,8 @@ import { normalizeApplicationStatus } from "@/lib/applications";
 import { db } from "@/lib/db";
 import { applications, applicationStages, companies, jobs } from "@/lib/db/schema";
 
+export const dynamic = "force-dynamic";
+
 export default async function ApplicationsPage() {
   const rows = db
     .select({

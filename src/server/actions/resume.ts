@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { eq } from "drizzle-orm";
 
+import { getUploadsRoot } from "@/lib/applications/resume-upload";
 import { db } from "@/lib/db";
 import { applications, jobs, companies } from "@/lib/db/schema";
 import { getProfileSnapshot } from "@/lib/profile/queries";
@@ -69,7 +70,7 @@ export async function generateResume(
     const resumeData = buildResumeData(profile, aiSelection);
     const tex = renderResumeTex(resumeData);
 
-    const outDir = path.resolve("uploads/resumes/generated");
+    const outDir = path.join(getUploadsRoot(), "resumes", "generated");
     fs.mkdirSync(outDir, { recursive: true });
 
     const slug = sanitizeFilename(row.companyName);
@@ -95,8 +96,4 @@ export async function generateResume(
     const message = err instanceof Error ? err.message : String(err);
     return { success: false, error: `Falha ao gerar currículo: ${message}` };
   }
-}
-
-export async function openResumeInFinder(filePath: string): Promise<void> {
-  execFileSync("open", ["-R", filePath], { timeout: 5_000 });
 }

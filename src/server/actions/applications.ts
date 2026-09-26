@@ -392,7 +392,7 @@ export async function updateApplicationDescription(
   }
 
   const current = db
-    .select({ id: applications.id })
+    .select({ id: applications.id, jobId: applications.jobId })
     .from(applications)
     .where(eq(applications.id, applicationId))
     .get();
@@ -401,10 +401,18 @@ export async function updateApplicationDescription(
     return { success: false, error: "not_found" };
   }
 
-  db.update(applications)
-    .set({ description: description.trim() || null, updatedAt: new Date() })
-    .where(eq(applications.id, applicationId))
-    .run();
+  // A descrição exibida na candidatura vem de jobs.description (applications não tem essa coluna).
+  db.transaction((tx) => {
+    tx.update(jobs)
+      .set({ description: description.trim() || null })
+      .where(eq(jobs.id, current.jobId))
+      .run();
+
+    tx.update(applications)
+      .set({ updatedAt: new Date() })
+      .where(eq(applications.id, applicationId))
+      .run();
+  });
 
   revalidatePath("/applications");
   return { success: true };

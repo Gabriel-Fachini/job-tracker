@@ -11,7 +11,6 @@ import {
   ExternalLink,
   FileText,
   FileUp,
-  FolderOpen,
   Loader2,
   FileX2,
   Hash,
@@ -59,7 +58,7 @@ import {
   updateApplicationStage,
   updateJobContext,
 } from "@/server/actions/applications";
-import { generateResume, openResumeInFinder } from "@/server/actions/resume";
+import { generateResume } from "@/server/actions/resume";
 
 export type ApplicationStageData = {
   id: number;
@@ -563,11 +562,6 @@ function UsedResumeSection({
     });
   }
 
-  function handleOpenInFinder() {
-    const path = pdfPath ?? savedGeneratedResumePath;
-    if (path) openResumeInFinder(path);
-  }
-
   async function uploadResume(file: File) {
     const formData = new FormData();
     formData.set("file", file);
@@ -793,10 +787,6 @@ function UsedResumeSection({
                   >
                     Abrir PDF
                   </a>
-                  <Button type="button" variant="ghost" size="sm" onClick={handleOpenInFinder} className="rounded-xl gap-1.5 text-muted-foreground">
-                    <FolderOpen className="size-3.5" />
-                    Finder
-                  </Button>
                   <Button type="button" variant="ghost" size="sm" onClick={handleGenerateResume} disabled={isGenerating} className="rounded-xl gap-1.5 text-muted-foreground">
                     Gerar novamente
                   </Button>

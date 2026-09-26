@@ -7,6 +7,8 @@ import { db } from "@/lib/db";
 import { companies, jobLeads } from "@/lib/db/schema";
 import { mapRawLeadToListItem } from "@/lib/job-leads/mapper";
 
+export const dynamic = "force-dynamic";
+
 export default async function LeadsPage() {
   const items = db
     .select({
