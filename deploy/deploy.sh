@@ -44,6 +44,13 @@ fail() {
   exit 1
 }
 
+# Server config problems are not the commit's fault: no failure marker, so the next tick
+# deploys on its own once the config is fixed.
+abort() {
+  log "ABORTED: $1 — keeping current version"
+  exit 1
+}
+
 switch_to() {
   as_app ln -sfn "$1" "$CURRENT_LINK.new"
   as_app mv -Tf "$CURRENT_LINK.new" "$CURRENT_LINK"
@@ -97,6 +104,17 @@ if [[ "${FORCE:-0}" != "1" ]]; then
   fi
 fi
 
+# Fail closed on a broken env: never build or migrate against a database that does not exist
+# (sqlite3/drizzle would silently create an empty one).
+db_path="$(as_app bash -c 'set -e; set -a; . "$1"; printf "%s" "${DATABASE_URL:-}"' _ "$ENV_FILE")" \
+  || abort "cannot load $ENV_FILE"
+if [[ "$db_path" != /* ]]; then
+  abort "DATABASE_URL in $ENV_FILE must be an absolute path (got '$db_path')"
+fi
+if [[ ! -f "$db_path" ]]; then
+  abort "database not found at $db_path (DATABASE_URL in $ENV_FILE)"
+fi
+
 release="$RELEASES_DIR/$(date +%Y%m%d-%H%M%S)-${target_sha:0:7}"
 log "deploying ${target_sha:0:7} (current: ${current_sha:0:7}) → $release"
 
@@ -117,14 +135,11 @@ if ! wait_for_idle_run; then
   exit 0
 fi
 
-db_path="$(grep -E '^DATABASE_URL=' "$ENV_FILE" | cut -d= -f2- | tr -d '"')"
-if [[ -f "$db_path" ]]; then
-  snapshot="$PRE_DEPLOY_BACKUP_DIR/job-tracker-$(date +%Y%m%d-%H%M%S)-${target_sha:0:7}.db"
-  as_app mkdir -p "$PRE_DEPLOY_BACKUP_DIR"
-  as_app sqlite3 "$db_path" ".backup '$snapshot'" || fail "pre-deploy backup"
-  as_app gzip -9 "$snapshot"
-  ls -1t "$PRE_DEPLOY_BACKUP_DIR"/*.db.gz | tail -n +$(( KEEP_PRE_DEPLOY_BACKUPS + 1 )) | xargs -r rm -f
-fi
+snapshot="$PRE_DEPLOY_BACKUP_DIR/job-tracker-$(date +%Y%m%d-%H%M%S)-${target_sha:0:7}.db"
+as_app mkdir -p "$PRE_DEPLOY_BACKUP_DIR"
+as_app sqlite3 "$db_path" ".backup '$snapshot'" || fail "pre-deploy backup"
+as_app gzip -9 "$snapshot"
+ls -1t "$PRE_DEPLOY_BACKUP_DIR"/*.db.gz | tail -n +$(( KEEP_PRE_DEPLOY_BACKUPS + 1 )) | xargs -r rm -f
 in_release npx drizzle-kit migrate || fail "migrations (pre-deploy backup in $PRE_DEPLOY_BACKUP_DIR)"
 
 previous=""
