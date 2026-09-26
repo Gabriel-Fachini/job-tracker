@@ -41,15 +41,24 @@ function SheetContent({
   children,
   side = "right",
   showCloseButton = true,
+  initialFocus,
   ...props
 }: SheetPrimitive.Popup.Props & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
 }) {
+  const popupRef = React.useRef<HTMLDivElement>(null)
+
   return (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Popup
+        ref={popupRef}
+        // Touch opens focus the panel, not its first input (no surprise keyboard).
+        initialFocus={
+          initialFocus ??
+          ((openType) => (openType === "touch" ? popupRef.current : true))
+        }
         data-slot="sheet-content"
         data-side={side}
         className={cn(
@@ -65,14 +74,14 @@ function SheetContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-3 right-3"
+                className="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-3"
                 size="icon-sm"
               />
             }
           >
             <XIcon
             />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">Fechar</span>
           </SheetPrimitive.Close>
         )}
       </SheetPrimitive.Popup>

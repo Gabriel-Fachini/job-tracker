@@ -25,20 +25,30 @@ export function PeriodFilter({ current }: PeriodFilterProps) {
   }
 
   return (
-    <div className="grid w-full grid-cols-3 gap-1 rounded-xl border border-border/50 bg-card/40 p-1 sm:flex sm:w-auto sm:items-center">
-      {OPTIONS.map((opt) => (
-        <button
-          key={opt.value}
-          onClick={() => select(opt.value)}
-          className={`rounded-lg px-3 py-2 text-xs font-medium transition-all ${
-            current === opt.value
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
+    <div
+      role="group"
+      aria-label="Período"
+      className="grid w-full grid-cols-3 gap-1 rounded-xl border border-border/60 bg-card/50 p-1 sm:flex sm:w-auto sm:items-center"
+    >
+      {OPTIONS.map((opt) => {
+        const isActive = current === opt.value;
+
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            aria-pressed={isActive}
+            onClick={() => select(opt.value)}
+            className={`h-8 rounded-lg px-3.5 text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-9 ${
+              isActive
+                ? "bg-foreground/12 text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

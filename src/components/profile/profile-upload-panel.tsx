@@ -290,10 +290,11 @@ export function ProfileUploadPanel() {
         }
       >
         <FileUp data-icon="inline-start" />
-        Atualizar currículo
+        <span className="sm:hidden">Currículo</span>
+        <span className="hidden sm:inline">Atualizar currículo</span>
       </DialogTrigger>
-      <DialogContent className="h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] p-0 sm:h-auto sm:max-w-2xl">
-        <DialogHeader className="gap-1 border-b px-4 py-4">
+      <DialogContent className="flex flex-col gap-0 p-0 sm:max-h-[90vh] sm:max-w-2xl">
+        <DialogHeader className="shrink-0 gap-1 border-b px-4 pt-5 pr-14 pb-4 sm:pt-4">
           <DialogTitle>Upload do currículo master</DialogTitle>
           <DialogDescription>
             Envie um PDF para salvar o currículo original em disco, extrair o
@@ -301,7 +302,7 @@ export function ProfileUploadPanel() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-1 flex-col gap-6 overflow-auto px-4 py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-4 py-4 sm:gap-6">
           <form
             className="flex flex-col gap-4"
             onSubmit={(e) => {
@@ -314,7 +315,7 @@ export function ProfileUploadPanel() {
               <input
                 ref={fileInputRef}
                 accept="application/pdf,.pdf"
-                className="block w-full rounded-lg border border-dashed border-border bg-background px-5 py-7 text-base text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:border-primary/45"
+                className="block w-full min-w-0 rounded-xl border border-dashed border-border bg-background px-4 py-6 text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:border-primary/45 sm:px-5 sm:py-7 sm:text-base"
                 name="file"
                 required
                 type="file"
@@ -327,7 +328,7 @@ export function ProfileUploadPanel() {
                 permanece fora desta interface.
               </p>
               <Button
-                className="border-emerald-400/18 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/16"
+                className="h-11 w-full rounded-xl border-emerald-400/18 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/16 sm:h-9 sm:w-auto"
                 disabled={isLoading}
                 type="submit"
                 variant="outline"
@@ -337,7 +338,7 @@ export function ProfileUploadPanel() {
                 ) : (
                   <FileUp data-icon="inline-start" />
                 )}
-                {isLoading ? "Extraindo..." : "Enviar e extrair"}
+                {isLoading ? "Extraindo…" : "Enviar e extrair"}
               </Button>
             </div>
           </form>

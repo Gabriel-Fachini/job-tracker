@@ -21,8 +21,13 @@ type MonitoringRunButtonProps = {
   action?: () => Promise<MonitoringActionResult>;
   label: string;
   pendingLabel: string;
+  /** Replaces `label` on phones, where the button shares a row with the title. */
+  shortLabel?: string;
   className?: string;
+  variant?: React.ComponentProps<typeof Button>["variant"];
   useStream?: boolean;
+  /** Hide when a progress panel on the same screen already offers Cancel. */
+  showCancel?: boolean;
   onProgressChange?: (progress: MonitoringProgress) => void;
   onLeadAppended?: (lead: LeadListItem) => void;
   onComplete?: () => void;
@@ -50,27 +55,27 @@ export function MonitoringRunButton({
   action,
   label,
   pendingLabel,
+  shortLabel,
   className,
+  variant = "brand",
   useStream = false,
+  showCancel = true,
 }: MonitoringRunButtonProps) {
   const [isPending, startTransition] = useTransition();
   const contextProgress = useMonitoringProgress();
   const { startMonitoring, cancelMonitoring } = useMonitoringActions();
 
-  const isRunning = contextProgress?.isRunning ?? isPending;
+  // A finished stream run leaves progress in context; the action's own pending
+  // state must still count.
+  const isStreamRunning = contextProgress?.isRunning ?? false;
+  const isRunning = isStreamRunning || isPending;
 
-  const displayLabel = (() => {
-    if (!isRunning) return label;
-
-    if (contextProgress?.currentCompany) {
-      if (contextProgress.linksTotal > 0) {
-        return `${pendingLabel} - ${contextProgress.currentCompany} (${contextProgress.linksProcessed}/${contextProgress.linksTotal})`;
-      }
-      return `${pendingLabel} - ${contextProgress.currentCompany}`;
-    }
-
-    return pendingLabel;
-  })();
+  const progressDetail =
+    isStreamRunning && contextProgress?.currentCompany
+      ? contextProgress.linksTotal > 0
+        ? `${contextProgress.currentCompany} (${contextProgress.linksProcessed}/${contextProgress.linksTotal})`
+        : contextProgress.currentCompany
+      : null;
 
   function handleClick() {
     if (!action) {
@@ -86,30 +91,40 @@ export function MonitoringRunButton({
   }
 
   return (
-    <div className="flex flex-col items-start gap-2">
-      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-        <Button
-          type="button"
-          onClick={handleClick}
-          disabled={isRunning}
-          className={cn("w-full sm:w-auto", className)}
-        >
-          <RefreshCw className={cn(isRunning && "animate-spin")} />
-          {displayLabel}
-        </Button>
-
-        {isRunning && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={cancelMonitoring}
-            className="w-full rounded-lg sm:w-auto"
-          >
-            Cancelar
-          </Button>
+    <div className="flex items-center gap-2">
+      <Button
+        type="button"
+        variant={variant}
+        onClick={handleClick}
+        disabled={isRunning}
+        className={cn("min-w-0", className)}
+      >
+        <RefreshCw
+          data-icon="inline-start"
+          className={cn(isRunning && "motion-safe:animate-spin")}
+        />
+        {isRunning ? (
+          <span className="truncate">
+            {pendingLabel}
+            {progressDetail ? (
+              <span className="hidden sm:inline"> · {progressDetail}</span>
+            ) : null}
+          </span>
+        ) : shortLabel ? (
+          <>
+            <span className="sm:hidden">{shortLabel}</span>
+            <span className="hidden sm:inline">{label}</span>
+          </>
+        ) : (
+          label
         )}
-      </div>
+      </Button>
+
+      {showCancel && isStreamRunning ? (
+        <Button type="button" variant="outline" onClick={cancelMonitoring}>
+          Cancelar
+        </Button>
+      ) : null}
     </div>
   );
 }

@@ -46,6 +46,10 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 :root {
@@ -81,6 +85,16 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --brand: oklch(0.879 0.169 91.6);
+  --brand-foreground: oklch(0.141 0.005 285.8);
+
+  /* Layering: sticky UI < mobile nav < overlays (dialogs, sheets, selects use z-50). */
+  --z-sticky: 30;
+  --z-nav: 40;
+  --z-action-bar: 45;
+
+  /* Fixed mobile tab bar; content reserves this space plus the home-indicator inset. */
+  --mobile-nav-height: 4rem;
 }
 
 .dark {
@@ -96,7 +110,7 @@
   --secondary: oklch(0.31 0 0);
   --secondary-foreground: oklch(0.93 0 0);
   --muted: oklch(0.31 0 0);
-  --muted-foreground: oklch(0.60 0 0);
+  --muted-foreground: oklch(0.66 0 0);
   --accent: oklch(0.31 0 0);
   --accent-foreground: oklch(0.93 0 0);
   --destructive: oklch(0.704 0.191 22.216);
@@ -160,11 +174,67 @@
   }
   html {
     @apply font-sans;
+    -webkit-tap-highlight-color: transparent;
   }
 
+  /* The bottom inset is owned by the mobile tab bar and the content padding. */
   body {
     padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  @media (width < 48rem) {
+    html {
+      scroll-padding-bottom: calc(
+        var(--mobile-nav-height) + env(safe-area-inset-bottom) + 1rem
+      );
+    }
+  }
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/*
+ * Unlayered on purpose so these beat utility classes.
+ * iOS Safari zooms into any focused control under 16px; touch users get
+ * 16px controls everywhere instead of a page that jumps on every tap.
+ */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* The keyboard covers the tab bar anyway; get it out of the way while typing. */
+@media (width < 48rem) and (pointer: coarse) {
+  html:has(
+      :is(
+          input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="button"], [type="submit"]),
+          textarea
+        ):focus
+    )
+    [data-slot="mobile-nav"] {
+    translate: 0 110%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

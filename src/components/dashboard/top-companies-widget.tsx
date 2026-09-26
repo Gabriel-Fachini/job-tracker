@@ -34,22 +34,22 @@ export function TopCompaniesWidget({ rows }: TopCompaniesWidgetProps) {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border/30">
-              <th className="pb-2 text-left font-medium text-muted-foreground/60">
+              <th className="pb-2 text-left font-medium text-muted-foreground">
                 Empresa
               </th>
-              <th className="pb-2 text-right font-medium text-muted-foreground/60">
+              <th className="pb-2 text-right font-medium text-muted-foreground">
                 Leads
               </th>
-              <th className="pb-2 text-right font-medium text-muted-foreground/60">
+              <th className="pb-2 text-right font-medium text-muted-foreground">
                 % inter.
               </th>
-              <th className="pb-2 text-right font-medium text-muted-foreground/60">
+              <th className="hidden pb-2 text-right font-medium text-muted-foreground sm:table-cell">
                 Score
               </th>
-              <th className="pb-2 text-right font-medium text-muted-foreground/60">
+              <th className="hidden pb-2 text-right font-medium text-muted-foreground sm:table-cell">
                 Apps
               </th>
-              <th className="pb-2 text-right font-medium text-muted-foreground/60">
+              <th className="pb-2 text-right font-medium text-muted-foreground">
                 Sinal
               </th>
             </tr>
@@ -68,8 +68,8 @@ export function TopCompaniesWidget({ rows }: TopCompaniesWidgetProps) {
                 >
                   <td className="py-2 pr-3">
                     <Link
-                      href={`/leads?company=${row.id}`}
-                      className="font-medium text-foreground/90 hover:text-foreground"
+                      href={`/leads?companyId=${row.id}`}
+                      className="block max-w-[9.5rem] truncate py-1 font-medium text-foreground/90 hover:text-foreground sm:max-w-none"
                     >
                       {row.name}
                     </Link>
@@ -90,10 +90,10 @@ export function TopCompaniesWidget({ rows }: TopCompaniesWidgetProps) {
                       {row.interestingPct}%
                     </span>
                   </td>
-                  <td className="py-2 text-right tabular-nums text-muted-foreground/60">
+                  <td className="hidden py-2 text-right tabular-nums text-muted-foreground sm:table-cell">
                     {row.avgScore ?? "—"}
                   </td>
-                  <td className="py-2 text-right tabular-nums text-muted-foreground/60">
+                  <td className="hidden py-2 text-right tabular-nums text-muted-foreground sm:table-cell">
                     {row.apps > 0 ? (
                       <span className="text-emerald-400">{row.apps}</span>
                     ) : (

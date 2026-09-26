@@ -7,15 +7,15 @@ export const jobStatusOptions = [
 
 export const workModelOptions = [
   { value: "remote", label: "Remoto" },
-  { value: "hybrid", label: "Hibrido" },
+  { value: "hybrid", label: "Híbrido" },
   { value: "onsite", label: "Presencial" },
 ] as const;
 
 export const seniorityOptions = [
-  { value: "intern", label: "Estagio" },
-  { value: "junior", label: "Junior" },
+  { value: "intern", label: "Estágio" },
+  { value: "junior", label: "Júnior" },
   { value: "mid", label: "Pleno" },
-  { value: "senior", label: "Senior" },
+  { value: "senior", label: "Sênior" },
   { value: "staff", label: "Staff" },
   { value: "lead", label: "Lead" },
 ] as const;

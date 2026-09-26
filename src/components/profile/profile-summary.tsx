@@ -67,6 +67,16 @@ type EditableSection =
   | "projects"
   | "education";
 
+const sectionLabels: Record<EditableSection, string> = {
+  basics: "dados básicos",
+  links: "links",
+  preferences: "preferências",
+  experiences: "experiências",
+  skills: "habilidades",
+  projects: "projetos",
+  education: "formação",
+};
+
 type ProfileSummaryProps = {
   activeSection: EditableSection | null;
   onActiveSectionChange: (section: EditableSection | null) => void;
@@ -280,7 +290,7 @@ export function ProfileSummary({
         id="profile-overview"
         className="relative overflow-hidden rounded-[1.9rem] border border-emerald-400/16 bg-[linear-gradient(180deg,rgba(23,31,26,0.98),rgba(17,24,20,0.98))] shadow-[0_28px_80px_rgba(0,0,0,0.34)]"
       >
-        <div className="absolute top-6 right-6 z-10">
+        <div className="absolute top-4 right-4 z-10 sm:top-6 sm:right-6">
           <SectionActionButtons
             activeSection={activeSection}
             isPending={isPending}
@@ -290,23 +300,23 @@ export function ProfileSummary({
             section="basics"
           />
         </div>
-        <div className="grid gap-8 px-6 py-6 md:px-7 md:py-7 xl:grid-cols-[minmax(0,1.55fr)_290px]">
-          <div className="flex min-w-0 flex-col gap-6">
-            <div className="flex items-start gap-4 pr-28">
-              <div className="flex flex-1 flex-col gap-5 md:flex-row md:items-start">
-                <div className="relative flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-emerald-100/80 bg-[radial-gradient(circle_at_35%_30%,rgba(255,255,255,0.32),transparent_24%),linear-gradient(160deg,rgba(63,125,90,0.95),rgba(27,61,43,0.98))] text-4xl font-semibold text-white shadow-[0_20px_44px_rgba(0,0,0,0.42)]">
+        <div className="grid gap-6 px-4 py-5 sm:gap-8 sm:px-6 sm:py-6 md:px-7 md:py-7 xl:grid-cols-[minmax(0,1.55fr)_290px]">
+          <div className="flex min-w-0 flex-col gap-5 sm:gap-6">
+            <div className="flex items-start gap-4 md:pr-28">
+              <div className="flex min-w-0 flex-1 flex-col gap-4 sm:gap-5 md:flex-row md:items-start">
+                <div className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-emerald-100/80 bg-[radial-gradient(circle_at_35%_30%,rgba(255,255,255,0.32),transparent_24%),linear-gradient(160deg,rgba(63,125,90,0.95),rgba(27,61,43,0.98))] text-2xl font-semibold text-white shadow-[0_20px_44px_rgba(0,0,0,0.42)] sm:size-28 sm:text-4xl">
                   <div className="absolute inset-[16%] rounded-full bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.32),transparent_28%),linear-gradient(180deg,rgba(32,33,37,0.12),rgba(17,17,17,0.55))]" />
                   <span className="relative z-10">{getInitials(draft.fullName)}</span>
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-[2.6rem] leading-none font-[family:var(--font-profile-display)] text-stone-50 md:text-[3.1rem]">
+                  <h2 className="text-[2.2rem] leading-none font-[family:var(--font-profile-display)] break-words text-balance text-stone-50 sm:text-[2.6rem] md:text-[3.1rem]">
                     {draft.fullName}
                   </h2>
                   <p className="mt-2 text-[1.08rem] text-emerald-300/90">
                     {currentExperience?.role || "Cargo principal ainda não definido"}
                   </p>
-                  <p className="mt-3 max-w-3xl text-[0.97rem] leading-8 text-stone-300/78">
+                  <p className="mt-3 max-w-3xl text-[0.97rem] leading-7 text-pretty text-stone-300/78 sm:leading-8">
                     {summaryText}
                   </p>
                 </div>
@@ -327,7 +337,7 @@ export function ProfileSummary({
             ) : null}
 
             {activeSection === "basics" ? (
-              <div className="grid gap-4 rounded-[1.4rem] border border-emerald-400/14 bg-black/10 p-4 md:grid-cols-2">
+              <div className="grid gap-4 rounded-[1.4rem] border border-emerald-400/14 bg-black/10 p-3 sm:p-4 md:grid-cols-2">
                 <FormField label="Nome completo">
                   <Input
                     onChange={(event) => updateRootField("fullName", event.target.value)}
@@ -545,7 +555,7 @@ export function ProfileSummary({
           <div className="space-y-4">
             {draft.experiences.map((experience, index) => (
               <div
-                className="rounded-[1.3rem] border border-white/8 bg-white/[0.03] p-4"
+                className="rounded-[1.3rem] border border-white/8 bg-white/[0.03] p-3 sm:p-4"
                 key={experience.clientId}
               >
                 <div className="mb-4 flex items-center justify-between gap-3">
@@ -574,9 +584,10 @@ export function ProfileSummary({
                           : current,
                       )
                     }
-                    size="sm"
+                    size="icon-sm"
                     type="button"
                     variant="ghost"
+                    aria-label={`Remover experiência ${index + 1}`}
                   >
                     <Trash2 className="size-4" />
                   </Button>
@@ -670,9 +681,9 @@ export function ProfileSummary({
                   </FormField>
                 </div>
 
-                <div className="mt-4 rounded-[1.1rem] border border-white/8 bg-black/10 p-4">
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <div>
+                <div className="mt-4 rounded-[1.1rem] border border-white/8 bg-black/10 p-3 sm:p-4">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
                       <p className="text-sm font-medium text-stone-100">Bullet points</p>
                       <p className="text-sm text-stone-400">
                         Expanda os detalhes da experiência com resultados e tags.
@@ -716,9 +727,10 @@ export function ProfileSummary({
                                     : [createEmptyBullet()],
                               }))
                             }
-                            size="sm"
+                            size="icon-sm"
                             type="button"
                             variant="ghost"
+                            aria-label={`Remover bullet ${bulletIndex + 1}`}
                           >
                             <Trash2 className="size-4" />
                           </Button>
@@ -889,7 +901,7 @@ export function ProfileSummary({
           <div className="space-y-4">
             {draft.projects.map((project, index) => (
               <div
-                className="rounded-[1.3rem] border border-white/8 bg-white/[0.03] p-4"
+                className="rounded-[1.3rem] border border-white/8 bg-white/[0.03] p-3 sm:p-4"
                 key={project.clientId}
               >
                 <div className="mb-4 flex items-center justify-between gap-3">
@@ -914,9 +926,10 @@ export function ProfileSummary({
                           : current,
                       )
                     }
-                    size="sm"
+                    size="icon-sm"
                     type="button"
                     variant="ghost"
+                    aria-label={`Remover projeto ${index + 1}`}
                   >
                     <Trash2 className="size-4" />
                   </Button>
@@ -1084,7 +1097,7 @@ export function ProfileSummary({
             <div className="space-y-3">
               {draft.skills.map((skill, index) => (
                 <div
-                  className="grid gap-3 rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_120px_auto]"
+                  className="grid gap-3 rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-3 sm:p-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_120px_auto]"
                   key={skill.clientId}
                 >
                   <FormField label="Nome">
@@ -1254,7 +1267,7 @@ export function ProfileSummary({
             <div className="space-y-3">
               {draft.education.map((education, index) => (
                 <div
-                  className="grid gap-3 rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-4 md:grid-cols-2"
+                  className="grid gap-3 rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-3 sm:p-4 md:grid-cols-2"
                   key={education.clientId}
                 >
                   <div className="md:col-span-2 flex items-center justify-between gap-3">
@@ -1283,9 +1296,10 @@ export function ProfileSummary({
                             : current,
                         )
                       }
-                      size="sm"
+                      size="icon-sm"
                       type="button"
                       variant="ghost"
+                      aria-label={`Remover formação ${index + 1}`}
                     >
                       <Trash2 className="size-4" />
                     </Button>
@@ -1391,6 +1405,40 @@ export function ProfileSummary({
           )}
         </PanelCard>
       </section>
+
+      {/* Phones: while a section is in edit mode, save/cancel stay under the
+          thumb and replace the tab bar instead of living at the section top. */}
+      {activeSection ? (
+        <div className="fixed inset-x-0 bottom-0 z-(--z-action-bar) animate-in border-t border-emerald-400/20 bg-[rgb(19,24,21)] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] fade-in-0 slide-in-from-bottom-3 duration-200 md:hidden">
+          <p className="mb-2 text-xs text-stone-400">
+            Editando {sectionLabels[activeSection]}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              className="h-11 rounded-xl border-white/10 text-stone-200"
+              disabled={isPending}
+              onClick={resetToSnapshot}
+              type="button"
+              variant="outline"
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="h-11 rounded-xl bg-emerald-500 text-emerald-950 hover:bg-emerald-400"
+              disabled={isPending}
+              onClick={saveSection}
+              type="button"
+            >
+              {isPending ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                <Save className="size-4" />
+              )}
+              {isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1407,15 +1455,17 @@ function PanelCard({
   title: string;
 }) {
   return (
-    <section className="relative rounded-[1.55rem] border border-white/7 bg-[linear-gradient(180deg,rgba(25,30,27,0.98),rgba(20,24,22,0.98))] px-5 py-5 shadow-[0_18px_40px_rgba(0,0,0,0.16)]">
-      {action ? <div className="absolute top-5 right-5 z-10">{action}</div> : null}
-      <div className="mb-4 flex items-center gap-3 pr-28">
-        <span className="flex size-9 items-center justify-center rounded-full border border-emerald-400/16 bg-emerald-500/8 text-emerald-200">
-          <Icon className="size-4" />
-        </span>
-        <h3 className="font-[family:var(--font-profile-display)] text-[1.9rem] leading-none text-stone-100">
-          {title}
-        </h3>
+    <section className="relative min-w-0 rounded-[1.55rem] border border-white/7 bg-[linear-gradient(180deg,rgba(25,30,27,0.98),rgba(20,24,22,0.98))] px-4 py-4 shadow-[0_18px_40px_rgba(0,0,0,0.16)] sm:px-5 sm:py-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-emerald-400/16 bg-emerald-500/8 text-emerald-200">
+            <Icon className="size-4" />
+          </span>
+          <h3 className="truncate font-[family:var(--font-profile-display)] text-[1.6rem] leading-none text-stone-100 sm:text-[1.9rem]">
+            {title}
+          </h3>
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
       </div>
       {children}
     </section>
@@ -1443,7 +1493,8 @@ function SectionActionButtons({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {isActive ? (
-        <>
+        // Phones save and cancel from the pinned edit bar instead.
+        <div className="hidden items-center gap-2 md:flex">
           <Button
             className="h-9 rounded-[0.85rem] border-white/10 text-stone-200 hover:bg-white/[0.04]"
             onClick={onCancel}
@@ -1469,10 +1520,11 @@ function SectionActionButtons({
             )}
             Salvar
           </Button>
-        </>
+        </div>
       ) : (
         <Button
-          className="h-9 rounded-[0.85rem] border-emerald-400/18 bg-emerald-500/8 text-emerald-100 hover:bg-emerald-500/14"
+          aria-label={`Editar ${sectionLabels[section]}`}
+          className="size-9 rounded-[0.85rem] border-emerald-400/18 bg-emerald-500/8 p-0 text-emerald-100 hover:bg-emerald-500/14 sm:w-auto sm:px-2.5"
           disabled={isDisabled}
           onClick={onEdit}
           size="sm"
@@ -1480,7 +1532,7 @@ function SectionActionButtons({
           variant="outline"
         >
           <PenLine className="size-4" />
-          Editar
+          <span className="hidden sm:inline">Editar</span>
         </Button>
       )}
     </div>
@@ -1496,19 +1548,19 @@ function ContactLine({
 }) {
   return (
     <div className="flex items-center gap-3 text-sm text-stone-300/82">
-      <span className="flex size-8 items-center justify-center rounded-full border border-white/8 bg-white/[0.03] text-stone-300/72">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-white/8 bg-white/[0.03] text-stone-300/72">
         <Icon className="size-4" />
       </span>
-      <span>{text}</span>
+      <span className="min-w-0 break-all">{text}</span>
     </div>
   );
 }
 
 function ReadRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid grid-cols-[140px_minmax(0,1fr)] gap-3 text-sm">
+    <div className="grid gap-0.5 text-sm sm:grid-cols-[140px_minmax(0,1fr)] sm:gap-3">
       <span className="text-stone-400">{label}</span>
-      <span className="text-stone-200/88">{value}</span>
+      <span className="break-words text-stone-200/88">{value}</span>
     </div>
   );
 }

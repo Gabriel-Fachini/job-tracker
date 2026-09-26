@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { desc, eq, sql } from "drizzle-orm";
 import {
-  ArrowUpRight,
   BriefcaseBusiness,
   Building2,
+  ChevronRight,
   Globe2,
+  Plus,
   Radar,
   ScanSearch,
   ShieldBan,
@@ -13,13 +14,9 @@ import {
 
 import { CompanyStatusBadge } from "@/components/companies/company-status-badge";
 import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
+import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Chip } from "@/components/ui/chip";
 import { getCompanySizeLabel, isCompanyStatus } from "@/lib/companies";
 import { db } from "@/lib/db";
 import { applications, companies, jobs } from "@/lib/db/schema";
@@ -44,74 +41,51 @@ function CompanyCard({ item }: { item: CompanyListItem }) {
   const hasApplications = item.applicationsCount > 0;
 
   return (
-    <Card className="relative overflow-hidden border border-border/60 bg-card transition-all duration-200 hover:border-border/90 hover:shadow-[0_8px_40px_rgba(0,0,0,0.28)]">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
-      <CardHeader className="pb-3 pt-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <CardTitle className="break-words text-lg leading-snug text-foreground">
+    <article className="group relative flex h-full flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 transition-colors duration-150 hover:border-border has-[a:active]:bg-card/70 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base leading-snug font-semibold break-words text-foreground sm:text-lg">
+            {/* Stretched link: the whole card opens the company. */}
+            <Link
+              href={`/companies/${item.id}`}
+              className="outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-ring"
+            >
               {item.name}
-            </CardTitle>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <Globe2 className="size-3 shrink-0 text-muted-foreground/70" />
-              <span className="truncate text-sm text-muted-foreground">
-                {item.website || "Sem site registrado"}
-              </span>
-            </div>
-          </div>
-          <div className="shrink-0">
-            {isCompanyStatus(item.status) ? (
-              <CompanyStatusBadge status={item.status} />
-            ) : null}
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="flex flex-col gap-4 pb-4 pt-0">
-        <div className="flex flex-wrap gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-            <Building2 className="size-2.5" />
-            {item.sector || "Setor não informado"}
-          </span>
-          {sizeLabel ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/20 bg-violet-400/8 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-violet-300/80">
-              <Radar className="size-2.5" />
-              {sizeLabel}
+            </Link>
+          </h3>
+          <p className="mt-1 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+            <Globe2 aria-hidden className="size-3.5 shrink-0" />
+            <span className="truncate">
+              {item.website ? readableUrl(item.website) : "Sem site registrado"}
             </span>
-          ) : null}
-          <span
-            className={cn(
-              "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em]",
-              hasApplications
-                ? "border border-sky-400/20 bg-sky-400/8 text-sky-300/80"
-                : "border border-border/60 bg-muted/20 text-muted-foreground",
-            )}
-          >
-            <BriefcaseBusiness className="size-2.5" />
-            {item.applicationsCount === 1
-              ? "1 candidatura"
-              : `${item.applicationsCount} candidaturas`}
-          </span>
+          </p>
         </div>
+        {isCompanyStatus(item.status) ? (
+          <CompanyStatusBadge status={item.status} />
+        ) : null}
+      </div>
 
-        <div className="flex flex-col items-start gap-3 border-t border-border/40 pt-3 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground/60">
-            Atualizada em {formatDate(item.updatedAt)}
-          </span>
-          <Link
-            href={`/companies/${item.id}`}
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "w-full rounded-lg text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground/80 sm:w-auto",
-            )}
-          >
-            Ver painel
-            <ArrowUpRight data-icon="inline-end" className="size-3.5" />
-          </Link>
-        </div>
-      </CardContent>
-    </Card>
+      <div className="flex flex-wrap gap-1.5">
+        <Chip tone={item.sector ? "neutral" : "muted"}>
+          {item.sector || "Setor não informado"}
+        </Chip>
+        {sizeLabel ? <Chip>{sizeLabel}</Chip> : null}
+        <Chip tone={hasApplications ? "info" : "muted"}>
+          <BriefcaseBusiness aria-hidden />
+          {item.applicationsCount === 1
+            ? "1 candidatura"
+            : `${item.applicationsCount} candidaturas`}
+        </Chip>
+      </div>
+
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-border/40 pt-3 text-xs text-muted-foreground">
+        <span>Atualizada em {formatDate(item.updatedAt)}</span>
+        <span className="flex items-center gap-0.5 font-medium text-foreground/70 transition-colors group-hover:text-foreground">
+          Ver painel
+          <ChevronRight aria-hidden className="size-3.5" />
+        </span>
+      </div>
+    </article>
   );
 }
 
@@ -184,26 +158,45 @@ export default async function CompaniesPage() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-8">
-      <div className="flex flex-col gap-1.5">
-        <h1 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-          Empresas
-        </h1>
-        <p className="max-w-2xl text-base text-muted-foreground">
-          Centralize as organizações que valem acompanhamento antes, durante e
-          depois das candidaturas.
-        </p>
-      </div>
+    <div className="flex flex-1 flex-col gap-5 sm:gap-8">
+      <PageHeader
+        title="Empresas"
+        description="Organizações que valem acompanhamento antes, durante e depois das candidaturas."
+        actions={
+          <Link
+            href="/companies/new"
+            className={cn(
+              buttonVariants({ variant: "brand", size: "lg" }),
+              "h-10 rounded-xl px-4 sm:h-11 sm:px-5",
+            )}
+          >
+            <Plus data-icon="inline-start" />
+            <span className="sm:hidden">Nova</span>
+            <span className="hidden sm:inline">Nova empresa</span>
+          </Link>
+        }
+      />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {/* Compact status strip on phones; roomier cards from md up. */}
+      <dl className="grid grid-cols-4 divide-x divide-border/60 rounded-2xl border border-border/60 bg-card/50 md:hidden">
+        {statCards.map(({ label, count, textClass }) => (
+          <div key={label} className="flex min-w-0 flex-col-reverse items-center gap-1 px-1 py-3">
+            <dt className="max-w-full truncate text-[11px] text-muted-foreground">{label}</dt>
+            <dd className={cn("text-xl leading-none font-semibold tabular-nums", textClass)}>
+              {count}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="hidden gap-3 md:grid md:grid-cols-4">
         {statCards.map(({ label, count, icon: Icon, colorClass, iconClass, textClass }) => (
           <div
             key={label}
-            className={`relative overflow-hidden rounded-2xl border p-4 transition-all ${colorClass}`}
+            className={`relative overflow-hidden rounded-2xl border p-4 ${colorClass}`}
           >
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/12 to-transparent" />
             <div className="flex items-start justify-between gap-2">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              <p className="text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
                 {label}
               </p>
               <Icon className={`size-3.5 shrink-0 ${iconClass}`} />
@@ -215,83 +208,72 @@ export default async function CompaniesPage() {
         ))}
       </div>
 
-      <div className="h-px bg-border/40" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          {totalCompanies === 0
+            ? "Nenhuma empresa registrada ainda"
+            : `${totalCompanies === 1 ? "1 empresa" : `${totalCompanies} empresas`} · ${
+                totalLinkedApplications === 1
+                  ? "1 candidatura conectada"
+                  : `${totalLinkedApplications} candidaturas conectadas`
+              }`}
+        </p>
 
-      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-0.5">
-          <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground/70">
-            Radar de empresas
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {totalCompanies === 0
-              ? "Nenhuma empresa registrada ainda"
-              : totalCompanies === 1
-                ? `1 empresa registrada · ${totalLinkedApplications} candidatura conectada`
-                : `${totalCompanies} empresas registradas · ${totalLinkedApplications} candidaturas conectadas`}
-          </p>
-        </div>
-
-      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-2">
           <MonitoringRunButton
             action={runAllCompaniesMonitoring}
             label="Rodar varredura"
-            pendingLabel="Rodando varredura..."
-            className="h-11 rounded-xl"
+            pendingLabel="Varrendo…"
+            variant="outline"
+            className="rounded-xl"
           />
           <Link
             href="/leads"
-            className={cn(buttonVariants({ variant: "outline", size: "lg" }), "h-11 rounded-xl")}
+            className={cn(buttonVariants({ variant: "ghost" }), "hidden rounded-xl md:inline-flex")}
           >
             <Radar data-icon="inline-start" />
             Ver leads
-          </Link>
-          <Link
-            href="/companies/new"
-            className={cn(
-              buttonVariants({ size: "lg" }),
-              "h-11 w-full justify-center rounded-xl bg-amber-300 px-6 text-zinc-950 shadow-[0_8px_28px_rgba(252,211,77,0.28)] transition-all hover:bg-amber-200 hover:shadow-[0_12px_36px_rgba(252,211,77,0.36)] sm:w-auto sm:min-w-44",
-            )}
-          >
-            <Building2 data-icon="inline-start" />
-            Nova empresa
           </Link>
         </div>
       </div>
 
       {rows.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-border/50 bg-card/40 py-20 text-center">
-          <div className="flex size-16 items-center justify-center rounded-2xl border border-border/60 bg-muted/30">
-            <Building2 className="size-7 text-muted-foreground/50" />
+        <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-border/50 bg-card/40 px-6 py-16 text-center">
+          <div className="flex size-14 items-center justify-center rounded-2xl border border-border/60 bg-muted/30">
+            <Building2 className="size-6 text-muted-foreground" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <p className="text-base font-medium text-foreground/80">
+            <p className="text-base font-medium text-foreground/85">
               Nenhuma empresa registrada
             </p>
-            <p className="max-w-xs text-sm text-muted-foreground">
+            <p className="max-w-xs text-sm text-pretty text-muted-foreground">
               Comece pelas empresas que você quer observar com calma, mesmo antes
               de existir uma vaga ativa.
             </p>
           </div>
           <Link
             href="/companies/new"
-            className={cn(
-              buttonVariants(),
-              "mt-1 h-10 rounded-xl bg-amber-300 px-5 text-zinc-950 hover:bg-amber-200",
-            )}
+            className={cn(buttonVariants({ variant: "brand" }), "h-10 rounded-xl px-5")}
           >
             <Building2 data-icon="inline-start" />
             Cadastrar primeira empresa
           </Link>
         </div>
       ) : (
-        <div className="grid gap-3 lg:grid-cols-2">
+        <ul className="grid gap-3 lg:grid-cols-2">
           {rows.map((row) => (
-            <CompanyCard key={row.id} item={row} />
+            <li key={row.id} className="min-w-0">
+              <CompanyCard item={row} />
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );
+}
+
+function readableUrl(value: string) {
+  return value.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "");
 }
 
 function formatDate(date: Date | null) {

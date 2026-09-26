@@ -1,15 +1,20 @@
 "use client"
 
-import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
+import { useIsMobile } from "@/hooks/use-mobile"
+
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const isMobile = useIsMobile()
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      // The app is dark-only; there is no ThemeProvider to read from.
+      theme="dark"
+      // Bottom of the screen belongs to the tab bar and sheet actions on phones.
+      position={isMobile ? "top-center" : "bottom-right"}
+      mobileOffset={{ top: "calc(env(safe-area-inset-top) + 0.75rem)" }}
       className="toaster group"
       icons={{
         success: (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { PencilLine } from "lucide-react";
 
 import {
@@ -50,11 +50,13 @@ type EditCompanySheetProps = {
   canDelete: boolean;
 };
 
+const EDIT_FORM_ID = "edit-company-form";
+
 const inputClassName =
-  "h-11 w-full rounded-xl border border-border/70 bg-background/75 px-3 text-sm text-foreground transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-11 w-full rounded-xl border border-input bg-input/30 px-3 text-sm text-foreground transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 const textareaClassName =
-  "min-h-36 rounded-2xl border border-border/70 bg-background/75 px-4 py-3 text-sm text-foreground transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "min-h-36 rounded-xl border border-input bg-input/30 px-3 py-3 text-sm text-foreground transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 export function EditCompanySheet({
   action,
@@ -65,38 +67,43 @@ export function EditCompanySheet({
   canDelete,
 }: EditCompanySheetProps) {
   const [open, setOpen] = useState(hasValidationError || hasLinkedApplicationsError);
+  // The save button lives in the pinned footer, outside the form element.
+  const [isSaving, startSaving] = useTransition();
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger render={<Button variant="outline" size="sm" className="shrink-0 rounded-xl" />}>
-        <PencilLine className="size-3.5" />
+      <SheetTrigger render={<Button variant="outline" size="sm" className="shrink-0 rounded-lg" />}>
+        <PencilLine data-icon="inline-start" />
         Editar
       </SheetTrigger>
       <SheetContent
         side="right"
         showCloseButton
-        className="flex h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] flex-col gap-0 p-0 sm:h-full sm:max-w-xl"
+        className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:border-l-0 data-[side=right]:sm:w-[min(36rem,92vw)] data-[side=right]:sm:max-w-none data-[side=right]:sm:border-l"
       >
-        <SheetHeader className="shrink-0 border-b border-border/40 p-4 sm:p-6">
-          <SheetTitle>Editar empresa</SheetTitle>
+        <SheetHeader className="shrink-0 border-b border-border/40 px-4 pt-[max(1rem,env(safe-area-inset-top))] pr-14 pb-4 sm:px-6 sm:pt-6">
+          <SheetTitle className="text-lg">Editar empresa</SheetTitle>
           <SheetDescription>
-            Atualize a ficha sem perder o vínculo com as candidaturas já
-            associadas.
+            As candidaturas associadas continuam vinculadas.
           </SheetDescription>
         </SheetHeader>
 
-        <form action={action} className="flex min-h-0 flex-1 flex-col overflow-hidden gap-0">
-          <ScrollArea className="flex-1 min-h-0">
-            <div className="flex flex-col gap-8 px-4 py-5 sm:px-6 sm:py-6">
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="flex flex-col gap-8 px-4 py-5 sm:px-6 sm:py-6">
+            <form
+              id={EDIT_FORM_ID}
+              action={(formData) => startSaving(() => action(formData))}
+              className="flex flex-col gap-8"
+            >
               {hasValidationError ? (
-                <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-5 py-4 text-sm text-destructive">
+                <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                   Não foi possível atualizar a empresa. Revise o nome e as URLs
                   informadas.
                 </div>
               ) : null}
 
               <FieldSet>
-                <FieldLegend>Identidade da empresa</FieldLegend>
+                <FieldLegend>Identidade</FieldLegend>
                 <FieldGroup className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="edit-company-name">Nome *</FieldLabel>
@@ -104,8 +111,9 @@ export function EditCompanySheet({
                       id="edit-company-name"
                       name="name"
                       required
+                      autoComplete="organization"
                       defaultValue={values.name}
-                      placeholder="Ex.: Nubank"
+                      placeholder="Ex.: Nimbus Pagamentos"
                       className={inputClassName}
                     />
                   </Field>
@@ -125,6 +133,8 @@ export function EditCompanySheet({
                       id="edit-company-website"
                       name="website"
                       type="url"
+                      inputMode="url"
+                      autoComplete="url"
                       defaultValue={values.website}
                       placeholder="https://empresa.com"
                       className={inputClassName}
@@ -132,7 +142,7 @@ export function EditCompanySheet({
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="edit-company-size">Porte</FieldLabel>
-                    <Select defaultValue={values.size || undefined} name="size">
+                    <Select items={companySizeOptions} defaultValue={values.size || undefined} name="size">
                       <SelectTrigger className="h-11 w-full rounded-xl" id="edit-company-size">
                         <SelectValue placeholder="Selecione o porte" />
                       </SelectTrigger>
@@ -161,6 +171,7 @@ export function EditCompanySheet({
                       id="edit-company-jobs-board"
                       name="jobsBoardUrl"
                       type="url"
+                      inputMode="url"
                       defaultValue={values.jobsBoardUrl}
                       placeholder="https://careers.empresa.com"
                       className={inputClassName}
@@ -174,6 +185,7 @@ export function EditCompanySheet({
                       id="edit-company-glassdoor"
                       name="glassdoorUrl"
                       type="url"
+                      inputMode="url"
                       defaultValue={values.glassdoorUrl}
                       placeholder="https://www.glassdoor.com/..."
                       className={inputClassName}
@@ -184,6 +196,7 @@ export function EditCompanySheet({
                       Navegação do job board
                     </FieldLabel>
                     <Select
+                      items={companyJobBoardNavigationModeOptions}
                       defaultValue={values.jobBoardNavigationMode || "fetch"}
                       name="jobBoardNavigationMode"
                     >
@@ -201,15 +214,15 @@ export function EditCompanySheet({
                       </SelectContent>
                     </Select>
                     <FieldDescription>
-                      Use browser renderizado apenas quando o board depender de
-                      paginação client-side.
+                      Browser renderizado só quando o board pagina no client-side.
                     </FieldDescription>
                   </Field>
-                  <Field className="sm:col-span-2">
+                  <Field>
                     <FieldLabel htmlFor="edit-company-status">
                       Status da empresa
                     </FieldLabel>
                     <Select
+                      items={companyStatusOptions}
                       defaultValue={values.status || "monitoring"}
                       name="status"
                     >
@@ -229,12 +242,12 @@ export function EditCompanySheet({
                         </SelectGroup>
                       </SelectContent>
                     </Select>
-                    <FieldDescription>
-                      `Em processo` é aplicado automaticamente com candidaturas
-                      em {companyAutomationStatusLabels.join(", ")}. `Blacklist`
-                      não é sobrescrito pelo sync automático.
-                    </FieldDescription>
                   </Field>
+                  <FieldDescription className="sm:col-span-2">
+                    Em processo é aplicado automaticamente com candidaturas em{" "}
+                    {companyAutomationStatusLabels.join(", ")}. Blacklist não é
+                    sobrescrito pelo sync automático.
+                  </FieldDescription>
                 </FieldGroup>
               </FieldSet>
 
@@ -244,47 +257,56 @@ export function EditCompanySheet({
                   id="edit-company-notes"
                   name="notes"
                   defaultValue={values.notes}
-                  placeholder="Anote sinais, impressões sobre cultura, ritmo de resposta e observações estratégicas."
+                  placeholder="Sinais, impressões sobre cultura, ritmo de resposta, observações estratégicas."
                   className={textareaClassName}
                 />
               </Field>
-            </div>
-          </ScrollArea>
+            </form>
 
-          <div className="shrink-0 border-t border-border/40 bg-background/20 px-4 py-5 sm:px-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-              <SheetClose render={<Button type="button" variant="outline" className="rounded-xl" />}>
-                Cancelar
-              </SheetClose>
-              <FormSubmitButton pendingLabel="Salvando ajustes...">
-                Salvar ajustes
-              </FormSubmitButton>
-            </div>
-          </div>
-
-        </form>
-
-        <div className="shrink-0 border-t border-border/40 px-6 py-5">
-          {hasLinkedApplicationsError ? (
-            <p className="mb-3 text-sm text-amber-300/90">
-              Empresa com candidaturas vinculadas não pode ser excluída.
-            </p>
-          ) : null}
-          {!canDelete && !hasLinkedApplicationsError ? (
-            <p className="mb-3 text-xs text-muted-foreground">
-              Exclusão disponível apenas quando não há candidaturas vinculadas.
-            </p>
-          ) : null}
-          <form action={deleteAction} className="w-full">
-            <FormSubmitButton
-              pendingLabel="Excluindo..."
-              variant="destructive"
-              className="w-full rounded-xl"
-              disabled={!canDelete}
+            {/* A separate form: it can't nest inside the edit form above. */}
+            <form
+              action={deleteAction}
+              className="flex flex-col gap-3 rounded-2xl border border-destructive/25 p-4"
             >
-              Excluir empresa
-            </FormSubmitButton>
-          </form>
+              <div>
+                <p className="text-sm font-medium text-foreground">Excluir empresa</p>
+                <p className="mt-1 text-sm text-pretty text-muted-foreground">
+                  {hasLinkedApplicationsError
+                    ? "Empresa com candidaturas vinculadas não pode ser excluída."
+                    : canDelete
+                      ? "Remove a empresa da base. Não dá para desfazer."
+                      : "Disponível apenas quando não há candidaturas vinculadas."}
+                </p>
+              </div>
+              <FormSubmitButton
+                pendingLabel="Excluindo…"
+                variant="destructive"
+                className="w-full rounded-xl sm:w-auto sm:self-start"
+                disabled={!canDelete}
+              >
+                Excluir empresa
+              </FormSubmitButton>
+            </form>
+          </div>
+        </ScrollArea>
+
+        <div className="shrink-0 border-t border-border/40 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end sm:gap-3">
+            <SheetClose
+              render={<Button type="button" variant="outline" size="lg" className="rounded-xl" />}
+            >
+              Cancelar
+            </SheetClose>
+            <Button
+              type="submit"
+              form={EDIT_FORM_ID}
+              size="lg"
+              disabled={isSaving}
+              className="rounded-xl"
+            >
+              {isSaving ? "Salvando…" : "Salvar ajustes"}
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

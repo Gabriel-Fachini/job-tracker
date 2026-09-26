@@ -105,42 +105,45 @@ export default async function CompanyDetailPage({
   const boundRunMonitoringAction = runCompanyMonitoring.bind(null, company.id);
 
   return (
-    <div className="flex flex-1 flex-col gap-8">
-      <div className="flex flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-5 sm:gap-8">
+      <div className="flex flex-col gap-3 sm:gap-4">
         <Link
           href="/companies"
-          className={cn(buttonVariants({ variant: "ghost" }), "w-fit rounded-xl")}
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "-ml-2 w-fit rounded-lg text-muted-foreground",
+          )}
         >
           <ChevronLeft data-icon="inline-start" />
-          Voltar para empresas
+          Empresas
         </Link>
 
-        <section className="relative overflow-hidden rounded-[2rem] border border-border/50 bg-[radial-gradient(circle_at_top_left,rgba(52,211,153,0.16),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.14),transparent_28%),linear-gradient(180deg,rgba(24,24,27,0.96),rgba(18,18,20,0.92))] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] sm:p-7 lg:p-9">
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_340px] xl:items-end">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-3">
+        <section className="relative overflow-hidden rounded-3xl border border-border/50 bg-[radial-gradient(circle_at_top_left,rgba(52,211,153,0.14),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.12),transparent_30%),linear-gradient(180deg,rgba(24,24,27,0.96),rgba(18,18,20,0.92))] p-4 sm:rounded-[2rem] sm:p-7 lg:p-9">
+          <div className="grid gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1.1fr)_320px] xl:items-end">
+            <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
+              <div className="flex flex-wrap items-center gap-2.5">
                 {isCompanyStatus(company.status) ? (
                   <CompanyStatusBadge status={company.status} />
                 ) : null}
-                <span className="text-xs uppercase tracking-[0.22em] text-zinc-400">
+                <span className="text-xs text-zinc-400">
                   {getCompanySizeLabel(company.size) || "Porte não informado"}
                 </span>
               </div>
               <div className="flex flex-col gap-2">
-                <h1 className="break-words font-heading text-3xl font-semibold tracking-tight text-balance text-white sm:text-4xl lg:text-5xl">
+                <h1 className="font-heading text-[1.75rem] leading-tight font-semibold tracking-tight break-words text-balance text-white sm:text-4xl lg:text-5xl">
                   {company.name}
                 </h1>
-                <p className="max-w-2xl text-base leading-7 text-zinc-300">
+                <p className="max-w-2xl text-sm leading-6 text-pretty text-zinc-300 sm:text-base sm:leading-7">
                   {company.notes ||
-                    "Sem notas salvas ainda. Use este espaço para registrar contexto de cultura, timing, impressão de entrevistas e sinais de mercado."}
+                    "Sem notas ainda. Registre aqui cultura, timing, impressões de entrevistas e sinais de mercado."}
                 </p>
               </div>
             </div>
 
-            <div className="grid gap-3 rounded-[1.75rem] border border-white/8 bg-black/20 p-4 backdrop-blur-sm">
+            <dl className="grid grid-cols-3 divide-x divide-white/8 rounded-2xl border border-white/8 bg-black/25 xl:grid-cols-1 xl:divide-x-0 xl:divide-y">
               <StatPanel
                 icon={Radar}
-                label="Candidaturas ligadas"
+                label="Candidaturas"
                 value={String(relatedApplications.length)}
               />
               <StatPanel
@@ -150,27 +153,27 @@ export default async function CompanyDetailPage({
               />
               <StatPanel
                 icon={Clock3}
-                label="Última atualização"
-                value={formatDate(company.updatedAt)}
+                label="Atualizada"
+                value={formatShortDate(company.updatedAt)}
               />
-            </div>
+            </dl>
           </div>
         </section>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-        <Card className="border-border/60 bg-card/85 shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
-          <CardHeader className="border-b border-border/40 pb-5">
-            <CardTitle className="font-heading text-2xl">
+      <div className="grid gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+        <Card className="border-border/60 bg-card/85">
+          <CardHeader className="border-b border-border/40 pb-4">
+            <CardTitle className="font-heading text-lg sm:text-xl">
               Candidaturas associadas
             </CardTitle>
-            <CardDescription className="text-sm leading-6 text-muted-foreground">
-              Tudo que já toca esta empresa aparece aqui como contexto operacional.
+            <CardDescription className="text-sm text-pretty text-muted-foreground">
+              Tudo que já toca esta empresa, como contexto operacional.
             </CardDescription>
           </CardHeader>
-          <CardContent className="pt-6">
+          <CardContent className="px-0 pt-0">
             {relatedApplications.length === 0 ? (
-              <Empty className="border border-dashed border-border/50 bg-background/30 py-14">
+              <Empty className="py-12">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
                     <ScanSearch />
@@ -193,127 +196,122 @@ export default async function CompanyDetailPage({
               </Empty>
             ) : (
               <>
-              <div className="grid gap-3 md:hidden">
-                {relatedApplications.map((application) => (
-                  <Card key={application.applicationId} className="border-border/50 bg-background/25">
-                    <CardContent className="flex flex-col gap-3 p-4">
-                      <div className="flex flex-col gap-2">
-                        <span className="font-medium text-foreground">{application.title}</span>
-                        {application.status && isApplicationStatus(application.status) ? (
-                          <ApplicationStatusBadge status={application.status} />
-                        ) : null}
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 text-sm text-muted-foreground">
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground/70">Modelo</p>
-                          <p>{formatWorkModel(application.workModel)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground/70">Atualizada</p>
-                          <p>{formatDate(application.updatedAt)}</p>
-                        </div>
-                      </div>
-                      {application.notes ? (
-                        <p className="text-sm leading-6 text-muted-foreground">{application.notes}</p>
-                      ) : null}
+                <ul className="divide-y divide-border/40 md:hidden">
+                  {relatedApplications.map((application) => (
+                    <li key={application.applicationId} className="relative">
                       <Link
                         href={`/applications?applicationId=${application.applicationId}`}
-                        className={cn(buttonVariants({ variant: "outline" }), "w-full rounded-xl")}
+                        className="flex flex-col gap-1.5 px-4 py-3.5 transition-colors active:bg-foreground/5"
                       >
-                        Abrir card
-                      </Link>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              <div className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vaga</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Modelo</TableHead>
-                    <TableHead>Atualizada</TableHead>
-                    <TableHead className="text-right">Acesso</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {relatedApplications.map((application) => (
-                    <TableRow key={application.applicationId}>
-                      <TableCell className="whitespace-normal">
-                        <div className="flex flex-col gap-1">
-                          <span className="font-medium text-foreground">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="min-w-0 text-sm leading-snug font-medium break-words text-foreground">
                             {application.title}
                           </span>
-                          {application.notes ? (
-                            <span className="line-clamp-2 text-xs leading-5 text-muted-foreground">
-                              {application.notes}
-                            </span>
+                          {application.status && isApplicationStatus(application.status) ? (
+                            <ApplicationStatusBadge status={application.status} />
                           ) : null}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {application.status && isApplicationStatus(application.status) ? (
-                          <ApplicationStatusBadge status={application.status} />
+                        <span className="text-xs text-muted-foreground">
+                          {formatWorkModel(application.workModel)} · atualizada em{" "}
+                          {formatDate(application.updatedAt)}
+                        </span>
+                        {application.notes ? (
+                          <span className="line-clamp-2 text-sm leading-6 text-muted-foreground">
+                            {application.notes}
+                          </span>
                         ) : null}
-                      </TableCell>
-                      <TableCell>{formatWorkModel(application.workModel)}</TableCell>
-                      <TableCell>{formatDate(application.updatedAt)}</TableCell>
-                      <TableCell className="text-right">
-                        <Link
-                          href={`/applications#application-card-${application.applicationId}`}
-                          className={cn(
-                            buttonVariants({ variant: "ghost", size: "sm" }),
-                            "justify-end",
-                          )}
-                        >
-                          Abrir card
-                        </Link>
-                      </TableCell>
-                    </TableRow>
+                      </Link>
+                    </li>
                   ))}
-                </TableBody>
-              </Table>
-              </div>
+                </ul>
+
+                <div className="hidden px-2 md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Vaga</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Modelo</TableHead>
+                        <TableHead>Atualizada</TableHead>
+                        <TableHead className="text-right">Acesso</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {relatedApplications.map((application) => (
+                        <TableRow key={application.applicationId}>
+                          <TableCell className="whitespace-normal">
+                            <div className="flex flex-col gap-1">
+                              <span className="font-medium text-foreground">
+                                {application.title}
+                              </span>
+                              {application.notes ? (
+                                <span className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                                  {application.notes}
+                                </span>
+                              ) : null}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {application.status && isApplicationStatus(application.status) ? (
+                              <ApplicationStatusBadge status={application.status} />
+                            ) : null}
+                          </TableCell>
+                          <TableCell>{formatWorkModel(application.workModel)}</TableCell>
+                          <TableCell>{formatDate(application.updatedAt)}</TableCell>
+                          <TableCell className="text-right">
+                            <Link
+                              href={`/applications?applicationId=${application.applicationId}`}
+                              className={cn(
+                                buttonVariants({ variant: "ghost", size: "sm" }),
+                                "justify-end",
+                              )}
+                            >
+                              Abrir
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </>
             )}
           </CardContent>
         </Card>
 
-        <div className="grid gap-6">
-          <Card className="border-border/60 bg-card/85 shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
-            <CardHeader className="border-b border-border/40 pb-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex flex-col gap-1">
-                  <CardTitle className="font-heading text-2xl">
-                    Leitura atual
-                  </CardTitle>
-                  <CardDescription className="text-sm leading-6 text-muted-foreground">
-                    Um resumo rápido do que esta empresa representa no seu pipeline.
-                  </CardDescription>
-                </div>
-                <EditCompanySheet
-                  action={boundUpdateAction}
-                  deleteAction={boundDeleteAction}
-                  values={{
-                    name: company.name,
-                    website: company.website ?? "",
-                    sector: company.sector ?? "",
-                    size: company.size ?? "",
-                    jobsBoardUrl: company.jobsBoardUrl ?? "",
-                    jobBoardNavigationMode: company.jobBoardNavigationMode ?? "fetch",
-                    glassdoorUrl: company.glassdoorUrl ?? "",
-                    status: company.status,
-                    notes: company.notes ?? "",
-                  }}
-                  hasValidationError={hasValidationError}
-                  hasLinkedApplicationsError={hasLinkedApplicationsError}
-                  canDelete={relatedApplications.length === 0}
-                />
+        <Card className="border-border/60 bg-card/85">
+          <CardHeader className="border-b border-border/40 pb-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-1">
+                <CardTitle className="font-heading text-lg sm:text-xl">
+                  Ficha da empresa
+                </CardTitle>
+                <CardDescription className="text-sm text-pretty text-muted-foreground">
+                  Links, board monitorado e status atual.
+                </CardDescription>
               </div>
-            </CardHeader>
-            <CardContent className="grid gap-4 pt-6">
+              <EditCompanySheet
+                action={boundUpdateAction}
+                deleteAction={boundDeleteAction}
+                values={{
+                  name: company.name,
+                  website: company.website ?? "",
+                  sector: company.sector ?? "",
+                  size: company.size ?? "",
+                  jobsBoardUrl: company.jobsBoardUrl ?? "",
+                  jobBoardNavigationMode: company.jobBoardNavigationMode ?? "fetch",
+                  glassdoorUrl: company.glassdoorUrl ?? "",
+                  status: company.status,
+                  notes: company.notes ?? "",
+                }}
+                hasValidationError={hasValidationError}
+                hasLinkedApplicationsError={hasLinkedApplicationsError}
+                canDelete={relatedApplications.length === 0}
+              />
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-5 pt-1">
+            <dl className="divide-y divide-border/40">
               <SummaryRow
                 icon={Globe}
                 label="Site"
@@ -345,25 +343,24 @@ export default async function CompanyDetailPage({
                 label="Status atual"
                 value={getCompanyStatusLabel(company.status) || "Não informado"}
               />
-              <div className="flex flex-col gap-3 pt-2">
-                <MonitoringRunButton
-                  action={boundRunMonitoringAction}
-                  label="Rodar varredura desta empresa"
-                  pendingLabel="Rodando varredura..."
-                  className="w-full rounded-xl"
-                />
-                <Link
-                  href="/leads"
-                  className={cn(buttonVariants({ variant: "outline" }), "w-full rounded-xl")}
-                >
-                  <ArrowUpRight data-icon="inline-start" />
-                  Abrir caixa de triagem
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-
-        </div>
+            </dl>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <MonitoringRunButton
+                action={boundRunMonitoringAction}
+                label="Rodar varredura"
+                pendingLabel="Varrendo…"
+                className="h-11 w-full rounded-xl"
+              />
+              <Link
+                href={`/leads?companyId=${company.id}`}
+                className={cn(buttonVariants({ variant: "outline", size: "lg" }), "h-11 w-full rounded-xl")}
+              >
+                <ArrowUpRight data-icon="inline-start" />
+                Ver leads desta empresa
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
@@ -394,6 +391,17 @@ function formatWorkModel(value: string | null) {
   }
 }
 
+function formatShortDate(date: Date | null) {
+  if (!date) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+  }).format(date);
+}
+
 function StatPanel({
   icon: Icon,
   label,
@@ -404,14 +412,14 @@ function StatPanel({
   value: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-3 rounded-2xl border border-white/8 bg-white/4 p-4">
-      <div className="flex flex-col gap-1">
-        <span className="text-[11px] uppercase tracking-[0.2em] text-zinc-400">
-          {label}
-        </span>
-        <span className="text-2xl font-semibold text-white">{value}</span>
-      </div>
-      <Icon className="size-4 shrink-0 text-zinc-300" />
+    <div className="flex min-w-0 flex-col-reverse items-center gap-1 px-2 py-3 text-center xl:flex-row-reverse xl:items-center xl:justify-between xl:gap-3 xl:px-4 xl:py-3.5 xl:text-left">
+      <dt className="flex max-w-full items-center gap-1.5 truncate text-[11px] text-zinc-400 xl:text-xs">
+        <Icon aria-hidden className="hidden size-3.5 shrink-0 xl:block" />
+        {label}
+      </dt>
+      <dd className="text-xl leading-none font-semibold text-white tabular-nums sm:text-2xl">
+        {value}
+      </dd>
     </div>
   );
 }
@@ -428,26 +436,24 @@ function SummaryRow({
   href?: string | null;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-border/50 bg-background/35 p-4">
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-border/50 bg-background/70">
-        <Icon className="size-4 text-muted-foreground" />
-      </div>
-      <div className="flex min-w-0 flex-col gap-1">
-        <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          {label}
-        </span>
-        {href ? (
-          <a
-            href={href}
-            target="_blank"
-            rel="noreferrer"
-            className="break-all text-sm font-medium text-foreground underline-offset-4 hover:underline"
-          >
-            {value}
-          </a>
-        ) : (
-          <span className="break-words text-sm font-medium text-foreground">{value}</span>
-        )}
+    <div className="flex items-start gap-3 py-3">
+      <Icon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+        <dt className="shrink-0 text-sm text-muted-foreground">{label}</dt>
+        <dd className="min-w-0 text-sm font-medium text-foreground sm:text-right">
+          {href ? (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="break-all underline-offset-4 hover:underline"
+            >
+              {value.replace(/^https?:\/\//, "")}
+            </a>
+          ) : (
+            <span className="break-words">{value}</span>
+          )}
+        </dd>
       </div>
     </div>
   );

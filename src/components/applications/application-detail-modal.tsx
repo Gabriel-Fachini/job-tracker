@@ -5,29 +5,22 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
-  CalendarDays,
   CircleSlash,
-  Clock3,
   ExternalLink,
-  FileText,
   FileUp,
-  Loader2,
   FileX2,
-  Hash,
-  Layers3,
+  Loader2,
   PencilLine,
   Plus,
-  RadioTower,
   Sparkles,
   Trash2,
   Users2,
-  Workflow,
-  type LucideIcon,
 } from "lucide-react";
 
-import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
+import { ApplicationStatusSelect } from "@/components/applications/application-status-select";
 import { JobMarkdown } from "@/components/applications/job-markdown";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +30,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { type ApplicationStatus } from "@/lib/applications";
 import {
@@ -92,12 +84,6 @@ export type ApplicationDetailData = {
 
 type UsedResumeStatus = "unknown" | "uploaded" | "empty";
 
-type MetaItem = {
-  label: string;
-  value: string;
-  icon: LucideIcon;
-};
-
 type TimelineItem = ApplicationStageData & {
   durationLabel: string;
   isCurrent: boolean;
@@ -106,6 +92,7 @@ type TimelineItem = ApplicationStageData & {
 type ApplicationDetailModalProps = {
   application: ApplicationDetailData | null;
   onClose: () => void;
+  onStatusChange?: (status: ApplicationStatus) => void;
 };
 
 type StageFormState = {
@@ -114,249 +101,222 @@ type StageFormState = {
   notes: string;
 };
 
-// Color system
-const COLORS = {
-  card: {
-    border: "border-zinc-700/70",
-    bg: "bg-zinc-950/75",
-  },
-  divider: {
-    border: "border-zinc-700/70",
-  },
-  metadata: {
-    border: "border-zinc-800/80",
-    bg: "bg-zinc-950/75",
-  },
-} as const;
-
 const controlClassName =
-  "h-10 w-full rounded-xl border border-border/70 bg-background/70 px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-10 w-full rounded-xl border border-input bg-input/30 px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 const textareaClassName =
-  "min-h-24 w-full rounded-xl border border-border/70 bg-background/70 px-3 py-2.5 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  "min-h-24 w-full rounded-xl border border-input bg-input/30 px-3 py-2.5 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
-const primarySectionClassName =
-  "rounded-2xl border border-zinc-700/80 bg-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
-
-const secondarySectionClassName =
-  "rounded-2xl border border-zinc-800/90 bg-zinc-900/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]";
-
-const tertiarySectionClassName =
-  "rounded-2xl border border-zinc-800/80 bg-black/30";
+/** The one bordered surface a section may use; sections themselves stay flat. */
+const panelClassName = "rounded-2xl border border-border/60 bg-background/40";
 
 export function ApplicationDetailModal({
   application,
   onClose,
+  onStatusChange,
 }: ApplicationDetailModalProps) {
-  if (!application) return null;
+  // Keep the last application rendered while the sheet animates closed.
+  const [rendered, setRendered] = useState(application);
+  if (application && application !== rendered) {
+    setRendered(application);
+  }
 
+  if (!rendered) return null;
+
+  return (
+    <Dialog open={application !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        sheetSize="full"
+        className="flex flex-col gap-0 p-0 sm:max-h-[92vh] sm:max-w-5xl"
+      >
+        <ApplicationDetailBody
+          key={rendered.id}
+          application={rendered}
+          onClose={onClose}
+          onStatusChange={onStatusChange}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ApplicationDetailBody({
+  application,
+  onClose,
+  onStatusChange,
+}: {
+  application: ApplicationDetailData;
+  onClose: () => void;
+  onStatusChange?: (status: ApplicationStatus) => void;
+}) {
+  const [isComposingStage, setIsComposingStage] = useState(false);
   const usedResumeStatus = normalizeUsedResumeStatus(application.usedResumeStatus);
   const orderedStages = [...application.stages].sort(
     (a, b) => a.date.getTime() - b.date.getTime() || a.createdAt.getTime() - b.createdAt.getTime(),
   );
   const currentStage = orderedStages.at(-1) ?? null;
-  const currentStageHealth = getStageHealth(currentStage?.date ?? null);
   const timelineItems = buildTimelineItems(orderedStages);
 
   return (
-    <Dialog open={!!application} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] flex-col gap-0 p-0 sm:h-auto sm:max-h-[92vh] sm:max-w-6xl">
-        <DialogHeader className="shrink-0 border-b border-border/50 px-4 pb-5 pt-5 sm:px-6 sm:pt-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex min-w-0 flex-1 flex-col gap-3">
-                <div className="flex items-center gap-2">
-                  <ApplicationStatusBadge status={application.status} />
-                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/70">
-                    Detalhes da candidatura
-                  </p>
-                </div>
-
-                <div className="min-w-0">
-                  <DialogTitle className="text-xl leading-tight text-balance sm:text-2xl">
-                    {application.jobTitle}
-                  </DialogTitle>
-                  <DialogDescription className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Building2 className="size-3.5 shrink-0 text-muted-foreground/60" />
-                    <span>{application.company ?? "Empresa não informada"}</span>
-                  </DialogDescription>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </DialogHeader>
-
-        <ScrollArea className="flex-1 overflow-auto">
-          <div className="grid gap-6 px-4 py-4 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(18rem,0.85fr)] lg:items-start">
-            <div className="flex min-w-0 flex-col gap-6">
-              <CurrentStageCard currentStage={currentStage} />
-
-              <section className={primarySectionClassName}>
-                <div className="flex flex-col gap-3 border-b border-border/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <SectionEyebrow>Timeline de etapas</SectionEyebrow>
-                    <h3 className="mt-1 text-base font-semibold text-foreground">
-                      Acompanhamento manual do processo
-                    </h3>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      Registre a etapa atual, mantenha notas curtas e acompanhe o tempo entre eventos.
-                    </p>
-                  </div>
-
-                  <StageComposer
-                    applicationId={application.id}
-                    triggerLabel="Adicionar etapa"
-                    empty={orderedStages.length === 0}
-                  />
-                </div>
-
-                <div className="px-5 py-5">
-                  {timelineItems.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-border/60 bg-background/30 px-5 py-8 text-center">
-                      <p className="text-sm font-medium text-foreground">
-                        Nenhuma etapa registrada ainda.
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        Comece pela triagem, teste técnico ou qualquer etapa real do processo seletivo.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-4">
-                      {timelineItems.map((stage, index) => (
-                        <TimelineStageItem
-                          key={`${stage.id}:${stage.date.getTime()}:${stage.label}:${stage.notes ?? ""}`}
-                          stage={stage}
-                          isLast={index === timelineItems.length - 1}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              <section className={secondarySectionClassName}>
-                <div className="border-b border-border/40 px-5 py-4">
-                  <SectionEyebrow>Currículo</SectionEyebrow>
-                  <h3 className="mt-1 text-base font-semibold text-foreground">
-                    PDF enviado e geração por IA
-                  </h3>
-                </div>
-                <div className="px-5 py-5">
-                  <UsedResumeSection
-                    applicationId={application.id}
-                    status={usedResumeStatus}
-                    originalFilename={application.usedResumeOriginalFilename}
-                    savedGeneratedResumePath={application.generatedResumePath}
-                  />
-                </div>
-              </section>
-
-              <section className={secondarySectionClassName}>
-                <div className="border-b border-border/40 px-5 py-4">
-                  <SectionEyebrow>Notas</SectionEyebrow>
-                  <h3 className="mt-1 text-base font-semibold text-foreground">
-                    Contexto rápido da candidatura
-                  </h3>
-                </div>
-                <div className="px-5 py-5">
-                  <NotesEditor
-                    key={`${application.id}:${application.updatedAt.getTime()}:${application.notes ?? ""}`}
-                    applicationId={application.id}
-                    initialNotes={application.notes}
-                  />
-                </div>
-              </section>
-
-              <section className={tertiarySectionClassName}>
-                <div className="border-b border-border/40 px-5 py-4">
-                  <SectionEyebrow>Descrição</SectionEyebrow>
-                  <h3 className="mt-1 text-base font-semibold text-foreground">
-                    Descrição da vaga salva localmente
-                  </h3>
-                </div>
-                <div className="px-5 py-5">
-                  <DescriptionEditor
-                    key={`${application.id}:${application.updatedAt.getTime()}:${application.description ?? ""}`}
-                    applicationId={application.id}
-                    initialDescription={application.description}
-                  />
-                </div>
-              </section>
-            </div>
-
-            <aside className="flex min-w-0 flex-col gap-4">
-              <section className={primarySectionClassName}>
-                <div className="border-b border-border/40 px-5 py-4">
-                  <SectionEyebrow>Resumo</SectionEyebrow>
-                  <h3 className="mt-1 text-base font-semibold text-foreground">
-                    Sinais principais
-                  </h3>
-                </div>
-                <div className="space-y-3 px-5 py-5">
-                  <SummaryMetric
-                    icon={Workflow}
-                    label="Etapas registradas"
-                    value={String(orderedStages.length)}
-                  />
-                  <SummaryMetric
-                    icon={Clock3}
-                    label="Tempo na etapa atual"
-                    value={
-                      currentStage
-                        ? formatDuration(currentStage.date, new Date())
-                        : "Sem etapa"
-                    }
-                    valueClassName={currentStageHealth.valueClassName}
-                  />
-                  <SummaryMetric
-                    icon={FileText}
-                    label="Última atualização"
-                    value={formatLongDate(application.updatedAt)}
-                  />
-                  {application.sourceUrl ? (
-                    <a
-                      href={application.sourceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={cn(
-                        buttonVariants({ variant: "outline", size: "sm" }),
-                        "h-9 w-full rounded-xl border-zinc-700/80 bg-zinc-950/70 text-xs",
-                      )}
-                    >
-                      Abrir vaga original
-                      <ExternalLink data-icon="inline-end" className="size-3.5" />
-                    </a>
-                  ) : null}
-                </div>
-              </section>
-
-              <section className={tertiarySectionClassName}>
-                <MetadataEditor
-                  key={`metadata:${application.id}:${application.updatedAt.getTime()}`}
-                  applicationId={application.id}
-                  initialSourceName={application.sourceName}
-                  initialWorkModel={application.workModel}
-                  initialSeniority={application.seniority}
-                  initialIsReferral={application.isReferral}
-                  appId={`APP-${application.id}`}
-                  company={application.company}
-                  createdAt={application.createdAt}
-                />
-              </section>
-            </aside>
-          </div>
-        </ScrollArea>
-
-        <div className="shrink-0 border-t border-border/50 px-6 py-4">
-          <div className="flex justify-end">
-            <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">
-              Fechar
-            </Button>
-          </div>
+    <>
+      <DialogHeader className="shrink-0 gap-3 border-b border-border/50 px-4 pt-5 pr-14 pb-4 sm:px-6 sm:pt-6 sm:pb-5">
+        <div className="flex flex-wrap items-center gap-2">
+          {onStatusChange ? (
+            <ApplicationStatusSelect value={application.status} onChange={onStatusChange} />
+          ) : null}
+          {application.isReferral ? (
+            <Chip tone="info">
+              <Users2 aria-hidden />
+              Indicação
+            </Chip>
+          ) : null}
         </div>
-      </DialogContent>
-    </Dialog>
+        <div className="min-w-0">
+          <DialogTitle className="text-xl leading-tight text-balance sm:text-2xl">
+            {application.jobTitle}
+          </DialogTitle>
+          <DialogDescription className="mt-2 flex items-center gap-1.5 text-sm">
+            <Building2 aria-hidden className="size-3.5 shrink-0" />
+            <span className="truncate">{application.company ?? "Empresa não informada"}</span>
+          </DialogDescription>
+        </div>
+      </DialogHeader>
+
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="grid gap-8 px-4 py-5 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-10">
+          <div className="flex min-w-0 flex-col gap-8">
+            <CurrentStageCard currentStage={currentStage} />
+
+            <DetailSection
+              title="Etapas"
+              action={
+                !isComposingStage ? (
+                  <Button
+                    type="button"
+                    variant={orderedStages.length === 0 ? "brand" : "outline"}
+                    size="sm"
+                    onClick={() => setIsComposingStage(true)}
+                    className="rounded-lg"
+                  >
+                    <Plus data-icon="inline-start" />
+                    {orderedStages.length === 0 ? "Registrar primeira" : "Adicionar"}
+                  </Button>
+                ) : null
+              }
+            >
+              {isComposingStage ? (
+                <StageComposer
+                  applicationId={application.id}
+                  onDone={() => setIsComposingStage(false)}
+                />
+              ) : null}
+
+              {timelineItems.length === 0 ? (
+                !isComposingStage ? (
+                  <p className="rounded-2xl border border-dashed border-border/60 px-4 py-6 text-center text-sm leading-6 text-pretty text-muted-foreground">
+                    Registre triagem, teste técnico ou qualquer etapa real para acompanhar o tempo entre eventos.
+                  </p>
+                ) : null
+              ) : (
+                <ol className="flex flex-col gap-3">
+                  {timelineItems.map((stage, index) => (
+                    <TimelineStageItem
+                      key={`${stage.id}:${stage.date.getTime()}:${stage.label}:${stage.notes ?? ""}`}
+                      stage={stage}
+                      isLast={index === timelineItems.length - 1}
+                    />
+                  ))}
+                </ol>
+              )}
+            </DetailSection>
+
+            <DetailSection title="Notas">
+              <NotesEditor
+                key={`${application.id}:${application.updatedAt.getTime()}:${application.notes ?? ""}`}
+                applicationId={application.id}
+                initialNotes={application.notes}
+              />
+            </DetailSection>
+
+            <DetailSection title="Currículo">
+              <UsedResumeSection
+                applicationId={application.id}
+                status={usedResumeStatus}
+                originalFilename={application.usedResumeOriginalFilename}
+                savedGeneratedResumePath={application.generatedResumePath}
+              />
+            </DetailSection>
+
+            <DescriptionEditor
+              key={`${application.id}:${application.updatedAt.getTime()}:${application.description ?? ""}`}
+              applicationId={application.id}
+              initialDescription={application.description}
+            />
+          </div>
+
+          <aside className="min-w-0 lg:sticky lg:top-0 lg:self-start">
+            <MetadataEditor
+              key={`metadata:${application.id}:${application.updatedAt.getTime()}`}
+              applicationId={application.id}
+              initialSourceName={application.sourceName}
+              initialWorkModel={application.workModel}
+              initialSeniority={application.seniority}
+              initialIsReferral={application.isReferral}
+              appId={`APP-${application.id}`}
+              company={application.company}
+              createdAt={application.createdAt}
+              updatedAt={application.updatedAt}
+            />
+          </aside>
+        </div>
+      </ScrollArea>
+
+      <div className="flex shrink-0 items-center gap-2 border-t border-border/50 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4">
+        {application.sourceUrl ? (
+          <a
+            href={application.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(
+              buttonVariants({ variant: "outline", size: "lg" }),
+              "flex-1 rounded-xl sm:flex-none",
+            )}
+          >
+            Abrir vaga original
+            <ExternalLink data-icon="inline-end" />
+          </a>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          onClick={onClose}
+          className={cn("rounded-xl sm:ml-auto", application.sourceUrl && "max-sm:hidden", !application.sourceUrl && "flex-1 sm:flex-none")}
+        >
+          Fechar
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function DetailSection({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="flex min-w-0 flex-col gap-3">
+      <div className="flex min-h-9 items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        {action}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -369,65 +329,53 @@ function CurrentStageCard({
 
   return (
     <section
-      className={cn(
-        "rounded-2xl px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
-        health.containerClassName,
-      )}
+      aria-label="Etapa atual"
+      className={cn("rounded-2xl px-4 py-4 sm:px-5", health.containerClassName)}
     >
-      <SectionEyebrow>Etapa atual</SectionEyebrow>
       {currentStage ? (
-        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-foreground">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">Etapa atual</p>
+            <h3 className="mt-0.5 text-lg leading-snug font-semibold text-balance text-foreground">
               {currentStage.label}
             </h3>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Em andamento desde {formatLongDate(currentStage.date)}.
-            </p>
-            <p className={cn("mt-2 text-sm font-medium", health.messageClassName)}>
-              {health.message}
+            <p className="mt-1 text-sm text-muted-foreground">
+              Desde {formatLongDate(currentStage.date)}
             </p>
           </div>
-          <div
-            className={cn(
-              "rounded-xl px-3 py-2 text-right",
-              health.metricClassName,
-            )}
-          >
-            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
-              Tempo acumulado
-            </p>
-            <p className={cn("mt-1 text-sm font-semibold", health.valueClassName)}>
+          <div className={cn("shrink-0 rounded-xl px-3 py-2 text-right", health.metricClassName)}>
+            <p className="text-xs text-muted-foreground">Na etapa</p>
+            <p className={cn("mt-0.5 text-sm font-semibold tabular-nums", health.valueClassName)}>
               {formatDuration(currentStage.date, new Date())}
             </p>
           </div>
         </div>
       ) : (
-        <div className="mt-2">
-          <h3 className="text-lg font-semibold text-foreground">
-            Ainda sem etapa definida
-          </h3>
+        <div>
+          <h3 className="text-base font-semibold text-foreground">Ainda sem etapa definida</h3>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Use a timeline abaixo para registrar o primeiro marco real deste processo seletivo.
+            Registre o primeiro marco real deste processo para começar a medir o tempo.
           </p>
         </div>
       )}
+      {currentStage ? (
+        <p className={cn("mt-3 text-sm font-medium text-pretty", health.messageClassName)}>
+          {health.message}
+        </p>
+      ) : null}
     </section>
   );
 }
 
 function StageComposer({
   applicationId,
-  triggerLabel,
-  empty,
+  onDone,
 }: {
   applicationId: number;
-  triggerLabel: string;
-  empty: boolean;
+  onDone: () => void;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fields, setFields] = useState<StageFormState>(() => createEmptyStageForm());
 
@@ -449,80 +397,60 @@ function StageComposer({
       }
 
       setFields(createEmptyStageForm());
-      setOpen(false);
+      onDone();
       router.refresh();
     });
   }
 
   return (
-    <div className="w-full sm:w-auto">
-      {!open ? (
-        <Button
-          type="button"
-          variant={empty ? "default" : "outline"}
-          onClick={() => setOpen(true)}
-          className={cn(
-            "w-full rounded-xl sm:w-auto",
-            empty && "bg-amber-300 text-zinc-950 hover:bg-amber-200",
-          )}
-        >
-          <Plus data-icon="inline-start" className="size-4" />
-          {empty ? "Registrar primeira etapa" : triggerLabel}
+    <form
+      onSubmit={handleSubmit}
+      className={cn("grid animate-in gap-3 p-4 fade-in-0 slide-in-from-top-1 duration-200", panelClassName)}
+    >
+      <label className="grid gap-1.5 text-sm text-muted-foreground">
+        Etapa
+        <Input
+          autoFocus
+          value={fields.label}
+          onChange={(event) =>
+            setFields((current) => ({ ...current, label: event.target.value }))
+          }
+          placeholder="Ex.: Triagem RH"
+          className={controlClassName}
+        />
+      </label>
+      <label className="grid gap-1.5 text-sm text-muted-foreground">
+        Data
+        <Input
+          type="date"
+          value={fields.date}
+          onChange={(event) =>
+            setFields((current) => ({ ...current, date: event.target.value }))
+          }
+          className={controlClassName}
+        />
+      </label>
+      <label className="grid gap-1.5 text-sm text-muted-foreground">
+        Notas
+        <Textarea
+          value={fields.notes}
+          onChange={(event) =>
+            setFields((current) => ({ ...current, notes: event.target.value }))
+          }
+          placeholder="Como foi, próximos passos…"
+          className={textareaClassName}
+        />
+      </label>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <div className="flex items-center justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={onDone} className="rounded-xl">
+          Cancelar
         </Button>
-      ) : (
-        <form
-          onSubmit={handleSubmit}
-          className={cn("rounded-2xl p-4 sm:min-w-[22rem]", COLORS.card.border, COLORS.card.bg)}
-        >
-          <div className="grid gap-3">
-            <Input
-              value={fields.label}
-              onChange={(event) =>
-                setFields((current) => ({ ...current, label: event.target.value }))
-              }
-              placeholder="Ex.: Triagem RH"
-              className={controlClassName}
-            />
-            <Input
-              type="date"
-              value={fields.date}
-              onChange={(event) =>
-                setFields((current) => ({ ...current, date: event.target.value }))
-              }
-              className={controlClassName}
-            />
-            <Textarea
-              value={fields.notes}
-              onChange={(event) =>
-                setFields((current) => ({ ...current, notes: event.target.value }))
-              }
-              placeholder="Notas rápidas da etapa"
-              className={textareaClassName}
-            />
-            {error ? (
-              <p className="text-sm text-destructive">{error}</p>
-            ) : null}
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setOpen(false);
-                  setError(null);
-                  setFields(createEmptyStageForm());
-                }}
-                className="rounded-xl"
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isPending} className="rounded-xl">
-                {isPending ? "Salvando..." : "Salvar etapa"}
-              </Button>
-            </div>
-          </div>
-        </form>
-      )}
-    </div>
+        <Button type="submit" disabled={isPending} className="rounded-xl">
+          {isPending ? "Salvando…" : "Salvar etapa"}
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -562,10 +490,7 @@ function UsedResumeSection({
     });
   }
 
-  async function uploadResume(file: File) {
-    const formData = new FormData();
-    formData.set("file", file);
-
+  async function postResumeForm(formData: FormData) {
     const response = await fetch(`/api/applications/${applicationId}/resume`, {
       method: "POST",
       body: formData,
@@ -579,21 +504,19 @@ function UsedResumeSection({
     }
   }
 
-  async function markResumeAsEmpty() {
-    const formData = new FormData();
-    formData.set("mode", "empty");
+  function runResumeMutation(formData: FormData, fallbackError: string, onFinally?: () => void) {
+    setError(null);
 
-    const response = await fetch(`/api/applications/${applicationId}/resume`, {
-      method: "POST",
-      body: formData,
+    startTransition(async () => {
+      try {
+        await postResumeForm(formData);
+        router.refresh();
+      } catch (mutationError) {
+        setError(mutationError instanceof Error ? mutationError.message : fallbackError);
+      } finally {
+        onFinally?.();
+      }
     });
-    const payload = (await response.json()) as
-      | { ok: true }
-      | { ok: false; error: string };
-
-    if (!payload.ok) {
-      throw new Error(payload.error);
-    }
   }
 
   function handleFileSelection(event: ChangeEvent<HTMLInputElement>) {
@@ -602,220 +525,169 @@ function UsedResumeSection({
       return;
     }
 
-    setError(null);
-
-    startTransition(async () => {
-      try {
-        await uploadResume(file);
-        router.refresh();
-      } catch (uploadError) {
-        setError(
-          uploadError instanceof Error
-            ? uploadError.message
-            : "Falha ao salvar o currículo desta candidatura.",
-        );
-      } finally {
-        event.target.value = "";
-      }
-    });
-  }
-
-  function handleMarkAsEmpty() {
-    setError(null);
-
-    startTransition(async () => {
-      try {
-        await markResumeAsEmpty();
-        router.refresh();
-      } catch (mutationError) {
-        setError(
-          mutationError instanceof Error
-            ? mutationError.message
-            : "Falha ao atualizar o status do currículo desta candidatura.",
-        );
-      }
-    });
-  }
-
-  async function markResumeAsUnknown() {
     const formData = new FormData();
-    formData.set("mode", "unknown");
-
-    const response = await fetch(`/api/applications/${applicationId}/resume`, {
-      method: "POST",
-      body: formData,
+    formData.set("file", file);
+    runResumeMutation(formData, "Falha ao salvar o currículo desta candidatura.", () => {
+      event.target.value = "";
     });
-    const payload = (await response.json()) as
-      | { ok: true }
-      | { ok: false; error: string };
-
-    if (!payload.ok) {
-      throw new Error(payload.error);
-    }
   }
 
-  function handleMarkAsUnknown() {
-    setError(null);
+  function handleMarkAs(mode: "empty" | "unknown") {
+    const formData = new FormData();
+    formData.set("mode", mode);
+    runResumeMutation(formData, "Falha ao atualizar o status do currículo desta candidatura.");
+  }
 
-    startTransition(async () => {
-      try {
-        await markResumeAsUnknown();
-        router.refresh();
-      } catch (mutationError) {
-        setError(
-          mutationError instanceof Error
-            ? mutationError.message
-            : "Falha ao atualizar o status do currículo desta candidatura.",
-        );
-      }
-    });
+  const generatedPdfHref = `/api/applications/${applicationId}/generated-resume`;
+
+  if (status === "empty") {
+    return (
+      <div className={cn("flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between", panelClassName)}>
+        <div className="flex items-center gap-2 text-amber-100">
+          <FileX2 aria-hidden className="size-4 shrink-0" />
+          <p className="text-sm font-medium">Candidatura feita sem currículo</p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={isPending}
+          onClick={() => handleMarkAs("unknown")}
+          className="self-start rounded-lg text-muted-foreground sm:self-auto"
+        >
+          {isPending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
+          Desfazer
+        </Button>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      </div>
+    );
   }
 
   return (
-    <div className={cn("rounded-2xl overflow-hidden", COLORS.card.border, COLORS.card.bg)}>
-      {status === "empty" ? (
-        /* Compact closed state — no AI generation section */
-        <div className="p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-amber-100">
-              <FileX2 className="size-4" />
-              <p className="text-sm font-semibold">Candidatura sem currículo</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/12 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-amber-100">
-                Sem currículo
+    <div className={cn("overflow-hidden", panelClassName)}>
+      {status === "uploaded" ? (
+        <div className="flex items-center gap-2 border-b border-border/50 px-4 py-3 text-sm text-muted-foreground">
+          <FileUp aria-hidden className="size-4 shrink-0" />
+          <span className="truncate">
+            PDF enviado{originalFilename ? `: ${originalFilename}` : ""}
+          </span>
+        </div>
+      ) : null}
+
+      {status !== "uploaded" && resumePhase !== "done" ? (
+        <div className="flex flex-col gap-3 border-b border-border/50 p-4">
+          <p className="text-sm leading-6 text-pretty text-muted-foreground">
+            Salve o PDF enviado nesta vaga ou marque que a candidatura foi feita sem currículo.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <label
+              className={cn(
+                buttonVariants({ variant: "brand", size: "sm" }),
+                "cursor-pointer rounded-lg has-[:disabled]:pointer-events-none has-[:disabled]:opacity-50",
+              )}
+            >
+              <FileUp data-icon="inline-start" />
+              Enviar PDF
+              <input
+                type="file"
+                accept="application/pdf,.pdf"
+                className="sr-only"
+                onChange={handleFileSelection}
+                disabled={isPending}
+              />
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isPending}
+              onClick={() => handleMarkAs("empty")}
+              className="rounded-lg"
+            >
+              <CircleSlash data-icon="inline-start" />
+              Sem currículo
+            </Button>
+            {isPending ? (
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin" />
+                Atualizando…
               </span>
+            ) : null}
+          </div>
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-3 p-4">
+        <div>
+          <p className="text-sm font-medium text-foreground">Currículo personalizado por IA</p>
+          <p className="mt-1 text-sm leading-6 text-pretty text-muted-foreground">
+            Seleciona e reescreve os bullets e habilidades mais relevantes para esta vaga.
+          </p>
+        </div>
+        {resumePhase === "error" && resumeError ? (
+          <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {resumeError}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {resumePhase === "done" && pdfPath ? (
+            <>
+              <a
+                href={generatedPdfHref}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-lg")}
+              >
+                Abrir PDF
+                <ExternalLink data-icon="inline-end" />
+              </a>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                disabled={isPending}
-                onClick={handleMarkAsUnknown}
-                className="rounded-xl text-muted-foreground"
+                onClick={handleGenerateResume}
+                disabled={isGenerating}
+                className="rounded-lg text-muted-foreground"
               >
-                {isPending ? (
-                  <Loader2 data-icon="inline-start" className="size-3.5 animate-spin" />
-                ) : null}
-                Desfazer
+                {isGenerating ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
+                Gerar novamente
               </Button>
-            </div>
-          </div>
-          {error ? (
-            <p className="mt-3 text-sm text-destructive">{error}</p>
-          ) : null}
-        </div>
-      ) : (
-        <>
-          {/* Row 1: Upload prompt — hidden when any resume is associated */}
-          {status !== "uploaded" && resumePhase !== "done" && (
-            <div className={cn("p-4 border-b", COLORS.divider.border)}>
-              <div className="flex flex-col gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-foreground">
-                    <FileUp className="size-4 text-muted-foreground" />
-                    <p className="text-sm font-semibold">Nenhum currículo vinculado ainda</p>
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Salve o PDF enviado nesta vaga ou marque explicitamente que esta candidatura foi feita sem currículo.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <label
-                    className={cn(
-                      buttonVariants({ variant: "default", size: "sm" }),
-                      "cursor-pointer rounded-xl bg-amber-300 text-zinc-950 hover:bg-amber-200",
-                    )}
-                  >
-                    <FileUp data-icon="inline-start" className="size-3.5" />
-                    Enviar PDF
-                    <input
-                      type="file"
-                      accept="application/pdf,.pdf"
-                      className="sr-only"
-                      onChange={handleFileSelection}
-                      disabled={isPending}
-                    />
-                  </label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={isPending}
-                    onClick={handleMarkAsEmpty}
-                    className="rounded-xl"
-                  >
-                    <CircleSlash data-icon="inline-start" className="size-3.5" />
-                    Marcar como sem currículo
-                  </Button>
-                </div>
-              </div>
-
-              {error ? (
-                <p className="mt-3 text-sm text-destructive">{error}</p>
-              ) : null}
-              {isPending ? (
-                <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-3.5 animate-spin" />
-                  Atualizando o registro do currículo...
-                </div>
-              ) : null}
-            </div>
-          )}
-
-          {/* Row 2: AI Generation */}
-          <div className="p-4">
-            <SectionEyebrow>Geração por IA</SectionEyebrow>
-            <h3 className="mt-1 text-sm font-semibold text-foreground">Currículo personalizado para esta vaga</h3>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              A IA seleciona e reescreve os bullet points e habilidades mais relevantes para esta vaga.
-            </p>
-            {resumePhase === "error" && resumeError ? (
-              <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {resumeError}
-              </p>
-            ) : null}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {resumePhase === "done" && pdfPath ? (
-                <>
-                  <span className="text-sm text-emerald-400">Currículo gerado.</span>
-                  <a
-                    href={`/api/applications/${applicationId}/generated-resume`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-xl")}
-                  >
-                    Abrir PDF
-                  </a>
-                  <Button type="button" variant="ghost" size="sm" onClick={handleGenerateResume} disabled={isGenerating} className="rounded-xl gap-1.5 text-muted-foreground">
-                    Gerar novamente
-                  </Button>
-                </>
+            </>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleGenerateResume}
+              disabled={isGenerating}
+              className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-500"
+            >
+              {isGenerating ? (
+                <Loader2 data-icon="inline-start" className="animate-spin" />
               ) : (
-                <Button type="button" size="sm" onClick={handleGenerateResume} disabled={isGenerating} className="rounded-xl gap-1.5 bg-emerald-600 text-white hover:bg-emerald-500">
-                  {isGenerating ? (
-                    <><Loader2 className="size-3.5 animate-spin" />Gerando...</>
-                  ) : (
-                    <><Sparkles className="size-3.5" />{resumePhase === "error" ? "Tentar novamente" : "Gerar Currículo"}</>
-                  )}
-                </Button>
+                <Sparkles data-icon="inline-start" />
               )}
-            </div>
-          </div>
+              {isGenerating
+                ? "Gerando…"
+                : resumePhase === "error"
+                  ? "Tentar novamente"
+                  : "Gerar currículo"}
+            </Button>
+          )}
+        </div>
+      </div>
 
-          {/* Row 3: PDF preview — inside the same card, no layout shift */}
-          {resumePhase === "done" && pdfPath ? (
-            <div className={cn("border-t", COLORS.divider.border)}>
-              <iframe
-                src={`/api/applications/${applicationId}/generated-resume`}
-                className="w-full"
-                style={{ height: "min(780px, 65vh)" }}
-                title="Preview do currículo gerado"
-              />
-            </div>
-          ) : null}
-        </>
-      )}
+      {/* Inline PDF preview is unreliable on phones; they get "Abrir PDF". */}
+      {resumePhase === "done" && pdfPath ? (
+        <div className="hidden border-t border-border/50 sm:block">
+          <iframe
+            src={generatedPdfHref}
+            className="w-full"
+            style={{ height: "min(780px, 65vh)" }}
+            title="Prévia do currículo gerado"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -875,94 +747,84 @@ function TimelineStageItem({
   }
 
   return (
-    <div className="relative pl-11">
+    <li className="relative pl-7">
       {!isLast ? (
-        <div className="absolute bottom-[-1rem] left-4 top-8 w-px -translate-x-1/2 bg-gradient-to-b from-emerald-300/55 via-emerald-400/35 to-emerald-500/10" />
+        <span
+          aria-hidden
+          className="absolute top-6 bottom-[-0.75rem] left-[0.4375rem] w-px bg-emerald-400/25"
+        />
       ) : null}
-      <div
+      <span
+        aria-hidden
         className={cn(
-          "absolute left-4 top-8 z-10 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border shadow-[0_0_0_4px_rgba(9,9,11,0.92)]",
+          "absolute top-4 left-0 size-3.5 rounded-full border-2",
           stage.isCurrent
-            ? "border-amber-200/80 bg-amber-300 shadow-[0_0_0_4px_rgba(120,53,15,0.24)]"
-            : "border-emerald-300/45 bg-emerald-400/80",
+            ? "border-amber-200/80 bg-amber-300"
+            : "border-emerald-300/40 bg-emerald-400/70",
         )}
       />
 
       <div
         className={cn(
-          "relative rounded-2xl border px-5 py-4",
+          "rounded-2xl border px-4 py-3",
           stage.isCurrent
-            ? "border-amber-300/30 bg-amber-300/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
-            : "border-emerald-500/15 bg-emerald-400/[0.04]",
+            ? "border-amber-300/25 bg-amber-300/[0.07]"
+            : "border-border/50 bg-background/30",
         )}
       >
         {!isEditing ? (
           <div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="text-base font-semibold text-foreground">
-                    {stage.label}
-                  </h4>
-                  {stage.isCurrent ? (
-                    <span className="inline-flex items-center rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.16em] text-amber-100">
-                      Atual
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <h4 className="text-sm leading-snug font-semibold break-words text-foreground">
+                  {stage.label}
+                </h4>
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {formatLongDate(stage.date)}
+                  <span aria-hidden> · </span>
+                  <span className={cn(stage.isCurrent ? "text-amber-100" : "text-foreground/75")}>
+                    {stage.durationLabel}
+                  </span>
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    "rounded-full border px-2.5 py-1 text-xs font-medium",
-                    stage.isCurrent
-                      ? "border-amber-300/20 bg-amber-300/10 text-amber-100"
-                      : "border-emerald-400/15 bg-emerald-400/[0.06] text-emerald-50/80",
-                  )}
-                >
-                  {stage.durationLabel}
-                </span>
+              <div className="-mr-2 -mt-1 flex shrink-0 items-center">
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
+                  size="icon-sm"
                   onClick={() => setIsEditing(true)}
+                  aria-label={`Editar etapa ${stage.label}`}
+                  className="rounded-lg text-muted-foreground"
                 >
-                  <PencilLine data-icon="inline-start" className="size-3.5" />
-                  Editar
+                  <PencilLine />
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
+                  size="icon-sm"
                   onClick={handleDelete}
                   disabled={isPending}
-                  className="text-destructive hover:text-destructive"
+                  aria-label={`Excluir etapa ${stage.label}`}
+                  className="rounded-lg text-muted-foreground hover:text-destructive"
                 >
-                  <Trash2 data-icon="inline-start" className="size-3.5" />
-                  Excluir
+                  <Trash2 />
                 </Button>
               </div>
             </div>
 
             {stage.notes ? (
-              <>
-                <Separator className="my-4 bg-border/40" />
-                <p className="text-sm leading-6 text-foreground/80">{stage.notes}</p>
-              </>
+              <p className="mt-2 text-sm leading-6 break-words whitespace-pre-line text-foreground/80">
+                {stage.notes}
+              </p>
             ) : null}
 
-            {error ? (
-              <p className="mt-3 text-sm text-destructive">{error}</p>
-            ) : null}
+            {error ? <p className="mt-2 text-sm text-destructive">{error}</p> : null}
           </div>
         ) : (
-          <form onSubmit={handleSave} className="grid gap-3">
+          <form onSubmit={handleSave} className="grid gap-3 py-1">
             <Input
+              aria-label="Nome da etapa"
               value={fields.label}
               onChange={(event) =>
                 setFields((current) => ({ ...current, label: event.target.value }))
@@ -970,6 +832,7 @@ function TimelineStageItem({
               className={controlClassName}
             />
             <Input
+              aria-label="Data da etapa"
               type="date"
               value={fields.date}
               onChange={(event) =>
@@ -978,15 +841,14 @@ function TimelineStageItem({
               className={controlClassName}
             />
             <Textarea
+              aria-label="Notas da etapa"
               value={fields.notes}
               onChange={(event) =>
                 setFields((current) => ({ ...current, notes: event.target.value }))
               }
               className={textareaClassName}
             />
-            {error ? (
-              <p className="text-sm text-destructive">{error}</p>
-            ) : null}
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <div className="flex items-center justify-end gap-2">
               <Button
                 type="button"
@@ -1001,13 +863,13 @@ function TimelineStageItem({
                 Cancelar
               </Button>
               <Button type="submit" disabled={isPending} className="rounded-xl">
-                {isPending ? "Salvando..." : "Salvar mudanças"}
+                {isPending ? "Salvando…" : "Salvar"}
               </Button>
             </div>
           </form>
         )}
       </div>
-    </div>
+    </li>
   );
 }
 
@@ -1056,90 +918,89 @@ function DescriptionEditor({
       } else {
         setDescription(result.formatted);
       }
-    } catch (err) {
+    } catch {
       setError("Erro ao formatar a descrição.");
     } finally {
       setIsFormatting(false);
     }
   }
 
-  if (!isEditing) {
-    return (
-      <div className="flex flex-col gap-4">
-        <JobMarkdown
-          content={initialDescription}
-          className="rounded-xl border border-border/50 bg-muted/15 p-5"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            setIsEditing(true);
-            setDescription(initialDescription ?? "");
-          }}
-          className="rounded-xl w-fit"
-        >
-          <PencilLine data-icon="inline-start" className="size-4" />
-          Editar
-        </Button>
-      </div>
-    );
-  }
-
   return (
-    <form onSubmit={handleSave} className="grid gap-3">
-      <Textarea
-        value={description}
-        onChange={(event) => setDescription(event.target.value)}
-        placeholder="Descrição da vaga..."
-        className={cn(textareaClassName, "min-h-32")}
-      />
-      {error ? (
-        <p className="text-sm text-destructive">{error}</p>
-      ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleFormat}
-          disabled={isFormatting || !description.trim()}
-          className="rounded-xl"
-        >
-          {isFormatting ? (
-            <>
-              <Loader2 data-icon="inline-start" className="size-4 animate-spin" />
-              Formatando...
-            </>
-          ) : (
-            <>
-              <Sparkles data-icon="inline-start" className="size-4" />
-              Formatar com IA
-            </>
-          )}
-        </Button>
-        <div className="flex items-center gap-2">
+    <DetailSection
+      title="Descrição da vaga"
+      action={
+        !isEditing ? (
           <Button
             type="button"
             variant="ghost"
+            size="sm"
             onClick={() => {
-              setIsEditing(false);
+              setIsEditing(true);
               setDescription(initialDescription ?? "");
-              setError(null);
             }}
-            className="rounded-xl"
+            className="rounded-lg text-muted-foreground"
           >
-            Cancelar
+            <PencilLine data-icon="inline-start" />
+            Editar
           </Button>
-          <Button
-            type="submit"
-            disabled={isPending || !hasChanges}
-            className="rounded-xl"
-          >
-            {isPending ? "Salvando..." : "Salvar"}
-          </Button>
-        </div>
-      </div>
-    </form>
+        ) : null
+      }
+    >
+      {!isEditing ? (
+        initialDescription ? (
+          <JobMarkdown
+            content={initialDescription}
+            className="min-w-0 break-words sm:rounded-xl sm:border sm:border-border/50 sm:bg-muted/15 sm:p-5"
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">Nenhuma descrição salva.</p>
+        )
+      ) : (
+        <form onSubmit={handleSave} className="grid gap-3">
+          <Textarea
+            aria-label="Descrição da vaga em markdown"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="Descrição da vaga…"
+            className={cn(textareaClassName, "min-h-48")}
+          />
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleFormat}
+              disabled={isFormatting || !description.trim()}
+              className="rounded-xl"
+            >
+              {isFormatting ? (
+                <Loader2 data-icon="inline-start" className="animate-spin" />
+              ) : (
+                <Sparkles data-icon="inline-start" />
+              )}
+              {isFormatting ? "Formatando…" : "Formatar com IA"}
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setIsEditing(false);
+                  setDescription(initialDescription ?? "");
+                  setError(null);
+                }}
+                className="rounded-xl"
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isPending || !hasChanges} className="rounded-xl">
+                {isPending ? "Salvando…" : "Salvar"}
+              </Button>
+            </div>
+          </div>
+        </form>
+      )}
+    </DetailSection>
   );
 }
 
@@ -1176,61 +1037,30 @@ function NotesEditor({
   return (
     <form onSubmit={handleSubmit} className="grid gap-3">
       <Textarea
+        aria-label="Notas da candidatura"
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
-        placeholder="Ex.: resposta rápida da recrutadora, alinhamento salarial, próximos passos."
-        className={cn(textareaClassName, "min-h-32")}
+        placeholder="Resposta da recrutadora, alinhamento salarial, próximos passos…"
+        className={cn(textareaClassName, "min-h-28")}
       />
-      {error ? (
-        <p className="text-sm text-destructive">{error}</p>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {hasChanges || isPending ? (
+        <div className="flex animate-in items-center justify-end gap-2 fade-in-0 duration-150">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setNotes(initialNotes ?? "")}
+            disabled={isPending}
+            className="rounded-xl"
+          >
+            Descartar
+          </Button>
+          <Button type="submit" disabled={isPending} className="rounded-xl">
+            {isPending ? "Salvando…" : "Salvar notas"}
+          </Button>
+        </div>
       ) : null}
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Atualize aqui somente o contexto que ajuda a decidir a próxima ação.
-        </p>
-        <Button
-          type="submit"
-          disabled={isPending || !hasChanges}
-          className="rounded-xl"
-        >
-          {isPending ? "Salvando..." : "Salvar notas"}
-        </Button>
-      </div>
     </form>
-  );
-}
-
-function SummaryMetric({
-  icon: Icon,
-  label,
-  value,
-  valueClassName,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  valueClassName?: string;
-}) {
-  return (
-    <div className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}>
-      <div className="flex items-center gap-1.5">
-        <Icon className="size-3 text-muted-foreground/60" />
-        <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
-          {label}
-        </p>
-      </div>
-      <p className={cn("mt-2 text-sm font-semibold text-foreground", valueClassName)}>
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function SectionEyebrow({ children }: { children: ReactNode }) {
-  return (
-    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
-      {children}
-    </p>
   );
 }
 
@@ -1243,6 +1073,7 @@ function MetadataEditor({
   appId,
   company,
   createdAt,
+  updatedAt,
 }: {
   applicationId: number;
   initialSourceName: string | null;
@@ -1252,6 +1083,7 @@ function MetadataEditor({
   appId: string;
   company: string | null;
   createdAt: Date;
+  updatedAt: Date;
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -1269,11 +1101,6 @@ function MetadataEditor({
     setIsReferral(initialIsReferral);
     setError(null);
     setIsEditing(true);
-  }
-
-  function handleCancel() {
-    setIsEditing(false);
-    setError(null);
   }
 
   function handleSave() {
@@ -1296,186 +1123,125 @@ function MetadataEditor({
     });
   }
 
-  const staticItems: MetaItem[] = [
-    { label: "Candidatura", value: appId, icon: Hash },
-    { label: "Empresa", value: company ?? "Não informada", icon: Building2 },
-    { label: "Registrada em", value: formatLongDate(createdAt), icon: CalendarDays },
+  const staticRows = [
+    { label: "Candidatura", value: appId },
+    { label: "Empresa", value: company ?? "Não informada" },
+    { label: "Registrada em", value: formatLongDate(createdAt) },
+    { label: "Atualizada em", value: formatLongDate(updatedAt) },
+  ];
+
+  const contextRows = [
+    { label: "Origem", value: getSourceNameLabel(initialSourceName) ?? "Não informada" },
+    { label: "Modelo", value: getWorkModelLabel(initialWorkModel) ?? "Não informado" },
+    { label: "Senioridade", value: getSeniorityLabel(initialSeniority) ?? "Não informada" },
+    { label: "Indicação", value: initialIsReferral ? "Sim" : "Não" },
   ];
 
   return (
-    <>
-      <div className="flex items-center justify-between border-b border-border/40 px-5 py-4">
-        <div>
-          <SectionEyebrow>Metadados</SectionEyebrow>
-          <h3 className="mt-1 text-base font-semibold text-foreground">Contexto da vaga</h3>
-        </div>
-        {!isEditing && (
+    <DetailSection
+      title="Contexto da vaga"
+      action={
+        !isEditing ? (
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={handleEdit}
-            className="rounded-xl text-muted-foreground"
+            className="rounded-lg text-muted-foreground"
           >
-            <PencilLine className="size-3.5" />
+            <PencilLine data-icon="inline-start" />
+            Editar
           </Button>
-        )}
-      </div>
+        ) : null
+      }
+    >
+      <dl className="divide-y divide-border/40 rounded-2xl border border-border/60">
+        {(isEditing ? staticRows : [...staticRows, ...contextRows]).map((row) => (
+          <div key={row.label} className="flex items-baseline justify-between gap-4 px-4 py-2.5">
+            <dt className="shrink-0 text-sm text-muted-foreground">{row.label}</dt>
+            <dd className="min-w-0 text-right text-sm font-medium break-words text-foreground/90">
+              {row.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
 
-      <div className="grid gap-3 px-5 py-5">
-        {staticItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <div
-              key={item.label}
-              className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}
+      {isEditing ? (
+        <div className={cn("grid animate-in gap-3 p-4 fade-in-0 duration-150", panelClassName)}>
+          <label className="grid gap-1.5 text-sm text-muted-foreground">
+            Origem
+            <select
+              value={sourceName}
+              onChange={(event) => setSourceName(event.target.value)}
+              className={controlClassName}
             >
-              <div className="flex items-center gap-1.5">
-                <Icon className="size-3 text-muted-foreground/60" />
-                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
-                  {item.label}
-                </p>
-              </div>
-              <p className="mt-2 text-sm font-medium leading-5 text-foreground/90">
-                {item.value}
-              </p>
-            </div>
-          );
-        })}
+              <option value="">Não informada</option>
+              {sourceNameOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
 
-        {isEditing ? (
-          <>
-            <div className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}>
-              <div className="flex items-center gap-1.5 mb-2">
-                <RadioTower className="size-3 text-muted-foreground/60" />
-                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
-                  Origem
-                </p>
-              </div>
-              <select
-                value={sourceName}
-                onChange={(e) => setSourceName(e.target.value)}
-                className={controlClassName}
-              >
-                <option value="">Não informada</option>
-                {sourceNameOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
+          <label className="grid gap-1.5 text-sm text-muted-foreground">
+            Modelo de trabalho
+            <select
+              value={workModel}
+              onChange={(event) => setWorkModel(event.target.value)}
+              className={controlClassName}
+            >
+              <option value="">Não informado</option>
+              {workModelOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
 
-            <div className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Layers3 className="size-3 text-muted-foreground/60" />
-                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
-                  Modelo
-                </p>
-              </div>
-              <select
-                value={workModel}
-                onChange={(e) => setWorkModel(e.target.value)}
-                className={controlClassName}
-              >
-                <option value="">Não informado</option>
-                {workModelOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
+          <label className="grid gap-1.5 text-sm text-muted-foreground">
+            Senioridade
+            <select
+              value={seniority}
+              onChange={(event) => setSeniority(event.target.value)}
+              className={controlClassName}
+            >
+              <option value="">Não informada</option>
+              {seniorityOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
 
-            <div className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Sparkles className="size-3 text-muted-foreground/60" />
-                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
-                  Senioridade
-                </p>
-              </div>
-              <select
-                value={seniority}
-                onChange={(e) => setSeniority(e.target.value)}
-                className={controlClassName}
-              >
-                <option value="">Não informada</option>
-                {seniorityOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
+          <label className="flex min-h-10 cursor-pointer items-center gap-3 text-sm text-foreground/90">
+            <input
+              type="checkbox"
+              checked={isReferral}
+              onChange={(event) => setIsReferral(event.target.checked)}
+              className="size-5 rounded accent-brand"
+            />
+            Candidatura por indicação
+          </label>
 
-            <div className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Users2 className="size-3 text-muted-foreground/60" />
-                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
-                  Indicação
-                </p>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isReferral}
-                  onChange={(e) => setIsReferral(e.target.checked)}
-                  className="size-4 rounded"
-                />
-                <span className="text-sm text-foreground/90">Candidatura por indicação</span>
-              </label>
-            </div>
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-            {error ? (
-              <p className="text-sm text-destructive">{error}</p>
-            ) : null}
-
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleCancel}
-                disabled={isSaving}
-                className="rounded-xl"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleSave}
-                disabled={isSaving}
-                className="rounded-xl"
-              >
-                {isSaving ? "Salvando..." : "Salvar"}
-              </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            {[
-              { label: "Origem", value: getSourceNameLabel(initialSourceName) ?? "Não informada", icon: RadioTower },
-              { label: "Modelo", value: getWorkModelLabel(initialWorkModel) ?? "Não informado", icon: Layers3 },
-              { label: "Senioridade", value: getSeniorityLabel(initialSeniority) ?? "Não informada", icon: Sparkles },
-              { label: "Indicação", value: initialIsReferral ? "Sim" : "Não", icon: Users2 },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <div
-                  key={item.label}
-                  className={cn("rounded-xl p-3", COLORS.metadata.border, COLORS.metadata.bg)}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <Icon className="size-3 text-muted-foreground/60" />
-                    <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
-                      {item.label}
-                    </p>
-                  </div>
-                  <p className="mt-2 text-sm font-medium leading-5 text-foreground/90">
-                    {item.value}
-                  </p>
-                </div>
-              );
-            })}
-          </>
-        )}
-      </div>
-    </>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setIsEditing(false);
+                setError(null);
+              }}
+              disabled={isSaving}
+              className="rounded-xl"
+            >
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleSave} disabled={isSaving} className="rounded-xl">
+              {isSaving ? "Salvando…" : "Salvar"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </DetailSection>
   );
 }
 
@@ -1577,10 +1343,8 @@ function normalizeUsedResumeStatus(value: string | null | undefined): UsedResume
 function getStageHealth(date: Date | null) {
   if (!date) {
     return {
-      containerClassName:
-        "border border-zinc-700/80 bg-zinc-950/70",
-      metricClassName:
-        "border border-zinc-700/70 bg-zinc-950/75",
+      containerClassName: "border border-dashed border-border/70",
+      metricClassName: "border border-border/60 bg-background/40",
       valueClassName: "text-foreground",
       messageClassName: "text-muted-foreground",
       message: "Registre uma etapa para começar a acompanhar o tempo do processo.",
@@ -1594,10 +1358,8 @@ function getStageHealth(date: Date | null) {
 
   if (days <= 14) {
     return {
-      containerClassName:
-        "border border-emerald-400/25 bg-emerald-400/10",
-      metricClassName:
-        "border border-emerald-400/20 bg-emerald-950/35",
+      containerClassName: "border border-emerald-400/25 bg-emerald-400/10",
+      metricClassName: "border border-emerald-400/20 bg-emerald-950/35",
       valueClassName: "text-emerald-100",
       messageClassName: "text-emerald-200",
       message: "Dentro do tempo razoável para esta etapa.",
@@ -1606,10 +1368,8 @@ function getStageHealth(date: Date | null) {
 
   if (days <= 30) {
     return {
-      containerClassName:
-        "border border-amber-400/25 bg-amber-400/10",
-      metricClassName:
-        "border border-amber-400/20 bg-amber-950/35",
+      containerClassName: "border border-amber-400/25 bg-amber-400/10",
+      metricClassName: "border border-amber-400/20 bg-amber-950/35",
       valueClassName: "text-amber-100",
       messageClassName: "text-amber-200",
       message: "Exige atenção. Vale considerar follow-up ou reavaliar o próximo passo.",
@@ -1617,12 +1377,10 @@ function getStageHealth(date: Date | null) {
   }
 
   return {
-    containerClassName:
-      "border border-rose-400/25 bg-rose-400/10",
-    metricClassName:
-      "border border-rose-400/20 bg-rose-950/35",
+    containerClassName: "border border-rose-400/25 bg-rose-400/10",
+    metricClassName: "border border-rose-400/20 bg-rose-950/35",
     valueClassName: "text-rose-100",
     messageClassName: "text-rose-200",
-    message: "Parado há bastante tempo. Pode fazer sentido encerrar como recusada ou cancelada.",
+    message: "Parado há bastante tempo. Pode fazer sentido encerrar como rejeitada ou desistência.",
   };
 }
