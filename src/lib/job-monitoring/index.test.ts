@@ -27,7 +27,7 @@ function createMockLeadSnapshot(lead: { sourceUrl: string; title: string }): Lea
   };
 }
 
-test("runMonitoringForCompany aggregates discoveries and skips discarded jobs", async () => {
+test("runMonitoringForCompany aggregates discoveries and persists discarded jobs without counting them as leads", async () => {
   const persisted: Array<{ sourceUrl: string; classificationStatus: string }> = [];
 
   const summary = await runMonitoringForCompany(
@@ -96,7 +96,8 @@ test("runMonitoringForCompany aggregates discoveries and skips discarded jobs", 
 
   assert.deepEqual(summary, {
     linksFound: 2,
-    jobsParsed: 2,
+    skippedLinks: 0,
+    jobsParsed: 1,
     leadsSaved: 1,
     reviewsSaved: 0,
     discarded: 1,
@@ -106,6 +107,11 @@ test("runMonitoringForCompany aggregates discoveries and skips discarded jobs", 
     {
       sourceUrl: "https://example.com/jobs/frontend",
       classificationStatus: "interesting",
+    },
+    // Discarded leads are persisted too: they are what later runs skip.
+    {
+      sourceUrl: "https://example.com/jobs/platform",
+      classificationStatus: "discarded",
     },
   ]);
 });
@@ -160,7 +166,8 @@ test("runMonitoringForCompany skips classification failures without persisting b
 
   assert.deepEqual(summary, {
     linksFound: 1,
-    jobsParsed: 1,
+    skippedLinks: 0,
+    jobsParsed: 0,
     leadsSaved: 0,
     reviewsSaved: 0,
     discarded: 0,
