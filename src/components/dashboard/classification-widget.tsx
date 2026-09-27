@@ -1,31 +1,33 @@
 "use client";
 
-import { AlertCircle } from "lucide-react";
 import {
   Bar,
   BarChart,
-  Cell,
-  Pie,
-  PieChart,
+  CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 
+import {
+  ChartTooltip,
+  DashboardWidget,
+  chartTick,
+} from "@/components/dashboard/dashboard-widget";
+import { Notice } from "@/components/ui/notice";
+import { cn } from "@/lib/utils";
 import type { ClassificationDist, ScoreBucket } from "@/server/queries/dashboard";
 
-const STATUS_COLORS = {
-  interesting: "#34d399",
-  review: "#fbbf24",
-  discarded: "#f87171",
-};
-
-const STATUS_LABELS = {
-  interesting: "Interessante",
-  review: "Em revisão",
-  discarded: "Descartado",
-};
+// Stack order is deliberate: the positive and caution tokens sit too close to
+// tell apart side by side (dark palette: protanopia ΔE 5.4, normal vision
+// 14.8), so the neutral "discarded" segment always separates them. The order
+// stays safe in any theme; re-check the ΔE if the tokens change.
+const SEGMENTS = [
+  { key: "interesting", label: "Interessante", swatch: "bg-positive" },
+  { key: "discarded", label: "Descartado", swatch: "bg-chart-4" },
+  { key: "review", label: "Revisar", swatch: "bg-caution" },
+] as const;
 
 interface ClassificationWidgetProps {
   dist: ClassificationDist;
@@ -36,165 +38,120 @@ export function ClassificationWidget({
   dist,
   histogram,
 }: ClassificationWidgetProps) {
-  if (dist.total === 0) {
-    return (
-      <div className="rounded-2xl border border-border/50 bg-card/40 p-5">
-        <h3 className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Distribuição de classificação
-        </h3>
-        <div className="flex flex-col items-center justify-center gap-1 py-10 text-center">
-          <p className="text-sm text-muted-foreground">Dados insuficientes</p>
-          <p className="text-xs text-muted-foreground/50">
-            Nenhum lead no período
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const pieData = (["interesting", "review", "discarded"] as const)
-    .filter((k) => dist[k] > 0)
-    .map((k) => ({
-      name: STATUS_LABELS[k],
-      value: dist[k],
-      pct: Math.round((dist[k] / dist.total) * 100),
-      color: STATUS_COLORS[k],
-    }));
+  const segments = SEGMENTS.map((segment) => ({
+    ...segment,
+    value: dist[segment.key],
+    pct: dist.total > 0 ? Math.round((dist[segment.key] / dist.total) * 100) : 0,
+  }));
+  const scored = histogram.reduce((sum, bucket) => sum + bucket.count, 0);
 
   const tooManyDiscarded = dist.total > 5 && dist.discarded / dist.total > 0.7;
   const tooManyReview = dist.total > 5 && dist.review / dist.total > 0.5;
 
   return (
-    <div className="rounded-2xl border border-border/50 bg-card/40 p-5">
-      <h3 className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        Distribuição de classificação
-      </h3>
-
-      <div className="mt-4 flex flex-col items-center gap-4 min-[420px]:flex-row min-[420px]:items-stretch">
-        {/* Pie */}
-        <div className="h-40 w-40 min-w-0 shrink-0">
-          <ResponsiveContainer width="100%" height="100%" debounce={50}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                innerRadius={32}
-                outerRadius={56}
-                paddingAngle={2}
-                dataKey="value"
-              >
-                {pieData.map((entry) => (
-                  <Cell key={entry.name} fill={entry.color} opacity={0.85} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  background: "#1a1a2e",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                }}
-                formatter={(value, name) => {
-                  const numericValue = Number(value ?? 0);
-                  const label = typeof name === "string" ? name : String(name ?? "");
-                  return [
-                    `${numericValue} (${pieData.find((d) => d.name === label)?.pct ?? 0}%)`,
-                    label,
-                  ];
-                }}
+    <DashboardWidget
+      title="Distribuição de classificação"
+      meta={<span className="font-data">N={dist.total}</span>}
+      actual={dist.total}
+      insufficientDetail="Nenhum lead no período"
+    >
+      <div className="flex flex-col gap-3">
+        {/* The legend below carries every value; the bar is its visual twin. */}
+        <div aria-hidden className="flex h-2 gap-0.5 overflow-hidden rounded-xs">
+          {segments
+            .filter((segment) => segment.value > 0)
+            .map((segment) => (
+              <div
+                key={segment.key}
+                title={`${segment.label}: ${segment.value} (${segment.pct}%)`}
+                className={cn("h-full min-w-0.5", segment.swatch)}
+                style={{ flexGrow: segment.value, flexBasis: 0 }}
               />
-            </PieChart>
-          </ResponsiveContainer>
+            ))}
         </div>
 
-        {/* Legend + stats */}
-        <div className="flex w-full flex-1 flex-col justify-center gap-2">
-          {pieData.map((d) => (
-            <div key={d.name} className="flex items-center gap-2">
-              <span
-                className="size-2 shrink-0 rounded-full"
-                style={{ background: d.color }}
-              />
-              <span className="flex-1 text-xs text-muted-foreground">
-                {d.name}
+        <ul className="flex flex-col">
+          {segments.map((segment) => (
+            <li key={segment.key} className="flex items-center gap-2.5 py-1">
+              <span aria-hidden className={cn("size-2 shrink-0 rounded-xs", segment.swatch)} />
+              <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground">
+                {segment.label}
               </span>
-              <span className="text-xs font-medium tabular-nums text-foreground">
-                {d.value}
+              <span className="font-data text-[13px] font-medium text-foreground">
+                {segment.value}
               </span>
-              <span className="w-9 text-right text-xs tabular-nums text-muted-foreground/60">
-                {d.pct}%
+              <span className="w-10 text-right font-data text-xs text-subtle-foreground">
+                {segment.pct}%
               </span>
-            </div>
+            </li>
           ))}
-          <p className="mt-1 text-[10px] text-muted-foreground/40">
-            Total: {dist.total} leads
-          </p>
-        </div>
+        </ul>
       </div>
 
-      {/* Score histogram */}
       {histogram.length > 0 && (
-        <div className="mt-5">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Score (distribuição)
-          </p>
-          <div className="h-24 min-w-0">
+        <section className="flex flex-col gap-2 border-t border-border pt-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="text-[13px] font-medium text-muted-foreground">Distribuição de score</h3>
+            <span className="font-data text-xs text-subtle-foreground">N={scored}</span>
+          </div>
+          <div className="h-28 min-w-0">
             <ResponsiveContainer width="100%" height="100%" debounce={50}>
-              <BarChart
-                data={histogram}
-                margin={{ top: 0, right: 0, left: -28, bottom: 0 }}
-              >
+              <BarChart data={histogram} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="var(--border)" />
                 <XAxis
                   dataKey="bucket"
-                  tick={{ fontSize: 9, fill: "#6b7280" }}
+                  tick={chartTick}
                   tickLine={false}
                   axisLine={false}
+                  tickMargin={6}
+                  minTickGap={8}
                 />
                 <YAxis
-                  tick={{ fontSize: 9, fill: "#6b7280" }}
+                  tick={chartTick}
                   tickLine={false}
                   axisLine={false}
                   allowDecimals={false}
+                  width={28}
                 />
                 <Tooltip
-                  contentStyle={{
-                    background: "#1a1a2e",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                  }}
+                  cursor={{ fill: "var(--surface)" }}
+                  isAnimationActive={false}
+                  content={
+                    <ChartTooltip
+                      names={{ count: "Leads" }}
+                      formatLabel={(label) => `Score ${label}`}
+                    />
+                  }
                 />
                 <Bar
                   dataKey="count"
-                  fill="#6366f1"
-                  opacity={0.8}
+                  fill="var(--chart-3)"
                   radius={[2, 2, 0, 0]}
+                  maxBarSize={24}
+                  isAnimationActive={false}
                 />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </section>
       )}
 
       {tooManyDiscarded && (
-        <div className="mt-3 flex items-start gap-2 rounded-xl border border-rose-400/20 bg-rose-400/8 px-3 py-2.5">
-          <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-rose-400" />
-          <p className="text-xs text-rose-300/90">
-            {Math.round((dist.discarded / dist.total) * 100)}% dos leads
-            descartados — empresas monitoradas podem estar mal-selecionadas.
-          </p>
-        </div>
+        <Notice tone="negative">
+          <span className="font-data text-foreground">
+            {Math.round((dist.discarded / dist.total) * 100)}%
+          </span>{" "}
+          dos leads foram descartados: as empresas monitoradas podem estar mal selecionadas.
+        </Notice>
       )}
       {tooManyReview && (
-        <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-400/20 bg-amber-400/8 px-3 py-2.5">
-          <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-amber-400" />
-          <p className="text-xs text-amber-300/90">
-            {Math.round((dist.review / dist.total) * 100)}% em revisão —
-            critérios do classifier podem estar vagos.
-          </p>
-        </div>
+        <Notice tone="caution">
+          <span className="font-data text-foreground">
+            {Math.round((dist.review / dist.total) * 100)}%
+          </span>{" "}
+          em revisão: os critérios do classifier podem estar vagos.
+        </Notice>
       )}
-    </div>
+    </DashboardWidget>
   );
 }

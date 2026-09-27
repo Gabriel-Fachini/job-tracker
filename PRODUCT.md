@@ -28,7 +28,7 @@ Sharp, focused, purposeful. The tool should feel like something built for the de
 2. **Workflow over aesthetics.** Optimize for the repeated daily use case: triage leads, update status, write notes. Reduce friction at these points even if it makes the UI less "designed".
 3. **Quiet confidence.** Restrained color, strong typography hierarchy. The tool knows what it is; it doesn't need to announce itself.
 4. **Personal, not corporate.** This is a hand-built tool. It should feel that way — precise but not cold, functional but with visible craft in the details.
-5. **Dark-native.** Dark mode is not a skin. Colors, contrast, and motion are designed for dark-first. Light mode is not planned.
+5. **Dark-first.** Dark (absolute black content in a graphite frame) is the default and is designed first; it is not a skin. A light theme exists and the user can pick Sistema / Claro / Escuro per device. Both themes meet the same contrast floor and share every token name.
 
 ## Accessibility & Inclusion
 

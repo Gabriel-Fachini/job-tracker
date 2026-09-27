@@ -1,12 +1,21 @@
-import { AlertCircle, CheckCircle } from "lucide-react";
-
 import { DashboardWidget } from "@/components/dashboard/dashboard-widget";
+import { Notice } from "@/components/ui/notice";
+import { Status, type StatusTone } from "@/components/ui/status";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import type { ClassifierQualityData } from "@/server/queries/dashboard";
 
 const MIN_SAMPLES = 10;
 
 function pct(n: number, d: number): string {
-  if (d === 0) return "—";
+  if (d === 0) return "–";
   return `${Math.round((n / d) * 100)}%`;
 }
 
@@ -26,98 +35,105 @@ export function ClassifierQualityWidget({ data }: ClassifierQualityWidgetProps) 
 
   const lowPrecision = precision !== null && precision < 0.5;
   const highFnRate = fnRate !== null && fnRate > 0.1;
+  const healthy = !lowPrecision && !highFnRate && precision !== null;
 
   return (
     <DashboardWidget
       title="Qualidade do classifier"
+      meta="Todo o período"
       minSamples={MIN_SAMPLES}
       actual={data.total}
+      flush
     >
-      <div className="mt-4 space-y-3">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-border/30">
-              <th className="pb-2 text-left font-medium text-muted-foreground/60">
-                Classifier
-              </th>
-              <th className="pb-2 text-right font-medium text-muted-foreground/60">
-                Decididos
-              </th>
-              <th className="pb-2 text-right font-medium text-muted-foreground/60">
-                Promovidos
-              </th>
-              <th className="pb-2 text-right font-medium text-muted-foreground/60">
-                Taxa
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/20">
-            <tr>
-              <td className="py-2 text-emerald-400">Interesting</td>
-              <td className="py-2 text-right tabular-nums text-foreground/80">
-                {data.interestingTotal}
-              </td>
-              <td className="py-2 text-right tabular-nums text-foreground/80">
-                {data.interestingPromoted}
-              </td>
-              <td
-                className={`py-2 text-right tabular-nums font-medium ${lowPrecision ? "text-rose-400" : "text-emerald-400"}`}
-              >
-                {pct(data.interestingPromoted, data.interestingTotal)}
-              </td>
-            </tr>
-            <tr>
-              <td className="py-2 text-amber-400">Review</td>
-              <td className="py-2 text-right tabular-nums text-foreground/80">
-                {data.reviewTotal}
-              </td>
-              <td className="py-2 text-right tabular-nums text-foreground/80">
-                {data.reviewPromoted}
-              </td>
-              <td className="py-2 text-right tabular-nums text-muted-foreground/60">
-                {pct(data.reviewPromoted, data.reviewTotal)}
-              </td>
-            </tr>
-            <tr>
-              <td className="py-2 text-rose-400">Discarded</td>
-              <td className="py-2 text-right tabular-nums text-foreground/80">
-                {data.discardedTotal}
-              </td>
-              <td className="py-2 text-right tabular-nums text-foreground/80">
-                {data.discardedOverridden}
-              </td>
-              <td
-                className={`py-2 text-right tabular-nums font-medium ${highFnRate ? "text-rose-400" : "text-muted-foreground/60"}`}
-              >
-                {pct(data.discardedOverridden, data.discardedTotal)}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="pl-4 sm:pl-5">Classifier</TableHead>
+            <TableHead className="px-2 text-right sm:px-3">Decididos</TableHead>
+            <TableHead className="px-2 text-right sm:px-3">Promovidos</TableHead>
+            <TableHead className="pr-4 text-right sm:pr-5">Taxa</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <QualityRow
+            tone="positive"
+            label="Interessante"
+            decided={data.interestingTotal}
+            promoted={data.interestingPromoted}
+            rateClassName={cn("font-medium", lowPrecision ? "text-negative" : "text-positive")}
+          />
+          <QualityRow
+            tone="caution"
+            label="Revisar"
+            decided={data.reviewTotal}
+            promoted={data.reviewPromoted}
+            rateClassName="text-muted-foreground"
+          />
+          <QualityRow
+            tone="muted"
+            label="Descartado"
+            decided={data.discardedTotal}
+            promoted={data.discardedOverridden}
+            rateClassName={cn("font-medium", highFnRate ? "text-negative" : "text-muted-foreground")}
+          />
+        </TableBody>
+      </Table>
 
-        {lowPrecision && (
-          <div className="flex items-start gap-2 rounded-xl border border-rose-400/20 bg-rose-400/8 px-3 py-2.5">
-            <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-rose-400" />
-            <p className="text-xs text-rose-300/90">
-              Precisão baixa ({pct(data.interestingPromoted, data.interestingTotal)}) — ajuste critérios do prompt do classifier.
-            </p>
-          </div>
-        )}
-        {highFnRate && (
-          <div className="flex items-start gap-2 rounded-xl border border-amber-400/20 bg-amber-400/8 px-3 py-2.5">
-            <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-amber-400" />
-            <p className="text-xs text-amber-300/90">
-              {pct(data.discardedOverridden, data.discardedTotal)} dos descartados foram revertidos — classifier perdendo leads bons.
-            </p>
-          </div>
-        )}
-        {!lowPrecision && !highFnRate && precision !== null && (
-          <div className="flex items-center gap-2 text-xs text-emerald-400/80">
-            <CheckCircle className="size-3.5" />
-            Classifier operando bem com os dados atuais.
-          </div>
-        )}
-      </div>
+      {lowPrecision || highFnRate || healthy ? (
+        <div className="flex flex-col gap-2 border-t border-border px-4 py-3.5 sm:px-5">
+          {lowPrecision && (
+            <Notice tone="negative">
+              Precisão baixa (
+              <span className="font-data text-foreground">
+                {pct(data.interestingPromoted, data.interestingTotal)}
+              </span>
+              ). Ajuste os critérios do prompt do classifier.
+            </Notice>
+          )}
+          {highFnRate && (
+            <Notice tone="caution">
+              <span className="font-data text-foreground">
+                {pct(data.discardedOverridden, data.discardedTotal)}
+              </span>{" "}
+              dos descartados foram revertidos: o classifier está perdendo leads bons.
+            </Notice>
+          )}
+          {healthy && (
+            <Notice tone="positive">Classifier operando bem com os dados atuais.</Notice>
+          )}
+        </div>
+      ) : null}
     </DashboardWidget>
+  );
+}
+
+function QualityRow({
+  tone,
+  label,
+  decided,
+  promoted,
+  rateClassName,
+}: {
+  tone: StatusTone;
+  label: string;
+  decided: number;
+  promoted: number;
+  rateClassName: string;
+}) {
+  return (
+    <TableRow>
+      <TableCell className="pl-4 sm:pl-5">
+        <Status tone={tone}>{label}</Status>
+      </TableCell>
+      <TableCell className="px-2 text-right font-data text-xs text-foreground sm:px-3">
+        {decided}
+      </TableCell>
+      <TableCell className="px-2 text-right font-data text-xs text-foreground sm:px-3">
+        {promoted}
+      </TableCell>
+      <TableCell className={cn("pr-4 text-right font-data text-xs sm:pr-5", rateClassName)}>
+        {pct(promoted, decided)}
+      </TableCell>
+    </TableRow>
   );
 }

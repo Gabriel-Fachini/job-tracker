@@ -57,7 +57,7 @@ export function MonitoringRunButton({
   pendingLabel,
   shortLabel,
   className,
-  variant = "brand",
+  variant = "default",
   useStream = false,
   showCancel = true,
 }: MonitoringRunButtonProps) {
@@ -107,7 +107,7 @@ export function MonitoringRunButton({
           <span className="truncate">
             {pendingLabel}
             {progressDetail ? (
-              <span className="hidden sm:inline"> · {progressDetail}</span>
+              <span className="hidden font-data text-xs opacity-70 sm:inline"> {progressDetail}</span>
             ) : null}
           </span>
         ) : shortLabel ? (

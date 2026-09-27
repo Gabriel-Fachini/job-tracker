@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Building2, CalendarDays, Inbox, Plus } from "lucide-react";
+import { Inbox, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { ApplicationCreateModal } from "@/components/applications/application-create-modal";
@@ -14,14 +14,16 @@ import {
 import { ApplicationStatusSelect } from "@/components/applications/application-status-select";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { Chip } from "@/components/ui/chip";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { MetaLine } from "@/components/ui/meta-line";
+import { TabBar, TabBarItem } from "@/components/ui/tab-bar";
 import { useSearchParamsUpdater } from "@/hooks/use-search-params-updater";
 import {
   applicationStatusLabelMap,
@@ -29,11 +31,11 @@ import {
   type ApplicationStatus,
 } from "@/lib/applications";
 import {
+  formatDate,
   getSeniorityLabel,
   getSourceNameLabel,
   getWorkModelLabel,
 } from "@/lib/jobs";
-import { cn } from "@/lib/utils";
 import { updateApplicationStatus } from "@/server/actions/applications";
 
 type ApplicationListItem = {
@@ -64,8 +66,6 @@ type ApplicationsClientProps = {
     name: string;
   }>;
   items: ApplicationListItem[];
-  /** Server-rendered overview shown between the header and the list. */
-  summary?: React.ReactNode;
 };
 
 type BoardState = Record<ApplicationStatus, ApplicationListItem[]>;
@@ -164,14 +164,6 @@ function parseSelectedApplicationId(value: string | null): number | null {
   return Number.isInteger(parsed) ? parsed : null;
 }
 
-function formatCardDate(date: Date): string {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
-
 function ApplicationListRow({
   item,
   onOpenDetails,
@@ -181,62 +173,53 @@ function ApplicationListRow({
   onOpenDetails: () => void;
   onStatusChange: (status: ApplicationStatus) => void;
 }) {
-  const workModelLabel = getWorkModelLabel(item.workModel);
-  const seniorityLabel = getSeniorityLabel(item.seniority);
-  const sourceNameLabel = getSourceNameLabel(item.sourceName);
-  const dateLabel = formatCardDate(item.appliedAt ?? item.createdAt);
-  const hasChips = Boolean(workModelLabel || seniorityLabel || sourceNameLabel);
+  const date = item.appliedAt ?? item.createdAt;
 
   return (
-    <li className="group relative transition-colors duration-150 hover:bg-foreground/[0.04] has-[>button:active]:bg-foreground/[0.06]">
+    <li className="relative transition-colors duration-150 hover:bg-surface has-[>button:active]:bg-surface">
+      {/* Stretched target: the whole row opens the detail sheet. */}
       <button
         type="button"
         onClick={onOpenDetails}
         aria-label={`Abrir candidatura: ${item.jobTitle}`}
-        className="absolute inset-0 outline-none focus-visible:bg-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        className="absolute inset-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       />
 
-      <div className="flex flex-col gap-2.5 px-4 py-3.5 md:flex-row md:items-center md:gap-4 md:px-5">
-        <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 text-sm leading-snug font-medium text-foreground md:truncate">
-            {item.jobTitle}
-          </p>
-          <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-            <Building2 aria-hidden className="size-3 shrink-0" />
-            <span className="truncate">{item.company ?? "Empresa não informada"}</span>
-            <span aria-hidden className="md:hidden">·</span>
-            <span className="shrink-0 md:hidden">{dateLabel}</span>
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 md:shrink-0">
-          {hasChips ? (
-            <div className="flex min-w-0 flex-1 flex-wrap gap-1.5 md:flex-none">
-              {workModelLabel ? <Chip>{workModelLabel}</Chip> : null}
-              {seniorityLabel ? <Chip>{seniorityLabel}</Chip> : null}
-              {sourceNameLabel ? <Chip tone="info">{sourceNameLabel}</Chip> : null}
-            </div>
-          ) : (
-            <div className="flex-1 md:hidden" />
-          )}
-
-          <span className="hidden shrink-0 items-center gap-1 text-xs whitespace-nowrap text-muted-foreground md:flex">
-            <CalendarDays aria-hidden className="size-3 shrink-0" />
-            {dateLabel}
-          </span>
-
-          <ApplicationStatusSelect
-            value={item.status}
-            onChange={onStatusChange}
-            className="relative z-10"
-          />
-        </div>
+      {/* Phones: status beside the title, meta line full width below.
+          From sm: status centered on the right across both lines. */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3.5 sm:gap-x-6 sm:px-5">
+        <h3 className="line-clamp-2 text-[15px] leading-snug font-medium text-balance text-foreground">
+          {item.jobTitle}
+        </h3>
+        <ApplicationStatusSelect
+          value={item.status}
+          onChange={onStatusChange}
+          className="relative z-10 sm:row-span-2"
+        />
+        <MetaLine
+          className="col-span-2 sm:col-span-1"
+          items={[
+            <span key="company" className={item.company ? "text-foreground" : undefined}>
+              {item.company ?? "Empresa não informada"}
+            </span>,
+            getWorkModelLabel(item.workModel),
+            getSeniorityLabel(item.seniority),
+            getSourceNameLabel(item.sourceName),
+            <time
+              key="date"
+              dateTime={date.toISOString()}
+              className="font-data text-xs text-subtle-foreground"
+            >
+              {formatDate(date)}
+            </time>,
+          ]}
+        />
       </div>
     </li>
   );
 }
 
-export function ApplicationsClient({ companies, items, summary }: ApplicationsClientProps) {
+export function ApplicationsClient({ companies, items }: ApplicationsClientProps) {
   const searchParams = useSearchParams();
   const updateSearchParams = useSearchParamsUpdater();
   const [createOpen, setCreateOpen] = useState(false);
@@ -322,6 +305,7 @@ export function ApplicationsClient({ companies, items, summary }: ApplicationsCl
     : null;
 
   const totalCount = STATUS_ORDER.reduce((sum, status) => sum + board[status].length, 0);
+  const inProcessCount = board.in_process.length;
   const activeItems = board[activeTab];
 
   return (
@@ -329,19 +313,15 @@ export function ApplicationsClient({ companies, items, summary }: ApplicationsCl
       <PageHeader
         title="Candidaturas"
         description={
-          totalCount === 0
-            ? "Nenhuma candidatura registrada ainda."
-            : totalCount === 1
-              ? "1 candidatura registrada."
-              : `${totalCount} candidaturas registradas.`
+          <>
+            <span className="font-data text-foreground">{totalCount}</span>{" "}
+            {totalCount === 1 ? "registrada" : "registradas"}
+            <span aria-hidden className="mx-1.5 text-subtle-foreground">·</span>
+            <span className="font-data text-foreground">{inProcessCount}</span> em processo
+          </>
         }
         actions={
-          <Button
-            variant="brand"
-            size="lg"
-            onClick={() => setCreateOpen(true)}
-            className="h-10 rounded-xl px-4 sm:h-11 sm:px-5"
-          >
+          <Button onClick={() => setCreateOpen(true)}>
             <Plus data-icon="inline-start" />
             <span className="sm:hidden">Nova</span>
             <span className="hidden sm:inline">Nova candidatura</span>
@@ -349,73 +329,49 @@ export function ApplicationsClient({ companies, items, summary }: ApplicationsCl
         }
       />
 
-      {summary}
-
       {totalCount === 0 ? (
-        <Empty className="rounded-3xl border border-dashed border-border/50 bg-card/40 py-16">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Inbox />
-            </EmptyMedia>
-            <EmptyTitle>Nenhuma candidatura registrada</EmptyTitle>
-            <EmptyDescription className="max-w-xs">
-              Registre a vaga, o status inicial e acompanhe cada etapa do processo seletivo aqui.
-            </EmptyDescription>
-          </EmptyHeader>
-          <Button
-            variant="outline"
-            onClick={() => setCreateOpen(true)}
-            className="mt-1 h-10 rounded-xl px-5"
-          >
-            <Plus data-icon="inline-start" />
-            Registrar primeira candidatura
-          </Button>
-        </Empty>
+        <section
+          aria-label="Candidaturas"
+          className="-mx-4 border-y border-border sm:mx-0 sm:rounded-xl sm:border-x"
+        >
+          <Empty className="py-14">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Inbox />
+              </EmptyMedia>
+              <EmptyTitle>Nenhuma candidatura registrada</EmptyTitle>
+              <EmptyDescription>
+                Registre a vaga, o status inicial e acompanhe cada etapa do processo seletivo aqui.
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button variant="outline" onClick={() => setCreateOpen(true)}>
+                <Plus data-icon="inline-start" />
+                Registrar primeira candidatura
+              </Button>
+            </EmptyContent>
+          </Empty>
+        </section>
       ) : (
         <section
           aria-label="Candidaturas por status"
-          className="-mx-4 border-y border-border/60 bg-card/50 sm:mx-0 sm:overflow-hidden sm:rounded-2xl sm:border"
+          className="-mx-4 border-y border-border sm:mx-0 sm:rounded-xl sm:border-x"
         >
-          <div
-            ref={tabListRef}
-            role="tablist"
-            aria-label="Status"
-            className="relative flex snap-x overflow-x-auto border-b border-border/50 px-2 scrollbar-none sm:px-0"
-          >
-            {STATUS_ORDER.map((status) => {
-              const count = board[status].length;
-              const isActive = activeTab === status;
-
-              return (
-                <button
-                  key={status}
-                  ref={(node) => {
-                    tabRefs.current[status] = node;
-                  }}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => setActiveTab(status)}
-                  className={cn(
-                    "relative flex h-12 shrink-0 snap-start items-center gap-2 px-3.5 text-sm font-medium whitespace-nowrap transition-colors duration-150 outline-none focus-visible:bg-foreground/5 sm:px-4",
-                    isActive
-                      ? "text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand"
-                      : "text-muted-foreground hover:text-foreground/85",
-                  )}
-                >
-                  {applicationStatusLabelMap[status]}
-                  <span
-                    className={cn(
-                      "min-w-5 rounded-full px-1.5 text-center text-xs leading-5 font-medium tabular-nums",
-                      isActive ? "bg-brand/20 text-brand" : "bg-foreground/6 text-muted-foreground",
-                    )}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <TabBar ref={tabListRef} aria-label="Status" className="px-1 sm:px-2">
+            {STATUS_ORDER.map((status) => (
+              <TabBarItem
+                key={status}
+                ref={(node) => {
+                  tabRefs.current[status] = node;
+                }}
+                selected={activeTab === status}
+                count={board[status].length}
+                onClick={() => setActiveTab(status)}
+              >
+                {applicationStatusLabelMap[status]}
+              </TabBarItem>
+            ))}
+          </TabBar>
 
           <div
             key={activeTab}
@@ -424,7 +380,7 @@ export function ApplicationsClient({ companies, items, summary }: ApplicationsCl
             className="animate-in fade-in-0 duration-150"
           >
             {activeItems.length === 0 ? (
-              <Empty className="py-12">
+              <Empty className="py-14">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
                     <Inbox />
@@ -436,7 +392,7 @@ export function ApplicationsClient({ companies, items, summary }: ApplicationsCl
                 </EmptyHeader>
               </Empty>
             ) : (
-              <ul className="divide-y divide-border/40">
+              <ul className="divide-y divide-border">
                 {activeItems.map((item) => (
                   <ApplicationListRow
                     key={item.id}

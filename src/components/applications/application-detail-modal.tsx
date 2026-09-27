@@ -4,23 +4,20 @@ import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Building2,
   CircleSlash,
   ExternalLink,
   FileUp,
-  FileX2,
   Loader2,
   PencilLine,
   Plus,
   Sparkles,
   Trash2,
-  Users2,
 } from "lucide-react";
 
+import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { ApplicationStatusSelect } from "@/components/applications/application-status-select";
 import { JobMarkdown } from "@/components/applications/job-markdown";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Chip } from "@/components/ui/chip";
 import {
   Dialog,
   DialogContent,
@@ -28,9 +25,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Notice } from "@/components/ui/notice";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { StatusDot, type StatusTone } from "@/components/ui/status";
 import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import { type ApplicationStatus } from "@/lib/applications";
 import {
   getSeniorityLabel,
@@ -101,14 +102,14 @@ type StageFormState = {
   notes: string;
 };
 
-const controlClassName =
-  "h-10 w-full rounded-xl border border-input bg-input/30 px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
-
-const textareaClassName =
-  "min-h-24 w-full rounded-xl border border-input bg-input/30 px-3 py-2.5 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
-
-/** The one bordered surface a section may use; sections themselves stay flat. */
-const panelClassName = "rounded-2xl border border-border/60 bg-background/40";
+type DefinitionRow = {
+  label: string;
+  value: string | null;
+  /** Shown in subtle text when there is no value. */
+  fallback?: string;
+  /** Ids and dates are set in the data face. */
+  isData?: boolean;
+};
 
 export function ApplicationDetailModal({
   application,
@@ -159,44 +160,43 @@ function ApplicationDetailBody({
 
   return (
     <>
-      <DialogHeader className="shrink-0 gap-3 border-b border-border/50 px-4 pt-5 pr-14 pb-4 sm:px-6 sm:pt-6 sm:pb-5">
-        <div className="flex flex-wrap items-center gap-2">
+      <DialogHeader className="shrink-0 gap-3 border-b border-border px-4 pt-5 pr-14 pb-4 sm:px-6 sm:pt-6 sm:pb-5">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {onStatusChange ? (
             <ApplicationStatusSelect value={application.status} onChange={onStatusChange} />
-          ) : null}
+          ) : (
+            <ApplicationStatusBadge status={application.status} />
+          )}
           {application.isReferral ? (
-            <Chip tone="info">
-              <Users2 aria-hidden />
-              Indicação
-            </Chip>
+            <span className="text-xs text-muted-foreground">Indicação</span>
           ) : null}
         </div>
         <div className="min-w-0">
-          <DialogTitle className="text-xl leading-tight text-balance sm:text-2xl">
+          <DialogTitle className="text-lg leading-snug text-balance sm:text-xl">
             {application.jobTitle}
           </DialogTitle>
-          <DialogDescription className="mt-2 flex items-center gap-1.5 text-sm">
-            <Building2 aria-hidden className="size-3.5 shrink-0" />
-            <span className="truncate">{application.company ?? "Empresa não informada"}</span>
+          <DialogDescription className="mt-1 truncate text-sm">
+            {application.company ?? "Empresa não informada"}
           </DialogDescription>
         </div>
       </DialogHeader>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="grid gap-8 px-4 py-5 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-10">
-          <div className="flex min-w-0 flex-col gap-8">
-            <CurrentStageCard currentStage={currentStage} />
+        <div className="grid gap-6 px-4 py-5 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-10">
+          <div className="flex min-w-0 flex-col gap-6">
+            <CurrentStageSummary currentStage={currentStage} />
 
             <DetailSection
               title="Etapas"
+              count={orderedStages.length > 0 ? orderedStages.length : undefined}
+              className="border-t border-border pt-5"
               action={
                 !isComposingStage ? (
                   <Button
                     type="button"
-                    variant={orderedStages.length === 0 ? "brand" : "outline"}
+                    variant="outline"
                     size="sm"
                     onClick={() => setIsComposingStage(true)}
-                    className="rounded-lg"
                   >
                     <Plus data-icon="inline-start" />
                     {orderedStages.length === 0 ? "Registrar primeira" : "Adicionar"}
@@ -208,17 +208,18 @@ function ApplicationDetailBody({
                 <StageComposer
                   applicationId={application.id}
                   onDone={() => setIsComposingStage(false)}
+                  className={cn(timelineItems.length > 0 && "border-b border-border pb-5")}
                 />
               ) : null}
 
               {timelineItems.length === 0 ? (
                 !isComposingStage ? (
-                  <p className="rounded-2xl border border-dashed border-border/60 px-4 py-6 text-center text-sm leading-6 text-pretty text-muted-foreground">
+                  <p className="text-[13px] leading-5 text-pretty text-muted-foreground">
                     Registre triagem, teste técnico ou qualquer etapa real para acompanhar o tempo entre eventos.
                   </p>
                 ) : null
               ) : (
-                <ol className="flex flex-col gap-3">
+                <ol className={cn("flex flex-col", isComposingStage && "pt-2")}>
                   {timelineItems.map((stage, index) => (
                     <TimelineStageItem
                       key={`${stage.id}:${stage.date.getTime()}:${stage.label}:${stage.notes ?? ""}`}
@@ -230,7 +231,7 @@ function ApplicationDetailBody({
               )}
             </DetailSection>
 
-            <DetailSection title="Notas">
+            <DetailSection title="Notas" className="border-t border-border pt-5">
               <NotesEditor
                 key={`${application.id}:${application.updatedAt.getTime()}:${application.notes ?? ""}`}
                 applicationId={application.id}
@@ -238,7 +239,7 @@ function ApplicationDetailBody({
               />
             </DetailSection>
 
-            <DetailSection title="Currículo">
+            <DetailSection title="Currículo" className="border-t border-border pt-5">
               <UsedResumeSection
                 applicationId={application.id}
                 status={usedResumeStatus}
@@ -251,10 +252,11 @@ function ApplicationDetailBody({
               key={`${application.id}:${application.updatedAt.getTime()}:${application.description ?? ""}`}
               applicationId={application.id}
               initialDescription={application.description}
+              className="border-t border-border pt-5"
             />
           </div>
 
-          <aside className="min-w-0 lg:sticky lg:top-0 lg:self-start">
+          <aside className="min-w-0 border-t border-border pt-5 lg:sticky lg:top-0 lg:self-start lg:border-t-0 lg:pt-0">
             <MetadataEditor
               key={`metadata:${application.id}:${application.updatedAt.getTime()}`}
               applicationId={application.id}
@@ -271,16 +273,13 @@ function ApplicationDetailBody({
         </div>
       </ScrollArea>
 
-      <div className="flex shrink-0 items-center gap-2 border-t border-border/50 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4">
+      <div className="flex shrink-0 items-center gap-2 border-t border-border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-3.5">
         {application.sourceUrl ? (
           <a
             href={application.sourceUrl}
             target="_blank"
             rel="noreferrer"
-            className={cn(
-              buttonVariants({ variant: "outline", size: "lg" }),
-              "flex-1 rounded-xl sm:flex-none",
-            )}
+            className={cn(buttonVariants({ variant: "outline" }), "flex-1 sm:flex-none")}
           >
             Abrir vaga original
             <ExternalLink data-icon="inline-end" />
@@ -289,9 +288,11 @@ function ApplicationDetailBody({
         <Button
           type="button"
           variant="outline"
-          size="lg"
           onClick={onClose}
-          className={cn("rounded-xl sm:ml-auto", application.sourceUrl && "max-sm:hidden", !application.sourceUrl && "flex-1 sm:flex-none")}
+          className={cn(
+            "sm:ml-auto",
+            application.sourceUrl ? "max-sm:hidden" : "flex-1 sm:flex-none",
+          )}
         >
           Fechar
         </Button>
@@ -302,17 +303,26 @@ function ApplicationDetailBody({
 
 function DetailSection({
   title,
+  count,
   action,
+  className,
   children,
 }: {
   title: string;
+  count?: number;
   action?: ReactNode;
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="flex min-w-0 flex-col gap-3">
-      <div className="flex min-h-9 items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+    <section className={cn("flex min-w-0 flex-col gap-3", className)}>
+      <div className="flex min-h-7 items-center justify-between gap-3">
+        <h3 className="flex items-baseline gap-2 text-sm font-medium text-foreground">
+          {title}
+          {count !== undefined ? (
+            <span className="font-data text-xs text-subtle-foreground">{count}</span>
+          ) : null}
+        </h3>
         {action}
       </div>
       {children}
@@ -320,49 +330,58 @@ function DetailSection({
   );
 }
 
-function CurrentStageCard({
+/** Label stacked over its control; the label wraps the control, so no ids needed. */
+function LabeledControl({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="grid min-w-0 gap-1.5">
+      <span className="text-[13px] leading-5 font-medium text-foreground">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+
+function CurrentStageSummary({
   currentStage,
 }: {
   currentStage: ApplicationStageData | null;
 }) {
-  const health = getStageHealth(currentStage?.date ?? null);
+  if (!currentStage) {
+    return (
+      <section aria-label="Etapa atual" className="flex flex-col gap-1">
+        <h3 className="text-sm font-medium text-foreground">Ainda sem etapa definida</h3>
+        <p className="text-[13px] leading-5 text-pretty text-muted-foreground">
+          Registre o primeiro marco real deste processo para começar a medir o tempo.
+        </p>
+      </section>
+    );
+  }
+
+  const health = getStageHealth(currentStage.date);
 
   return (
-    <section
-      aria-label="Etapa atual"
-      className={cn("rounded-2xl px-4 py-4 sm:px-5", health.containerClassName)}
-    >
-      {currentStage ? (
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">Etapa atual</p>
-            <h3 className="mt-0.5 text-lg leading-snug font-semibold text-balance text-foreground">
-              {currentStage.label}
-            </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Desde {formatLongDate(currentStage.date)}
-            </p>
-          </div>
-          <div className={cn("shrink-0 rounded-xl px-3 py-2 text-right", health.metricClassName)}>
-            <p className="text-xs text-muted-foreground">Na etapa</p>
-            <p className={cn("mt-0.5 text-sm font-semibold tabular-nums", health.valueClassName)}>
-              {formatDuration(currentStage.date, new Date())}
-            </p>
-          </div>
+    <section aria-label="Etapa atual" className="flex flex-col gap-3">
+      <dl className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <dt className="text-xs text-subtle-foreground">Etapa atual</dt>
+          <dd className="mt-1 text-base leading-snug font-semibold text-balance break-words text-foreground">
+            {currentStage.label}
+          </dd>
+          <dd className="mt-1 text-[13px] text-muted-foreground">
+            Desde{" "}
+            <time dateTime={currentStage.date.toISOString()} className="font-data">
+              {formatLongDate(currentStage.date)}
+            </time>
+          </dd>
         </div>
-      ) : (
-        <div>
-          <h3 className="text-base font-semibold text-foreground">Ainda sem etapa definida</h3>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Registre o primeiro marco real deste processo para começar a medir o tempo.
-          </p>
+        <div className="shrink-0 text-right">
+          <dt className="text-xs text-subtle-foreground">Na etapa</dt>
+          <dd className="mt-1 font-data text-base leading-snug font-medium text-foreground">
+            {formatDuration(currentStage.date, new Date())}
+          </dd>
         </div>
-      )}
-      {currentStage ? (
-        <p className={cn("mt-3 text-sm font-medium text-pretty", health.messageClassName)}>
-          {health.message}
-        </p>
-      ) : null}
+      </dl>
+      <Notice tone={health.tone}>{health.message}</Notice>
     </section>
   );
 }
@@ -370,9 +389,11 @@ function CurrentStageCard({
 function StageComposer({
   applicationId,
   onDone,
+  className,
 }: {
   applicationId: number;
   onDone: () => void;
+  className?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -405,48 +426,48 @@ function StageComposer({
   return (
     <form
       onSubmit={handleSubmit}
-      className={cn("grid animate-in gap-3 p-4 fade-in-0 slide-in-from-top-1 duration-200", panelClassName)}
+      className={cn(
+        "grid animate-in gap-4 fade-in-0 slide-in-from-top-1 duration-200",
+        className,
+      )}
     >
-      <label className="grid gap-1.5 text-sm text-muted-foreground">
-        Etapa
-        <Input
-          autoFocus
-          value={fields.label}
-          onChange={(event) =>
-            setFields((current) => ({ ...current, label: event.target.value }))
-          }
-          placeholder="Ex.: Triagem RH"
-          className={controlClassName}
-        />
-      </label>
-      <label className="grid gap-1.5 text-sm text-muted-foreground">
-        Data
-        <Input
-          type="date"
-          value={fields.date}
-          onChange={(event) =>
-            setFields((current) => ({ ...current, date: event.target.value }))
-          }
-          className={controlClassName}
-        />
-      </label>
-      <label className="grid gap-1.5 text-sm text-muted-foreground">
-        Notas
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_11rem]">
+        <LabeledControl label="Etapa">
+          <Input
+            autoFocus
+            value={fields.label}
+            onChange={(event) =>
+              setFields((current) => ({ ...current, label: event.target.value }))
+            }
+            placeholder="Ex.: Triagem RH"
+          />
+        </LabeledControl>
+        <LabeledControl label="Data">
+          <Input
+            type="date"
+            value={fields.date}
+            onChange={(event) =>
+              setFields((current) => ({ ...current, date: event.target.value }))
+            }
+            className="font-data"
+          />
+        </LabeledControl>
+      </div>
+      <LabeledControl label="Notas">
         <Textarea
           value={fields.notes}
           onChange={(event) =>
             setFields((current) => ({ ...current, notes: event.target.value }))
           }
           placeholder="Como foi, próximos passos…"
-          className={textareaClassName}
         />
-      </label>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      </LabeledControl>
+      {error ? <FieldError>{error}</FieldError> : null}
       <div className="flex items-center justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onDone} className="rounded-xl">
+        <Button type="button" variant="ghost" onClick={onDone}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={isPending} className="rounded-xl">
+        <Button type="submit" variant="outline" disabled={isPending}>
           {isPending ? "Salvando…" : "Salvar etapa"}
         </Button>
       </div>
@@ -542,48 +563,53 @@ function UsedResumeSection({
 
   if (status === "empty") {
     return (
-      <div className={cn("flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between", panelClassName)}>
-        <div className="flex items-center gap-2 text-amber-100">
-          <FileX2 aria-hidden className="size-4 shrink-0" />
-          <p className="text-sm font-medium">Candidatura feita sem currículo</p>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-3">
+          <Notice tone="muted">Candidatura feita sem currículo.</Notice>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={isPending}
+            onClick={() => handleMarkAs("unknown")}
+          >
+            {isPending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
+            Desfazer
+          </Button>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          disabled={isPending}
-          onClick={() => handleMarkAs("unknown")}
-          className="self-start rounded-lg text-muted-foreground sm:self-auto"
-        >
-          {isPending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
-          Desfazer
-        </Button>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <FieldError>{error}</FieldError> : null}
       </div>
     );
   }
 
-  return (
-    <div className={cn("overflow-hidden", panelClassName)}>
-      {status === "uploaded" ? (
-        <div className="flex items-center gap-2 border-b border-border/50 px-4 py-3 text-sm text-muted-foreground">
-          <FileUp aria-hidden className="size-4 shrink-0" />
-          <span className="truncate">
-            PDF enviado{originalFilename ? `: ${originalFilename}` : ""}
-          </span>
-        </div>
-      ) : null}
+  const hasGeneratedPdf = resumePhase === "done" && Boolean(pdfPath);
+  // Uploaded file line or the upload prompt sits above the AI block.
+  const hasUploadBlock = status === "uploaded" || resumePhase !== "done";
 
-      {status !== "uploaded" && resumePhase !== "done" ? (
-        <div className="flex flex-col gap-3 border-b border-border/50 p-4">
-          <p className="text-sm leading-6 text-pretty text-muted-foreground">
+  return (
+    <div className="flex flex-col gap-4">
+      {status === "uploaded" ? (
+        <p className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+          <FileUp aria-hidden className="size-4 shrink-0 text-subtle-foreground" />
+          <span className="truncate">
+            PDF enviado
+            {originalFilename ? (
+              <>
+                : <span className="text-foreground">{originalFilename}</span>
+              </>
+            ) : null}
+          </span>
+        </p>
+      ) : resumePhase !== "done" ? (
+        <div className="flex flex-col gap-3">
+          <p className="text-[13px] leading-5 text-pretty text-muted-foreground">
             Salve o PDF enviado nesta vaga ou marque que a candidatura foi feita sem currículo.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <label
               className={cn(
-                buttonVariants({ variant: "brand", size: "sm" }),
-                "cursor-pointer rounded-lg has-[:disabled]:pointer-events-none has-[:disabled]:opacity-50",
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "cursor-pointer has-[:disabled]:pointer-events-none has-[:disabled]:opacity-40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
               )}
             >
               <FileUp data-icon="inline-start" />
@@ -598,46 +624,45 @@ function UsedResumeSection({
             </label>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
               disabled={isPending}
               onClick={() => handleMarkAs("empty")}
-              className="rounded-lg"
             >
               <CircleSlash data-icon="inline-start" />
               Sem currículo
             </Button>
             {isPending ? (
-              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Loader2 className="size-3.5 animate-spin" />
+              <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                <Loader2 aria-hidden className="size-3.5 animate-spin" />
                 Atualizando…
               </span>
             ) : null}
           </div>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <FieldError>{error}</FieldError> : null}
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-3 p-4">
+      <div className={cn("flex flex-col gap-3", hasUploadBlock && "border-t border-border pt-4")}>
         <div>
-          <p className="text-sm font-medium text-foreground">Currículo personalizado por IA</p>
-          <p className="mt-1 text-sm leading-6 text-pretty text-muted-foreground">
+          <h4 className="text-[13px] font-medium text-foreground">
+            Currículo personalizado por IA
+          </h4>
+          <p className="mt-1 text-[13px] leading-5 text-pretty text-muted-foreground">
             Seleciona e reescreve os bullets e habilidades mais relevantes para esta vaga.
           </p>
         </div>
         {resumePhase === "error" && resumeError ? (
-          <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {resumeError}
-          </p>
+          <Notice tone="negative">{resumeError}</Notice>
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
-          {resumePhase === "done" && pdfPath ? (
+          {hasGeneratedPdf ? (
             <>
               <a
                 href={generatedPdfHref}
                 target="_blank"
                 rel="noreferrer"
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-lg")}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
               >
                 Abrir PDF
                 <ExternalLink data-icon="inline-end" />
@@ -648,7 +673,6 @@ function UsedResumeSection({
                 size="sm"
                 onClick={handleGenerateResume}
                 disabled={isGenerating}
-                className="rounded-lg text-muted-foreground"
               >
                 {isGenerating ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
                 Gerar novamente
@@ -657,10 +681,10 @@ function UsedResumeSection({
           ) : (
             <Button
               type="button"
+              variant="outline"
               size="sm"
               onClick={handleGenerateResume}
               disabled={isGenerating}
-              className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-500"
             >
               {isGenerating ? (
                 <Loader2 data-icon="inline-start" className="animate-spin" />
@@ -678,11 +702,11 @@ function UsedResumeSection({
       </div>
 
       {/* Inline PDF preview is unreliable on phones; they get "Abrir PDF". */}
-      {resumePhase === "done" && pdfPath ? (
-        <div className="hidden border-t border-border/50 sm:block">
+      {hasGeneratedPdf ? (
+        <div className="hidden overflow-hidden rounded-lg border border-border sm:block">
           <iframe
             src={generatedPdfHref}
-            className="w-full"
+            className="block w-full"
             style={{ height: "min(780px, 65vh)" }}
             title="Prévia do currículo gerado"
           />
@@ -747,89 +771,85 @@ function TimelineStageItem({
   }
 
   return (
-    <li className="relative pl-7">
+    <li className="relative pb-5 pl-6 last:pb-0">
+      {/* Hairline rail between dots; the current (latest) stage gets the bright dot. */}
       {!isLast ? (
         <span
           aria-hidden
-          className="absolute top-6 bottom-[-0.75rem] left-[0.4375rem] w-px bg-emerald-400/25"
+          className="absolute top-[17px] -bottom-[3px] left-[2.5px] w-px bg-border"
         />
       ) : null}
-      <span
-        aria-hidden
-        className={cn(
-          "absolute top-4 left-0 size-3.5 rounded-full border-2",
-          stage.isCurrent
-            ? "border-amber-200/80 bg-amber-300"
-            : "border-emerald-300/40 bg-emerald-400/70",
-        )}
+      <StatusDot
+        tone={stage.isCurrent ? "active" : "neutral"}
+        className="absolute top-[7px] left-0"
       />
 
-      <div
-        className={cn(
-          "rounded-2xl border px-4 py-3",
-          stage.isCurrent
-            ? "border-amber-300/25 bg-amber-300/[0.07]"
-            : "border-border/50 bg-background/30",
-        )}
-      >
-        {!isEditing ? (
-          <div>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h4 className="text-sm leading-snug font-semibold break-words text-foreground">
-                  {stage.label}
-                </h4>
-                <p className="mt-0.5 text-xs text-muted-foreground">
+      {!isEditing ? (
+        <div>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h4 className="text-sm leading-5 font-medium break-words text-foreground">
+                {stage.label}
+              </h4>
+              <p className="mt-0.5 text-xs text-subtle-foreground">
+                <time dateTime={stage.date.toISOString()} className="font-data">
                   {formatLongDate(stage.date)}
-                  <span aria-hidden> · </span>
-                  <span className={cn(stage.isCurrent ? "text-amber-100" : "text-foreground/75")}>
-                    {stage.durationLabel}
-                  </span>
-                </p>
-              </div>
-
-              <div className="-mr-2 -mt-1 flex shrink-0 items-center">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => setIsEditing(true)}
-                  aria-label={`Editar etapa ${stage.label}`}
-                  className="rounded-lg text-muted-foreground"
+                </time>
+                <span aria-hidden className="mx-1.5">
+                  ·
+                </span>
+                <span
+                  className={cn(
+                    "font-data",
+                    stage.isCurrent ? "text-foreground" : "text-muted-foreground",
+                  )}
                 >
-                  <PencilLine />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={handleDelete}
-                  disabled={isPending}
-                  aria-label={`Excluir etapa ${stage.label}`}
-                  className="rounded-lg text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 />
-                </Button>
-              </div>
+                  {stage.durationLabel}
+                </span>
+              </p>
             </div>
 
-            {stage.notes ? (
-              <p className="mt-2 text-sm leading-6 break-words whitespace-pre-line text-foreground/80">
-                {stage.notes}
-              </p>
-            ) : null}
-
-            {error ? <p className="mt-2 text-sm text-destructive">{error}</p> : null}
+            <div className="-mt-1 -mr-1.5 flex shrink-0 items-center">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setIsEditing(true)}
+                aria-label={`Editar etapa ${stage.label}`}
+              >
+                <PencilLine />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleDelete}
+                disabled={isPending}
+                aria-label={`Excluir etapa ${stage.label}`}
+                className="hover:bg-destructive/12 hover:text-destructive"
+              >
+                <Trash2 />
+              </Button>
+            </div>
           </div>
-        ) : (
-          <form onSubmit={handleSave} className="grid gap-3 py-1">
+
+          {stage.notes ? (
+            <p className="mt-1.5 max-w-[68ch] text-sm leading-6 break-words whitespace-pre-line text-muted-foreground">
+              {stage.notes}
+            </p>
+          ) : null}
+
+          {error ? <FieldError className="mt-2">{error}</FieldError> : null}
+        </div>
+      ) : (
+        <form onSubmit={handleSave} className="grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]">
             <Input
               aria-label="Nome da etapa"
               value={fields.label}
               onChange={(event) =>
                 setFields((current) => ({ ...current, label: event.target.value }))
               }
-              className={controlClassName}
             />
             <Input
               aria-label="Data da etapa"
@@ -838,37 +858,35 @@ function TimelineStageItem({
               onChange={(event) =>
                 setFields((current) => ({ ...current, date: event.target.value }))
               }
-              className={controlClassName}
+              className="font-data"
             />
-            <Textarea
-              aria-label="Notas da etapa"
-              value={fields.notes}
-              onChange={(event) =>
-                setFields((current) => ({ ...current, notes: event.target.value }))
-              }
-              className={textareaClassName}
-            />
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setIsEditing(false);
-                  setError(null);
-                  setFields(createStageFormFromStage(stage));
-                }}
-                className="rounded-xl"
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isPending} className="rounded-xl">
-                {isPending ? "Salvando…" : "Salvar"}
-              </Button>
-            </div>
-          </form>
-        )}
-      </div>
+          </div>
+          <Textarea
+            aria-label="Notas da etapa"
+            value={fields.notes}
+            onChange={(event) =>
+              setFields((current) => ({ ...current, notes: event.target.value }))
+            }
+          />
+          {error ? <FieldError>{error}</FieldError> : null}
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setIsEditing(false);
+                setError(null);
+                setFields(createStageFormFromStage(stage));
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" variant="outline" disabled={isPending}>
+              {isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </div>
+        </form>
+      )}
     </li>
   );
 }
@@ -876,9 +894,11 @@ function TimelineStageItem({
 function DescriptionEditor({
   applicationId,
   initialDescription,
+  className,
 }: {
   applicationId: number;
   initialDescription: string | null;
+  className?: string;
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -928,6 +948,7 @@ function DescriptionEditor({
   return (
     <DetailSection
       title="Descrição da vaga"
+      className={className}
       action={
         !isEditing ? (
           <Button
@@ -938,7 +959,6 @@ function DescriptionEditor({
               setIsEditing(true);
               setDescription(initialDescription ?? "");
             }}
-            className="rounded-lg text-muted-foreground"
           >
             <PencilLine data-icon="inline-start" />
             Editar
@@ -950,10 +970,10 @@ function DescriptionEditor({
         initialDescription ? (
           <JobMarkdown
             content={initialDescription}
-            className="min-w-0 break-words sm:rounded-xl sm:border sm:border-border/50 sm:bg-muted/15 sm:p-5"
+            className="max-w-[68ch] min-w-0 break-words"
           />
         ) : (
-          <p className="text-sm text-muted-foreground">Nenhuma descrição salva.</p>
+          <p className="text-sm text-subtle-foreground">Nenhuma descrição salva.</p>
         )
       ) : (
         <form onSubmit={handleSave} className="grid gap-3">
@@ -962,16 +982,15 @@ function DescriptionEditor({
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             placeholder="Descrição da vaga…"
-            className={cn(textareaClassName, "min-h-48")}
+            className="min-h-48"
           />
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <FieldError>{error}</FieldError> : null}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={handleFormat}
               disabled={isFormatting || !description.trim()}
-              className="rounded-xl"
             >
               {isFormatting ? (
                 <Loader2 data-icon="inline-start" className="animate-spin" />
@@ -989,11 +1008,10 @@ function DescriptionEditor({
                   setDescription(initialDescription ?? "");
                   setError(null);
                 }}
-                className="rounded-xl"
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isPending || !hasChanges} className="rounded-xl">
+              <Button type="submit" variant="outline" disabled={isPending || !hasChanges}>
                 {isPending ? "Salvando…" : "Salvar"}
               </Button>
             </div>
@@ -1041,9 +1059,9 @@ function NotesEditor({
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
         placeholder="Resposta da recrutadora, alinhamento salarial, próximos passos…"
-        className={cn(textareaClassName, "min-h-28")}
+        className="min-h-24"
       />
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <FieldError>{error}</FieldError> : null}
       {hasChanges || isPending ? (
         <div className="flex animate-in items-center justify-end gap-2 fade-in-0 duration-150">
           <Button
@@ -1051,11 +1069,10 @@ function NotesEditor({
             variant="ghost"
             onClick={() => setNotes(initialNotes ?? "")}
             disabled={isPending}
-            className="rounded-xl"
           >
             Descartar
           </Button>
-          <Button type="submit" disabled={isPending} className="rounded-xl">
+          <Button type="submit" variant="outline" disabled={isPending}>
             {isPending ? "Salvando…" : "Salvar notas"}
           </Button>
         </div>
@@ -1123,17 +1140,17 @@ function MetadataEditor({
     });
   }
 
-  const staticRows = [
-    { label: "Candidatura", value: appId },
-    { label: "Empresa", value: company ?? "Não informada" },
-    { label: "Registrada em", value: formatLongDate(createdAt) },
-    { label: "Atualizada em", value: formatLongDate(updatedAt) },
+  const staticRows: DefinitionRow[] = [
+    { label: "Candidatura", value: appId, isData: true },
+    { label: "Empresa", value: company, fallback: "Não informada" },
+    { label: "Registrada em", value: formatLongDate(createdAt), isData: true },
+    { label: "Atualizada em", value: formatLongDate(updatedAt), isData: true },
   ];
 
-  const contextRows = [
-    { label: "Origem", value: getSourceNameLabel(initialSourceName) ?? "Não informada" },
-    { label: "Modelo", value: getWorkModelLabel(initialWorkModel) ?? "Não informado" },
-    { label: "Senioridade", value: getSeniorityLabel(initialSeniority) ?? "Não informada" },
+  const contextRows: DefinitionRow[] = [
+    { label: "Origem", value: getSourceNameLabel(initialSourceName), fallback: "Não informada" },
+    { label: "Modelo", value: getWorkModelLabel(initialWorkModel), fallback: "Não informado" },
+    { label: "Senioridade", value: getSeniorityLabel(initialSeniority), fallback: "Não informada" },
     { label: "Indicação", value: initialIsReferral ? "Sim" : "Não" },
   ];
 
@@ -1142,85 +1159,86 @@ function MetadataEditor({
       title="Contexto da vaga"
       action={
         !isEditing ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleEdit}
-            className="rounded-lg text-muted-foreground"
-          >
+          <Button type="button" variant="ghost" size="sm" onClick={handleEdit}>
             <PencilLine data-icon="inline-start" />
             Editar
           </Button>
         ) : null
       }
     >
-      <dl className="divide-y divide-border/40 rounded-2xl border border-border/60">
+      {/* Stacked grid while the aside is full width; label/value rows in the
+          narrow desktop column. */}
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-1 lg:gap-y-0 lg:divide-y lg:divide-border">
         {(isEditing ? staticRows : [...staticRows, ...contextRows]).map((row) => (
-          <div key={row.label} className="flex items-baseline justify-between gap-4 px-4 py-2.5">
-            <dt className="shrink-0 text-sm text-muted-foreground">{row.label}</dt>
-            <dd className="min-w-0 text-right text-sm font-medium break-words text-foreground/90">
-              {row.value}
+          <div
+            key={row.label}
+            className="min-w-0 lg:flex lg:items-baseline lg:justify-between lg:gap-4 lg:py-2.5 lg:first:pt-0 lg:last:pb-0"
+          >
+            <dt className="text-xs text-subtle-foreground lg:shrink-0">{row.label}</dt>
+            <dd
+              className={cn(
+                "mt-1 text-sm break-words text-foreground lg:mt-0 lg:min-w-0 lg:text-right",
+                row.isData && "font-data text-[13px]",
+                !row.value && "text-subtle-foreground",
+              )}
+            >
+              {row.value || row.fallback}
             </dd>
           </div>
         ))}
       </dl>
 
       {isEditing ? (
-        <div className={cn("grid animate-in gap-3 p-4 fade-in-0 duration-150", panelClassName)}>
-          <label className="grid gap-1.5 text-sm text-muted-foreground">
-            Origem
-            <select
-              value={sourceName}
-              onChange={(event) => setSourceName(event.target.value)}
-              className={controlClassName}
-            >
-              <option value="">Não informada</option>
-              {sourceNameOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </label>
+        <div className="grid animate-in gap-4 border-t border-border pt-4 fade-in-0 duration-150">
+          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+            <LabeledControl label="Origem">
+              <NativeSelect
+                value={sourceName}
+                onChange={(event) => setSourceName(event.target.value)}
+              >
+                <option value="">Não informada</option>
+                {sourceNameOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </NativeSelect>
+            </LabeledControl>
 
-          <label className="grid gap-1.5 text-sm text-muted-foreground">
-            Modelo de trabalho
-            <select
-              value={workModel}
-              onChange={(event) => setWorkModel(event.target.value)}
-              className={controlClassName}
-            >
-              <option value="">Não informado</option>
-              {workModelOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </label>
+            <LabeledControl label="Modelo de trabalho">
+              <NativeSelect
+                value={workModel}
+                onChange={(event) => setWorkModel(event.target.value)}
+              >
+                <option value="">Não informado</option>
+                {workModelOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </NativeSelect>
+            </LabeledControl>
 
-          <label className="grid gap-1.5 text-sm text-muted-foreground">
-            Senioridade
-            <select
-              value={seniority}
-              onChange={(event) => setSeniority(event.target.value)}
-              className={controlClassName}
-            >
-              <option value="">Não informada</option>
-              {seniorityOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </label>
+            <LabeledControl label="Senioridade">
+              <NativeSelect
+                value={seniority}
+                onChange={(event) => setSeniority(event.target.value)}
+              >
+                <option value="">Não informada</option>
+                {seniorityOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </NativeSelect>
+            </LabeledControl>
+          </div>
 
-          <label className="flex min-h-10 cursor-pointer items-center gap-3 text-sm text-foreground/90">
+          <label className="flex min-h-8 cursor-pointer items-center gap-2.5 text-sm text-foreground pointer-coarse:min-h-10">
             <input
               type="checkbox"
               checked={isReferral}
               onChange={(event) => setIsReferral(event.target.checked)}
-              className="size-5 rounded accent-brand"
+              className="size-4 shrink-0 cursor-pointer accent-foreground"
             />
             Candidatura por indicação
           </label>
 
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <FieldError>{error}</FieldError> : null}
 
           <div className="flex justify-end gap-2">
             <Button
@@ -1231,11 +1249,10 @@ function MetadataEditor({
                 setError(null);
               }}
               disabled={isSaving}
-              className="rounded-xl"
             >
               Cancelar
             </Button>
-            <Button type="button" onClick={handleSave} disabled={isSaving} className="rounded-xl">
+            <Button type="button" variant="outline" onClick={handleSave} disabled={isSaving}>
               {isSaving ? "Salvando…" : "Salvar"}
             </Button>
           </div>
@@ -1340,17 +1357,8 @@ function normalizeUsedResumeStatus(value: string | null | undefined): UsedResume
   return "unknown";
 }
 
-function getStageHealth(date: Date | null) {
-  if (!date) {
-    return {
-      containerClassName: "border border-dashed border-border/70",
-      metricClassName: "border border-border/60 bg-background/40",
-      valueClassName: "text-foreground",
-      messageClassName: "text-muted-foreground",
-      message: "Registre uma etapa para começar a acompanhar o tempo do processo.",
-    };
-  }
-
+/** Time in the current stage; the tone lands on the notice dot only. */
+function getStageHealth(date: Date): { tone: StatusTone; message: string } {
   const days = Math.max(
     0,
     Math.floor((Date.now() - date.getTime()) / 86_400_000),
@@ -1358,29 +1366,20 @@ function getStageHealth(date: Date | null) {
 
   if (days <= 14) {
     return {
-      containerClassName: "border border-emerald-400/25 bg-emerald-400/10",
-      metricClassName: "border border-emerald-400/20 bg-emerald-950/35",
-      valueClassName: "text-emerald-100",
-      messageClassName: "text-emerald-200",
+      tone: "positive",
       message: "Dentro do tempo razoável para esta etapa.",
     };
   }
 
   if (days <= 30) {
     return {
-      containerClassName: "border border-amber-400/25 bg-amber-400/10",
-      metricClassName: "border border-amber-400/20 bg-amber-950/35",
-      valueClassName: "text-amber-100",
-      messageClassName: "text-amber-200",
+      tone: "caution",
       message: "Exige atenção. Vale considerar follow-up ou reavaliar o próximo passo.",
     };
   }
 
   return {
-    containerClassName: "border border-rose-400/25 bg-rose-400/10",
-    metricClassName: "border border-rose-400/20 bg-rose-950/35",
-    valueClassName: "text-rose-100",
-    messageClassName: "text-rose-200",
+    tone: "negative",
     message: "Parado há bastante tempo. Pode fazer sentido encerrar como rejeitada ou desistência.",
   };
 }

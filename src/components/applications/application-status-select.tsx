@@ -2,7 +2,8 @@
 
 import { ChevronDown } from "lucide-react";
 
-import { applicationStatusClassNameMap } from "@/components/applications/application-status-badge";
+import { applicationStatusTone } from "@/components/applications/application-status-badge";
+import { StatusDot } from "@/components/ui/status";
 import {
   applicationStatusLabelMap,
   applicationStatusOptions,
@@ -18,7 +19,7 @@ type ApplicationStatusSelectProps = {
 };
 
 /**
- * Compact status pill backed by a transparent native select, so phones get
+ * Compact status control backed by a transparent native select, so phones get
  * the system picker (and no focus zoom, since the select itself stays 16px).
  * Stops click propagation because it usually sits inside a tappable row.
  */
@@ -31,21 +32,21 @@ export function ApplicationStatusSelect({
   return (
     <div
       className={cn(
-        "relative inline-flex h-8 shrink-0 items-center gap-1 rounded-full border pr-2 pl-3 text-xs font-medium transition-colors pointer-coarse:h-9",
-        "has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-ring has-[select:disabled]:opacity-60",
-        applicationStatusClassNameMap[value],
+        "relative inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-input bg-field px-2 text-xs font-medium whitespace-nowrap text-foreground transition-[border-color,box-shadow] duration-150 pointer-coarse:h-9 pointer-coarse:px-2.5",
+        "has-[select:focus-visible]:border-ring has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-ring/25 has-[select:disabled]:opacity-50",
         className,
       )}
     >
+      <StatusDot tone={applicationStatusTone[value]} />
       <span aria-hidden>{applicationStatusLabelMap[value]}</span>
-      <ChevronDown aria-hidden className="size-3.5 opacity-70" />
+      <ChevronDown aria-hidden className="size-3 shrink-0 text-subtle-foreground" />
       <select
         aria-label="Status da candidatura"
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value as ApplicationStatus)}
         onClick={(event) => event.stopPropagation()}
-        className="absolute inset-0 cursor-pointer appearance-none rounded-full text-base opacity-0 outline-none disabled:cursor-not-allowed [&>option]:bg-popover [&>option]:text-popover-foreground"
+        className="absolute inset-0 cursor-pointer appearance-none rounded-lg text-base opacity-0 outline-none disabled:cursor-not-allowed [&>option]:bg-popover [&>option]:text-popover-foreground"
       >
         {applicationStatusOptions.map((option) => (
           <option key={option.value} value={option.value}>

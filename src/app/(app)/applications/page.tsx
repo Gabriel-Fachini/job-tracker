@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { asc, desc, eq } from "drizzle-orm";
-import { Activity, GitMerge, Sparkles, Telescope } from "lucide-react";
 
 import { ApplicationsClient } from "@/components/applications/applications-client";
+import { Skeleton } from "@/components/ui/skeleton";
 import { normalizeApplicationStatus } from "@/lib/applications";
 import { db } from "@/lib/db";
 import { applications, applicationStages, companies, jobs } from "@/lib/db/schema";
@@ -72,73 +72,10 @@ export default async function ApplicationsPage() {
     .orderBy(companies.name)
     .all();
 
-  const appliedCount = items.filter((r) => r.status === "applied").length;
-  const inProcessCount = items.filter((r) => r.status === "in_process").length;
-  const offerCount = items.filter((r) => r.status === "offer").length;
-  const closedCount = items.filter((r) =>
-    ["approved", "rejected", "withdrawn"].includes(r.status),
-  ).length;
-
-  const statCards = [
-    {
-      label: "Aplicadas",
-      count: appliedCount,
-      icon: Telescope,
-      colorClass: "border-sky-400/20 bg-sky-400/8",
-      iconClass: "text-sky-300/80",
-      textClass: "text-sky-100",
-    },
-    {
-      label: "Em processo",
-      count: inProcessCount,
-      icon: GitMerge,
-      colorClass: "border-violet-400/20 bg-violet-400/8",
-      iconClass: "text-violet-300/80",
-      textClass: "text-violet-100",
-    },
-    {
-      label: "Ofertas",
-      count: offerCount,
-      icon: Sparkles,
-      colorClass: "border-amber-300/20 bg-amber-300/8",
-      iconClass: "text-amber-200/80",
-      textClass: "text-amber-100",
-    },
-    {
-      label: "Finalizadas",
-      count: closedCount,
-      icon: Activity,
-      colorClass: "border-zinc-400/20 bg-zinc-400/8",
-      iconClass: "text-zinc-400/80",
-      textClass: "text-zinc-300",
-    },
-  ];
-
-  // Phones read these counts from the status tabs; the grid is desktop overview.
-  // Keyed: it arrives in the client list as a prop from the server.
-  const summary = (
-    <div key="summary" className="hidden gap-3 md:grid md:grid-cols-4">
-      {statCards.map(({ label, count, icon: Icon, colorClass, iconClass, textClass }) => (
-        <div
-          key={label}
-          className={`relative overflow-hidden rounded-2xl border p-4 ${colorClass}`}
-        >
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-xs font-medium text-muted-foreground">{label}</p>
-            <Icon className={`size-4 shrink-0 ${iconClass}`} />
-          </div>
-          <p className={`mt-3 text-3xl font-semibold tabular-nums ${textClass}`}>
-            {count}
-          </p>
-        </div>
-      ))}
-    </div>
-  );
-
   return (
-    <div className="flex flex-1 flex-col gap-5 sm:gap-8">
+    <div className="flex flex-1 flex-col gap-5 sm:gap-6">
       <Suspense fallback={<ApplicationsSkeleton />}>
-        <ApplicationsClient items={items} companies={companyOptions} summary={summary} />
+        <ApplicationsClient items={items} companies={companyOptions} />
       </Suspense>
     </div>
   );
@@ -146,15 +83,28 @@ export default async function ApplicationsPage() {
 
 function ApplicationsSkeleton() {
   return (
-    <div aria-hidden className="flex flex-col gap-5 sm:gap-8">
-      <div className="h-9 w-48 animate-pulse rounded-lg bg-foreground/8" />
-      <div className="flex flex-col divide-y divide-border/40 overflow-hidden rounded-2xl border border-border/60">
-        {Array.from({ length: 5 }, (_, index) => (
-          <div key={index} className="flex flex-col gap-2 px-4 py-4">
-            <div className="h-4 w-3/4 animate-pulse rounded bg-foreground/8" />
-            <div className="h-3 w-1/3 animate-pulse rounded bg-foreground/6" />
-          </div>
-        ))}
+    <div aria-hidden className="flex flex-col gap-5 sm:gap-6">
+      <div className="flex flex-col gap-2 border-b border-border pb-4 sm:pb-5">
+        <Skeleton className="h-7 w-40" />
+        <Skeleton className="h-4 w-52" />
+      </div>
+      <div className="-mx-4 border-y border-border sm:mx-0 sm:rounded-xl sm:border-x">
+        <div className="flex h-11 items-center gap-6 border-b border-border px-4 sm:px-5">
+          {Array.from({ length: 4 }, (_, index) => (
+            <Skeleton key={index} className="h-3.5 w-16" />
+          ))}
+        </div>
+        <div className="divide-y divide-border">
+          {Array.from({ length: 5 }, (_, index) => (
+            <div key={index} className="flex items-center gap-4 px-4 py-3.5 sm:px-5">
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-2/5" />
+              </div>
+              <Skeleton className="h-7 w-24 shrink-0 rounded-lg" />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

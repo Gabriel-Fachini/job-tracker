@@ -1,37 +1,41 @@
 import Link from "next/link";
-import { AlertTriangle, ChevronRight } from "lucide-react";
 
+import { DashboardWidget } from "@/components/dashboard/dashboard-widget";
+import { Notice } from "@/components/ui/notice";
+import { cn } from "@/lib/utils";
 import type { FunnelData } from "@/server/queries/dashboard";
 
+// Stages are ordered, so the fills step down the neutral ramp (validated as an
+// ordinal ramp against the dark page surface).
 const STAGES = [
   {
     key: "discovered" as keyof FunnelData,
     label: "Descobertos",
-    color: "bg-slate-500/60",
+    fill: "bg-chart-1",
     href: "/leads",
   },
   {
     key: "interesting" as keyof FunnelData,
     label: "Interessantes",
-    color: "bg-sky-500/60",
+    fill: "bg-chart-2",
     href: "/leads?status=interesting",
   },
   {
     key: "promoted" as keyof FunnelData,
     label: "Promovidos",
-    color: "bg-violet-500/60",
+    fill: "bg-chart-3",
     href: "/leads?status=promoted",
   },
   {
     key: "applied" as keyof FunnelData,
     label: "Candidaturas",
-    color: "bg-emerald-500/60",
+    fill: "bg-chart-4",
     href: "/applications",
   },
 ];
 
 function pct(n: number, total: number): string {
-  if (total === 0) return "—";
+  if (total === 0) return "–";
   return `${Math.round((n / total) * 100)}%`;
 }
 
@@ -45,73 +49,56 @@ export function FunnelWidget({ data }: FunnelWidgetProps) {
     data.interesting > 0 && data.promoted / data.interesting < 0.5;
 
   return (
-    <div className="rounded-2xl border border-border/50 bg-card/40 p-5">
-      <h3 className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        Funil de topo
-      </h3>
+    <DashboardWidget
+      title="Funil de topo"
+      actual={data.discovered}
+      insufficientDetail="Nenhum lead no período"
+    >
+      <ol className="flex flex-col">
+        {STAGES.map((stage, i) => {
+          const val = data[stage.key];
+          const barWidth = Math.max(4, Math.round((val / max) * 100));
+          const fromPrev = i === 0 ? null : pct(val, data[STAGES[i - 1].key]);
 
-      {data.discovered === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-1 py-10 text-center">
-          <p className="text-sm text-muted-foreground">Dados insuficientes</p>
-          <p className="text-xs text-muted-foreground/50">
-            Nenhum lead no período
-          </p>
-        </div>
-      ) : (
-        <div className="mt-5 space-y-2">
-          {STAGES.map((stage, i) => {
-            const val = data[stage.key];
-            const barWidth = Math.max(4, Math.round((val / max) * 100));
-            const fromPrev =
-              i === 0 ? null : pct(val, data[STAGES[i - 1].key]);
-
-            return (
-              <div key={stage.key} className="group">
-                {i > 0 && (
-                  <div className="my-1 flex items-center gap-2 pl-2">
-                    <ChevronRight className="size-3 text-muted-foreground/30" />
-                    <span className="text-[10px] text-muted-foreground/40">
-                      {fromPrev} do estágio anterior
-                    </span>
-                  </div>
-                )}
-                <Link
-                  href={stage.href}
-                  className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-white/4"
-                >
-                  <span className="w-24 shrink-0 text-xs text-muted-foreground">
-                    {stage.label}
+          return (
+            <li key={stage.key}>
+              {fromPrev !== null && (
+                <p className="pl-[7.25rem] text-xs leading-5 text-subtle-foreground">
+                  <span className="font-data">{fromPrev}</span> do estágio anterior
+                </p>
+              )}
+              <Link
+                href={stage.href}
+                className="-mx-2 grid grid-cols-[6.5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-md px-2 py-1.5 transition-colors duration-150 outline-none hover:bg-surface focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="truncate text-[13px] text-muted-foreground">{stage.label}</span>
+                <span aria-hidden className="h-1.5 overflow-hidden rounded-xs bg-muted">
+                  <span
+                    className={cn("block h-full rounded-xs", stage.fill)}
+                    style={{ width: `${barWidth}%` }}
+                  />
+                </span>
+                <span className="flex items-baseline gap-2">
+                  <span className="w-10 text-right font-data text-[13px] font-medium text-foreground">
+                    {val}
                   </span>
-                  <div className="flex flex-1 items-center gap-2">
-                    <div className="h-5 flex-1 overflow-hidden rounded-md bg-white/5">
-                      <div
-                        className={`h-full rounded-md ${stage.color} transition-all`}
-                        style={{ width: `${barWidth}%` }}
-                      />
-                    </div>
-                    <span className="w-10 text-right text-sm font-semibold tabular-nums text-foreground">
-                      {val}
-                    </span>
-                    <span className="w-10 text-right text-xs tabular-nums text-muted-foreground/60">
-                      {pct(val, data.discovered)}
-                    </span>
-                  </div>
-                </Link>
-              </div>
-            );
-          })}
+                  <span className="w-9 text-right font-data text-xs text-subtle-foreground">
+                    {pct(val, data.discovered)}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ol>
 
-          {hasLowConversion && (
-            <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-400/20 bg-amber-400/8 px-3 py-2.5">
-              <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-400" />
-              <p className="text-xs text-amber-300/90">
-                Apenas {pct(data.promoted, data.interesting)} dos leads
-                interessantes foram promovidos — leads parados sem decisão.
-              </p>
-            </div>
-          )}
-        </div>
+      {hasLowConversion && (
+        <Notice tone="caution">
+          Apenas{" "}
+          <span className="font-data text-foreground">{pct(data.promoted, data.interesting)}</span>{" "}
+          dos leads interessantes foram promovidos: há leads parados sem decisão.
+        </Notice>
       )}
-    </div>
+    </DashboardWidget>
   );
 }

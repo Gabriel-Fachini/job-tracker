@@ -11,6 +11,7 @@ import { ClassificationWidget } from "@/components/dashboard/classification-widg
 import { RadarTimelineWidget } from "@/components/dashboard/radar-timeline-widget";
 import { TopCompaniesWidget } from "@/components/dashboard/top-companies-widget";
 import { WorkModelWidget } from "@/components/dashboard/work-model-widget";
+import { buttonVariants } from "@/components/ui/button";
 import {
   getBacklogData,
   getClassificationDist,
@@ -28,6 +29,12 @@ import {
 function isValidRange(v: unknown): v is DashboardRange {
   return v === "30d" || v === "90d" || v === "all";
 }
+
+const PERIOD_LABELS: Record<DashboardRange, string> = {
+  "30d": "Últimos 30 dias",
+  "90d": "Últimos 90 dias",
+  all: "Todo o período",
+};
 
 export default async function DashboardPage({
   searchParams,
@@ -54,44 +61,45 @@ export default async function DashboardPage({
 
   return (
     <div className="flex flex-1 flex-col gap-5 sm:gap-6">
-          <PageHeader
-            title="Dashboard"
-            description="Visão estratégica da busca: gaps, gargalos e prioridades."
-            actionsPlacement="stacked"
-            actions={
-              <>
-                <Suspense>
-                  <PeriodFilter current={range} />
-                </Suspense>
-                {/* Phones refresh with pull-to-refresh. */}
-                <form action="/dashboard" method="get" className="hidden sm:block">
-                  <input type="hidden" name="range" value={range} />
-                  <button
-                    type="submit"
-                    className="flex h-10 items-center gap-1.5 rounded-xl border border-border/60 bg-card/40 px-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <RefreshCw aria-hidden className="size-3.5" />
-                    Atualizar
-                  </button>
-                </form>
-              </>
-            }
-          />
-          <KpiStrip current={current} previous={previous} />
-          <div className="h-px bg-border/40" />
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <BacklogWidget data={backlog} />
-            <ClassificationWidget dist={classDist} histogram={scoreHist} />
-          </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <FunnelWidget data={funnel} />
-            <TopCompaniesWidget rows={topCompanies} />
-          </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <WorkModelWidget data={workModel} />
-            <ClassifierQualityWidget data={classifierQuality} />
-          </div>
-          <RadarTimelineWidget data={timeline} />
+      <PageHeader
+        title="Dashboard"
+        description={PERIOD_LABELS[range]}
+        actionsPlacement="stacked"
+        actions={
+          <>
+            <Suspense>
+              <PeriodFilter current={range} />
+            </Suspense>
+            {/* Phones refresh with pull-to-refresh. */}
+            <form action="/dashboard" method="get" className="hidden sm:block">
+              <input type="hidden" name="range" value={range} />
+              <button
+                type="submit"
+                aria-label="Atualizar"
+                className={buttonVariants({ variant: "ghost", size: "icon" })}
+              >
+                <RefreshCw aria-hidden />
+              </button>
+            </form>
+          </>
+        }
+      />
+
+      <KpiStrip current={current} previous={previous} />
+
+      {/* One panel grid: the 1px gap over bg-border draws the shared hairlines. */}
+      <div className="grid gap-px overflow-hidden rounded-xl border border-border bg-border lg:grid-cols-2">
+        <BacklogWidget data={backlog} />
+        <ClassificationWidget dist={classDist} histogram={scoreHist} />
+        {/* The compact widgets stack beside the taller company table. */}
+        <div className="grid min-w-0 gap-px">
+          <FunnelWidget data={funnel} />
+          <WorkModelWidget data={workModel} />
+          <ClassifierQualityWidget data={classifierQuality} />
         </div>
+        <TopCompaniesWidget rows={topCompanies} />
+        <RadarTimelineWidget data={timeline} className="lg:col-span-2" />
+      </div>
+    </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useActionState, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Building2, CheckCircle2, ExternalLink, FileText, Loader2, Sparkles, Waypoints } from "lucide-react";
+import { Building2, ExternalLink, Loader2, Sparkles } from "lucide-react";
 
 import {
   createApplication,
@@ -16,7 +16,7 @@ import {
   sourceNameOptions,
   workModelOptions,
 } from "@/lib/jobs";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -28,14 +28,16 @@ import {
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Notice } from "@/components/ui/notice";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Status } from "@/components/ui/status";
 import { Textarea } from "@/components/ui/textarea";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { NativeSelect } from "@/components/ui/native-select";
 
 type ResumePhase = "idle" | "generating" | "done" | "error";
 
@@ -67,8 +69,11 @@ export type ApplicationCreateInitialValues = {
   notes: string;
 };
 
-const controlClassName =
-  "h-10 w-full rounded-xl border border-input bg-input/30 px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+/**
+ * Native select dressed as `SelectTrigger`: keeps required validation, form
+ * reset and the system picker on phones (16px there, so iOS doesn't zoom).
+ * An empty placeholder/"Não informado" option reads in subtle text.
+ */
 
 export function ApplicationCreateModal({
   companies,
@@ -182,25 +187,21 @@ export function ApplicationCreateModal({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent sheetSize="full" className="flex flex-col gap-0 p-0 sm:max-h-[90vh] sm:max-w-3xl">
-        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pt-5 pr-14 pb-4 sm:px-6 sm:pt-6">
-          <DialogTitle className="flex items-center gap-2 text-lg leading-tight sm:text-xl">
-            <Waypoints aria-hidden className="size-5 shrink-0 text-muted-foreground" />
+        <DialogHeader className="shrink-0 gap-1.5 border-b border-border px-4 pt-5 pr-14 pb-4 sm:px-6 sm:pt-6 sm:pb-5">
+          <DialogTitle className="text-lg leading-snug text-balance sm:text-xl">
             {title}
           </DialogTitle>
           <DialogDescription>{descriptionValue}</DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="min-h-0 flex-1">
-          <div className="flex flex-col gap-6 px-4 py-5 sm:px-6">
-            {/* ── Success banner ── */}
+          <div className="flex flex-col gap-6 px-4 py-5 sm:px-6 sm:py-6">
             {created ? (
-              <div className="flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">
-                <CheckCircle2 className="size-4 shrink-0" />
+              <Notice tone="positive" bordered>
                 Candidatura criada com sucesso.
-              </div>
+              </Notice>
             ) : null}
 
-            {/* ── Form ── */}
             <form
               ref={formRef}
               id="application-create-form"
@@ -216,50 +217,38 @@ export function ApplicationCreateModal({
               ) : null}
 
               {hasSubmitError ? (
-                <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                <Notice tone="negative" bordered>
                   Não foi possível salvar. Revise os campos obrigatórios, incluindo a empresa selecionada, e a URL.
-                </p>
+                </Notice>
               ) : null}
 
               {!hasCompanies ? (
-                <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+                <Notice tone="caution" bordered>
                   Cadastre ao menos uma empresa antes de registrar uma candidatura.
-                </div>
+                </Notice>
               ) : null}
 
               <FieldGroup>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-5 sm:grid-cols-2 sm:gap-x-4">
                   <Field>
-                    <FieldLabel
-                      htmlFor="title"
-                      className="text-sm font-medium text-foreground/85"
-                    >
-                      Título da vaga *
-                    </FieldLabel>
+                    <FieldLabel htmlFor="title">Título da vaga *</FieldLabel>
                     <Input
                       id="title"
                       name="title"
                       placeholder="Ex.: Senior Frontend Engineer"
                       required
                       defaultValue={defaults.title}
-                      className={controlClassName}
                       disabled={created}
                     />
                   </Field>
 
                   <Field>
-                    <FieldLabel
-                      htmlFor="companyId"
-                      className="text-sm font-medium text-foreground/85"
-                    >
-                      Empresa *
-                    </FieldLabel>
-                    <select
+                    <FieldLabel htmlFor="companyId">Empresa *</FieldLabel>
+                    <NativeSelect
                       id="companyId"
                       name="companyId"
                       required
                       defaultValue={defaults.companyId}
-                      className={controlClassName}
                       disabled={created}
                     >
                       <option value="" disabled>
@@ -270,24 +259,18 @@ export function ApplicationCreateModal({
                           {company.name}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                     <FieldDescription>
                       A candidatura sempre precisa pertencer a uma empresa já cadastrada.
                     </FieldDescription>
                   </Field>
 
                   <Field>
-                    <FieldLabel
-                      htmlFor="status"
-                      className="text-sm font-medium text-foreground/85"
-                    >
-                      Status
-                    </FieldLabel>
-                    <select
+                    <FieldLabel htmlFor="status">Status</FieldLabel>
+                    <NativeSelect
                       id="status"
                       name="status"
                       defaultValue={defaults.status}
-                      className={controlClassName}
                       disabled={created}
                     >
                       {applicationStatusOptions.map((o) => (
@@ -295,21 +278,15 @@ export function ApplicationCreateModal({
                           {o.label}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </Field>
 
                   <Field>
-                    <FieldLabel
-                      htmlFor="workModel"
-                      className="text-sm font-medium text-foreground/85"
-                    >
-                      Modelo de trabalho
-                    </FieldLabel>
-                    <select
+                    <FieldLabel htmlFor="workModel">Modelo de trabalho</FieldLabel>
+                    <NativeSelect
                       id="workModel"
                       name="workModel"
                       defaultValue={defaults.workModel}
-                      className={controlClassName}
                       disabled={created}
                     >
                       <option value="">Não informado</option>
@@ -318,21 +295,15 @@ export function ApplicationCreateModal({
                           {o.label}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </Field>
 
                   <Field>
-                    <FieldLabel
-                      htmlFor="seniority"
-                      className="text-sm font-medium text-foreground/85"
-                    >
-                      Senioridade
-                    </FieldLabel>
-                    <select
+                    <FieldLabel htmlFor="seniority">Senioridade</FieldLabel>
+                    <NativeSelect
                       id="seniority"
                       name="seniority"
                       defaultValue={defaults.seniority}
-                      className={controlClassName}
                       disabled={created}
                     >
                       <option value="">Não informado</option>
@@ -341,21 +312,15 @@ export function ApplicationCreateModal({
                           {o.label}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </Field>
 
                   <Field>
-                    <FieldLabel
-                      htmlFor="sourceName"
-                      className="text-sm font-medium text-foreground/85"
-                    >
-                      Origem
-                    </FieldLabel>
-                    <select
+                    <FieldLabel htmlFor="sourceName">Origem</FieldLabel>
+                    <NativeSelect
                       id="sourceName"
                       name="sourceName"
                       defaultValue={defaults.sourceName}
-                      className={controlClassName}
                       disabled={created}
                     >
                       {sourceNameOptions.map((o) => (
@@ -363,34 +328,25 @@ export function ApplicationCreateModal({
                           {o.label}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </Field>
 
                   <Field className="sm:col-span-2">
-                    <FieldLabel
-                      htmlFor="sourceUrl"
-                      className="text-sm font-medium text-foreground/85"
-                    >
-                      URL original
-                    </FieldLabel>
+                    <FieldLabel htmlFor="sourceUrl">URL original</FieldLabel>
                     <Input
                       id="sourceUrl"
                       name="sourceUrl"
                       type="url"
-                      placeholder="https://..."
+                      placeholder="https://…"
                       defaultValue={defaults.sourceUrl}
-                      className={controlClassName}
                       disabled={created}
                     />
                   </Field>
                 </div>
 
                 <Field>
-                  <div className="flex items-start justify-between gap-3">
-                    <FieldLabel
-                      htmlFor="description"
-                      className="text-sm font-medium text-foreground/85"
-                    >
+                  <div className="flex items-end justify-between gap-3">
+                    <FieldLabel htmlFor="description">
                       Descrição da vaga (markdown) *
                     </FieldLabel>
                     <Button
@@ -399,7 +355,6 @@ export function ApplicationCreateModal({
                       size="sm"
                       onClick={handleFormatDescription}
                       disabled={isFormatting || !description.trim()}
-                      className="rounded-lg"
                     >
                       {isFormatting ? (
                         <>
@@ -424,115 +379,91 @@ export function ApplicationCreateModal({
                       setDescription(e.target.value);
                       setDescriptionError(null);
                     }}
-                    className="min-h-52 rounded-xl border border-input bg-input/30 px-3 py-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    className="min-h-48"
                     disabled={created}
                   />
-                  <FieldDescription className="mt-2">
+                  <FieldDescription>
                     O markdown fica salvo localmente como fonte de verdade da vaga.
                   </FieldDescription>
                   {descriptionValueError ? (
-                    <p className="mt-2 text-sm text-destructive">{descriptionValueError}</p>
+                    <FieldError>{descriptionValueError}</FieldError>
                   ) : null}
                 </Field>
 
                 <Field>
-                  <FieldLabel
-                    htmlFor="notes"
-                    className="text-sm font-medium text-foreground/85"
-                  >
-                    Notas
-                  </FieldLabel>
+                  <FieldLabel htmlFor="notes">Notas</FieldLabel>
                   <Textarea
                     id="notes"
                     name="notes"
-                    placeholder="Observações sobre o processo..."
+                    placeholder="Observações sobre o processo…"
                     defaultValue={defaults.notes}
-                    className="min-h-20 rounded-xl border border-input bg-input/30 px-3 py-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                     disabled={created}
                   />
                 </Field>
               </FieldGroup>
             </form>
 
-            {/* ── Resume generation section ── */}
             {created ? (
-              <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-muted/20 px-5 py-4">
-                <div className="flex items-center gap-2">
-                  <FileText className="size-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Currículo personalizado</span>
-                </div>
+              <section className="flex flex-col gap-3 border-t border-border pt-5">
+                <h3 className="text-sm font-medium text-foreground">Currículo personalizado</h3>
 
                 {resumePhase === "generating" ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="size-4 animate-spin" />
+                  <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                    <Loader2 aria-hidden className="size-3.5 animate-spin" />
                     Gerando currículo com IA…
-                  </div>
+                  </p>
                 ) : resumePhase === "done" && pdfPath ? (
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-green-400">Currículo gerado com sucesso.</span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Status tone="positive">Currículo gerado com sucesso.</Status>
                     <a
                       href={`/api/applications/${applicationId}/generated-resume`}
                       target="_blank"
                       rel="noreferrer"
-                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+                      className={buttonVariants({ variant: "outline", size: "sm" })}
                     >
-                      <ExternalLink className="size-3.5" />
                       Abrir PDF
+                      <ExternalLink data-icon="inline-end" />
                     </a>
                   </div>
                 ) : resumePhase === "error" && resumeError ? (
-                  <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    {resumeError}
-                  </p>
+                  <Notice tone="negative">{resumeError}</Notice>
                 ) : null}
-              </div>
+              </section>
             ) : null}
           </div>
         </ScrollArea>
 
-        <div className="shrink-0 border-t border-border/60 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4">
+        <div className="shrink-0 border-t border-border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-3.5">
           {created ? (
             <div className="flex justify-end">
-              <Button size="lg" onClick={() => onOpenChange(false)} className="w-full rounded-xl sm:w-auto">
+              <Button onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
                 Fechar
               </Button>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:justify-end sm:gap-3">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
+              {!hasCompanies ? (
+                <Link href="/companies/new" className={buttonVariants({ variant: "ghost" })}>
+                  <Building2 data-icon="inline-start" />
+                  Cadastrar empresa primeiro
+                </Link>
+              ) : null}
+              <div className="grid grid-cols-2 gap-2 sm:ml-auto sm:flex sm:items-center">
                 <Button
                   variant="outline"
-                  size="lg"
                   onClick={() => onOpenChange(false)}
                   disabled={isPending}
-                  className="rounded-xl"
                 >
                   Cancelar
                 </Button>
                 <Button
                   type="submit"
-                  size="lg"
                   form="application-create-form"
                   disabled={isPending || !hasCompanies}
-                  className="rounded-xl"
                 >
                   {isPending ? pendingLabel : submitLabel}
                 </Button>
               </div>
-              {!hasCompanies ? (
-                <div className="flex justify-end">
-                  <Link
-                    href="/companies/new"
-                    className={cn(
-                      buttonVariants({ variant: "ghost", size: "sm" }),
-                      "rounded-lg",
-                    )}
-                  >
-                    <Building2 data-icon="inline-start" />
-                    Cadastrar empresa primeiro
-                  </Link>
-                </div>
-              ) : null}
             </div>
           )}
         </div>
