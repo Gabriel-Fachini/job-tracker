@@ -11,15 +11,9 @@ import {
 } from "@/lib/companies";
 import { db } from "@/lib/db";
 import { companies, jobLeads } from "@/lib/db/schema";
+import { runBulkMonitoring } from "@/lib/job-monitoring/bulk-run";
 import { getRecentLeadFeedbackSummary } from "@/lib/job-monitoring/feedback";
 import { runMonitoringForCompany } from "@/lib/job-monitoring";
-import { printRadarReport, type CompanyReportEntry } from "@/lib/job-monitoring/logger";
-import {
-  startRun,
-  appendEvent as appendRunEvent,
-  finishRun,
-  setRunStats,
-} from "@/lib/job-monitoring/run-state";
 import { isSeniority, isSourceName, isWorkModel } from "@/lib/jobs";
 import { getProfileSnapshot } from "@/lib/profile/queries";
 import type { ApplicationCreateResult } from "@/server/actions/applications";
@@ -144,8 +138,14 @@ function getBulkMonitorableCompanies() {
     .filter((company) => Boolean(company.jobsBoardUrl && isValidUrl(company.jobsBoardUrl)));
 }
 
+/**
+ * The SSE radar run (`GET /api/monitoring/stream`). Only one runs at a time:
+ * a second call gets a fatal `already-running` error. Aborting `signal`
+ * (the client disconnected) stops the run between links and companies.
+ */
 export async function runAllCompaniesMonitoringStream(
   onEvent: (event: MonitoringStreamEvent) => void,
+  options: { signal?: AbortSignal } = {},
 ): Promise<void> {
   const monitorableCompanies = getBulkMonitorableCompanies();
 
@@ -153,167 +153,30 @@ export async function runAllCompaniesMonitoringStream(
     companiesFound: monitorableCompanies.length,
   });
 
-  const runId = `run-${Date.now()}`;
-  const runState = startRun(runId, monitorableCompanies.length);
-
-  onEvent({ type: "start", total: monitorableCompanies.length });
-
-  if (monitorableCompanies.length === 0) {
-    onEvent({ type: "all-done", summary: emptySummary() });
-    finishRun();
-    return;
-  }
-
-  const profile = await getProfileSnapshot();
-  const feedbackSummary = getRecentLeadFeedbackSummary();
-  const streamStart = Date.now();
-  const companyResults: CompanyReportEntry[] = [];
-
-  for (const [index, company] of monitorableCompanies.entries()) {
-    const companyRunStart = Date.now();
-    try {
-      console.log("[job-monitoring] [action] run-all-stream-company-start", {
-        companyId: company.id,
-        companyName: company.name,
-        index: index + 1,
-        total: monitorableCompanies.length,
-      });
-
-      appendRunEvent({
-        type: "company-start",
-        timestamp: new Date(),
-        data: {
-          company: company.name,
-          index: index + 1,
-          total: monitorableCompanies.length,
-        },
-      });
-
-      onEvent({
-        type: "company-start",
-        company: company.name,
-        index: index + 1,
-        total: monitorableCompanies.length,
-      });
-
-      const companySummary = await runMonitoringForCompany(
-        {
-          id: company.id,
-          name: company.name,
-          jobsBoardUrl: company.jobsBoardUrl as string,
-          jobBoardNavigationMode: isCompanyJobBoardNavigationMode(
-            company.jobBoardNavigationMode,
-          )
-            ? company.jobBoardNavigationMode
-            : "fetch",
-          atsProvider: company.atsProvider,
-          atsBoardToken: company.atsBoardToken,
-        },
-        {
-          companyName: company.name,
-          profile,
-          feedbackSummary,
-        },
-        {
-          onEvent,
-        },
-      );
-
-      const companyRunMs = Date.now() - companyRunStart;
-      companyResults.push({
-        name: company.name,
-        summary: companySummary,
-        durationMs: companyRunMs,
-      });
-
-      appendRunEvent({
-        type: "company-done",
-        timestamp: new Date(),
-        data: {
-          company: company.name,
-          linksCount: companySummary.linksFound,
-          leadsSaved: companySummary.leadsSaved,
-          reviewsSaved: companySummary.reviewsSaved,
-        },
-      });
-
-      onEvent({
-        type: "company-done",
-        company: company.name,
-        summary: companySummary,
-      });
-
-      console.log("[job-monitoring] [action] run-all-stream-company-finished", {
-        companyId: company.id,
-        companyName: company.name,
-        companySummary,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Erro desconhecido";
-      const companyRunMs = Date.now() - companyRunStart;
-      companyResults.push({
-        name: company.name,
-        summary: emptySummary(),
-        durationMs: companyRunMs,
-      });
-
-      console.log("[job-monitoring] [action] run-all-stream-company-failed", {
-        companyId: company.id,
-        companyName: company.name,
-        error: message,
-      });
-
-      appendRunEvent({
-        type: "error",
-        timestamp: new Date(),
-        data: { company: company.name, error: message },
-      });
-
-      onEvent({
-        type: "error",
-        message: `Falha ao processar empresa "${company.name}": ${message}`,
-      });
-    }
-  }
-
-  // Print radar report
-  const totalStreamMs = Date.now() - streamStart;
-  printRadarReport(companyResults, totalStreamMs);
-
-  // Accumulate totals for all-done event
-  const accumulatedSummary = companyResults.reduce(
-    (acc, r) => ({
-      linksFound: acc.linksFound + r.summary.linksFound,
-      skippedLinks: acc.skippedLinks + r.summary.skippedLinks,
-      jobsParsed: acc.jobsParsed + r.summary.jobsParsed,
-      leadsSaved: acc.leadsSaved + r.summary.leadsSaved,
-      reviewsSaved: acc.reviewsSaved + r.summary.reviewsSaved,
-      discarded: acc.discarded + r.summary.discarded,
-      failed: acc.failed + r.summary.failed,
-    }),
-    { linksFound: 0, skippedLinks: 0, jobsParsed: 0, leadsSaved: 0, reviewsSaved: 0, discarded: 0, failed: 0 },
+  await runBulkMonitoring(
+    monitorableCompanies.map((company) => ({
+      id: company.id,
+      name: company.name,
+      jobsBoardUrl: company.jobsBoardUrl as string,
+      jobBoardNavigationMode: isCompanyJobBoardNavigationMode(
+        company.jobBoardNavigationMode,
+      )
+        ? company.jobBoardNavigationMode
+        : "fetch",
+      atsProvider: company.atsProvider,
+      atsBoardToken: company.atsBoardToken,
+    })),
+    onEvent,
+    {
+      signal: options.signal,
+      loadContext: async () => ({
+        profile: await getProfileSnapshot(),
+        feedbackSummary: getRecentLeadFeedbackSummary(),
+      }),
+      runCompany: (company, context, dependencies) =>
+        runMonitoringForCompany(company, context, dependencies),
+    },
   );
-
-  setRunStats({
-    saved: accumulatedSummary.leadsSaved,
-    review: accumulatedSummary.reviewsSaved,
-    discarded: accumulatedSummary.discarded,
-    failed: accumulatedSummary.failed,
-  });
-
-  appendRunEvent({
-    type: "all-done",
-    timestamp: new Date(),
-    data: { summary: accumulatedSummary },
-  });
-
-  onEvent({ type: "all-done", summary: accumulatedSummary });
-  finishRun();
-
-  console.log("[job-monitoring] [action] run-all-stream-finished", {
-    companiesProcessed: monitorableCompanies.length,
-    durationMs: Date.now() - streamStart,
-  });
 }
 
 export async function runAllCompaniesMonitoring(): Promise<MonitoringActionResult> {

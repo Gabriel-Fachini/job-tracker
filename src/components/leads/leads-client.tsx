@@ -269,7 +269,7 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
             events={monitoringProgress.events}
             stats={monitoringProgress.stats}
             result={monitoringProgress.result}
-            onCancel={cancelMonitoring}
+            onCancel={monitoringProgress.eventSource ? cancelMonitoring : undefined}
             onDismiss={() => setShowProgressDisplay(false)}
           />
         )}

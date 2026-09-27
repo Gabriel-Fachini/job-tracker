@@ -98,4 +98,36 @@ export type MonitoringStreamEvent =
   | { type: "link-done"; company: string; title: string; decision: JobLeadStatus; processed: number; total: number; lead?: LeadListItem }
   | { type: "company-done"; company: string; summary: MonitoringSummary }
   | { type: "all-done"; summary: MonitoringSummary }
-  | { type: "error"; message: string };
+  | {
+      type: "error";
+      message: string;
+      /** Set when one company failed; the run goes on with the next one. */
+      company?: string;
+      /** true: the run is over (failed or refused). Company errors send false. */
+      fatal?: boolean;
+      /** Why a new run was refused. */
+      reason?: "already-running";
+    };
+
+/** Body of `GET /api/monitoring/current`. */
+export type MonitoringRunSnapshot =
+  | { status: "idle"; run: null }
+  | {
+      /** "stale": no event for RUN_STALE_AFTER_MS; it no longer blocks runs or deploys. */
+      status: "running" | "stale";
+      run: {
+        id: string;
+        startedAt: string;
+        endedAt: string | null;
+        currentCompany: string | null;
+        companyIndex: number;
+        totalCompanies: number;
+        /** Progress inside the current company. */
+        linksProcessed: number;
+        linksTotal: number;
+        stats: { saved: number; review: number; discarded: number; failed: number };
+        companyErrors: Array<{ company: string; message: string; at: string }>;
+        eventCount: number;
+        lastUpdatedAt: string;
+      };
+    };

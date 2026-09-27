@@ -29,7 +29,8 @@ type MonitoringProgressDisplayProps = {
     failed: number;
   };
   result?: { success: boolean } | null;
-  onCancel: () => void;
+  /** Omitted when this tab follows a run it didn't start (nothing to cancel here). */
+  onCancel?: () => void;
   onDismiss: () => void;
 };
 
@@ -93,9 +94,11 @@ export function MonitoringProgressDisplay({
         </div>
 
         {isRunning ? (
-          <Button type="button" variant="outline" size="sm" onClick={onCancel} className="shrink-0">
-            Cancelar
-          </Button>
+          onCancel ? (
+            <Button type="button" variant="outline" size="sm" onClick={onCancel} className="shrink-0">
+              Cancelar
+            </Button>
+          ) : null
         ) : (
           <Button
             type="button"

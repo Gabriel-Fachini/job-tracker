@@ -236,3 +236,56 @@ test("runMonitoringForCompany applies discovery hints before classification and 
   assert.equal(receivedSeniority, "senior");
   assert.equal(summary.failed, 0);
 });
+
+test("runMonitoringForCompany leaves links alone once the run is aborted", async () => {
+  const disconnect = new AbortController();
+  const extracted: string[] = [];
+  const persisted: string[] = [];
+
+  const summary = await runMonitoringForCompany(
+    {
+      id: 1,
+      name: "Acme",
+      jobsBoardUrl: "https://example.com/careers",
+      jobBoardNavigationMode: "fetch",
+    },
+    {
+      companyName: "Acme",
+      profile: null,
+      feedbackSummary: {
+        promotedExamples: [],
+        dismissedExamples: [],
+      },
+    },
+    {
+      signal: disconnect.signal,
+      discoverJobLinksFn: async () => {
+        // The client disconnects while discovery runs.
+        disconnect.abort();
+        return [
+          { url: "https://example.com/jobs/frontend", text: "Frontend" },
+          { url: "https://example.com/jobs/platform", text: "Platform" },
+        ];
+      },
+      extractJobDetailFn: async (url) => {
+        extracted.push(url);
+        return null;
+      },
+      upsertJobLeadFn: (lead) => {
+        persisted.push(lead.sourceUrl);
+
+        return {
+          id: persisted.length,
+          created: true,
+          promotedToApplicationId: null,
+          leadSnapshot: createMockLeadSnapshot({ sourceUrl: lead.sourceUrl, title: lead.title }),
+        };
+      },
+    },
+  );
+
+  assert.deepEqual(extracted, []);
+  assert.deepEqual(persisted, []);
+  assert.equal(summary.linksFound, 2);
+  assert.equal(summary.failed, 0);
+});

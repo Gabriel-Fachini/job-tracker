@@ -24,6 +24,8 @@ export async function runMonitoringForCompany(
     classifyJobLeadFn?: typeof classifyJobLead;
     upsertJobLeadFn?: typeof upsertJobLead;
     onEvent?: (event: MonitoringStreamEvent) => void;
+    /** Aborted when the run is cancelled; links not started yet are left for the next run. */
+    signal?: AbortSignal;
   } = {},
 ): Promise<MonitoringSummary> {
   const discoverJobLinksFn =
@@ -34,6 +36,7 @@ export async function runMonitoringForCompany(
     dependencies.classifyJobLeadFn ?? classifyJobLead;
   const upsertJobLeadFn = dependencies.upsertJobLeadFn ?? upsertJobLead;
   const onEvent = dependencies.onEvent;
+  const signal = dependencies.signal;
 
   const companyStart = Date.now();
 
@@ -96,6 +99,10 @@ export async function runMonitoringForCompany(
   await Promise.allSettled(
     newLinks.map((link, index) =>
       limit(async () => {
+        if (signal?.aborted) {
+          return { processed: 0 };
+        }
+
         try {
         logMonitoringStep(company.name, "processing-link", {
           current: index + 1,
