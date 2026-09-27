@@ -64,7 +64,7 @@ export function PageHeader({
       }
     >
       {leading ? <div className="mb-2 [grid-area:lead]">{leading}</div> : null}
-      <h1 className="min-w-0 font-heading text-xl leading-tight font-semibold tracking-[-0.015em] text-balance break-words text-foreground [grid-area:title] sm:text-2xl">
+      <h1 className="min-w-0 font-heading text-[1.375rem] leading-tight font-semibold tracking-[-0.02em] text-balance break-words text-foreground [grid-area:title] sm:text-[1.75rem]">
         {title}
       </h1>
       {description ? (

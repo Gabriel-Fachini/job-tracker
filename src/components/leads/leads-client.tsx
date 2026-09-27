@@ -299,7 +299,7 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Buscar por título, empresa, local…"
-              className="h-8 w-full rounded-lg border border-input bg-field pr-9 pl-8 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-subtle-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 pointer-coarse:h-10 [&::-webkit-search-cancel-button]:hidden"
+              className="h-8 w-full rounded-lg border border-border bg-surface pr-9 pl-8 text-sm text-foreground outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-subtle-foreground hover:border-input focus-visible:border-ring focus-visible:bg-field focus-visible:ring-2 focus-visible:ring-ring/25 pointer-coarse:h-10 [&::-webkit-search-cancel-button]:hidden"
             />
             {query ? (
               <button

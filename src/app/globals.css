@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-geist-sans);
+  --font-heading: var(--font-inter);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,85 +48,127 @@
   --color-positive: var(--positive);
   --color-caution: var(--caution);
   --color-negative: var(--negative);
+  --color-info: var(--info);
+  --color-link: var(--link);
+  --color-link-hover: var(--link-hover);
   --color-overlay: var(--overlay);
+  --color-tooltip: var(--tooltip);
+  --color-tooltip-foreground: var(--tooltip-foreground);
+  --color-tag-gray: var(--tag-gray);
+  --color-tag-gray-foreground: var(--tag-gray-foreground);
+  --color-tag-orange: var(--tag-orange);
+  --color-tag-orange-foreground: var(--tag-orange-foreground);
+  --color-tag-green: var(--tag-green);
+  --color-tag-green-foreground: var(--tag-green-foreground);
+  --color-tag-blue: var(--tag-blue);
+  --color-tag-blue-foreground: var(--tag-blue-foreground);
+  --color-tag-purple: var(--tag-purple);
+  --color-tag-purple-foreground: var(--tag-purple-foreground);
+  --color-tag-red: var(--tag-red);
+  --color-tag-red-foreground: var(--tag-red-foreground);
   --shadow-popover: var(--elevation-popover);
   --shadow-overlay: var(--elevation-overlay);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  /* Tags 4px, small controls 6px, buttons and inputs 8px, cards and dialogs 12px. */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.25rem;
+  --radius-4xl: 1.5rem;
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /*
- * Monochrome, two themes. Neutrals carry the whole interface; the only hues
- * are the three semantic states (positive / caution / negative), used for
- * meaning, never decoration. Light is `:root`; dark is `.dark` (set on <html>
- * by the theme script before paint).
+ * Notion-style workspace, two themes. Warm neutrals carry the interface;
+ * purple is reserved for the primary action (and the focus ring); statuses
+ * are pastel property tags. positive / caution / negative stay for inline
+ * feedback. Light is `:root`; dark is `.dark` (set on <html> by the theme
+ * script before paint).
  *
- * Dark: absolute black content surface inside a graphite frame. Light: white
- * content inside a light-gray frame. Text tiers pass 4.5:1 on every surface.
+ * Light: white content inside a warm-gray frame, charcoal text. Dark:
+ * absolute black content inside a warm graphite frame. Text tiers pass 4.5:1
+ * on every surface they sit on; tag text passes 6:1 on its own tint.
  */
 :root {
   color-scheme: light;
 
-  --canvas: oklch(0.97 0 0);
-  --background: oklch(1 0 0);
-  --surface: oklch(0.972 0 0);
-  --foreground: oklch(0.18 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0 0);
+  --canvas: #f6f5f4;
+  --background: #ffffff;
+  --surface: #f7f6f3;
+  --foreground: #37352f;
+  --card: #ffffff;
+  --card-foreground: #37352f;
+  --popover: #ffffff;
+  --popover-foreground: #37352f;
 
-  --muted-foreground: oklch(0.44 0 0);
-  --subtle-foreground: oklch(0.52 0 0);
+  --muted-foreground: #5d5b54;
+  --subtle-foreground: #6b6963;
 
-  --primary: oklch(0.18 0 0);
-  --primary-hover: oklch(0.32 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.94 0 0);
-  --secondary-foreground: oklch(0.18 0 0);
-  --muted: oklch(0.955 0 0);
-  --accent: oklch(0.94 0 0);
-  --accent-foreground: oklch(0.18 0 0);
+  --primary: #5645d4;
+  --primary-hover: #4534b3;
+  --primary-foreground: #ffffff;
+  --secondary: #efedea;
+  --secondary-foreground: #37352f;
+  --muted: #f1f0ed;
+  --accent: #eeece9;
+  --accent-foreground: #37352f;
 
-  --border: oklch(0.915 0 0);
-  --border-strong: oklch(0.86 0 0);
-  --input: oklch(0.86 0 0);
-  --field: oklch(1 0 0);
-  --ring: oklch(0.5 0 0);
+  --border: #e5e3df;
+  --border-strong: #cfcbc5;
+  --input: #cfcbc5;
+  --field: #ffffff;
+  --ring: #5645d4;
 
-  --positive: oklch(0.5 0.12 155);
-  --caution: oklch(0.545 0.115 66);
-  --negative: oklch(0.53 0.18 27);
+  /* #0075de in the Notion spec; darkened to keep 4.5:1 on the frame. */
+  --link: #006ccf;
+  --link-hover: #005bab;
+  --info: #006ccf;
+
+  --positive: #18803a;
+  --caution: #b45000;
+  --negative: #cc2b2b;
   --destructive: var(--negative);
 
-  --chart-1: oklch(0.22 0 0);
-  --chart-2: oklch(0.4 0 0);
-  --chart-3: oklch(0.52 0 0);
-  --chart-4: oklch(0.64 0 0);
-  --chart-5: oklch(0.8 0 0);
+  --tooltip: #2f2e2b;
+  --tooltip-foreground: #ffffff;
 
-  --sidebar: oklch(0.97 0 0);
-  --sidebar-foreground: oklch(0.44 0 0);
-  --sidebar-primary: oklch(0.18 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.925 0 0);
-  --sidebar-accent-foreground: oklch(0.18 0 0);
-  --sidebar-border: oklch(0.9 0 0);
-  --sidebar-ring: oklch(0.5 0 0);
+  /* Property tags: tint + deep text of the same hue. */
+  --tag-gray: #efedea;
+  --tag-gray-foreground: #55534e;
+  --tag-orange: #ffe8d4;
+  --tag-orange-foreground: #793400;
+  --tag-green: #dcf1e1;
+  --tag-green-foreground: #1d5a2f;
+  --tag-blue: #dcecfa;
+  --tag-blue-foreground: #0b4f8a;
+  --tag-purple: #e6e0f5;
+  --tag-purple-foreground: #4534b3;
+  --tag-red: #fde4e1;
+  --tag-red-foreground: #a3261b;
 
-  --overlay: oklch(0 0 0 / 0.4);
-  --selection: oklch(0 0 0 / 0.12);
-  --elevation-popover: 0 8px 24px -6px oklch(0 0 0 / 0.14), 0 2px 6px -2px oklch(0 0 0 / 0.08);
-  --elevation-overlay: 0 24px 64px -12px oklch(0 0 0 / 0.28), 0 4px 12px -4px oklch(0 0 0 / 0.1);
+  --chart-1: #37352f;
+  --chart-2: #55534d;
+  --chart-3: #77746d;
+  --chart-4: #9a978f;
+  --chart-5: #c8c4bd;
 
-  --radius: 0.375rem;
+  --sidebar: #f6f5f4;
+  --sidebar-foreground: #5d5b54;
+  --sidebar-primary: #5645d4;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eceae6;
+  --sidebar-accent-foreground: #37352f;
+  --sidebar-border: #e5e3df;
+  --sidebar-ring: #5645d4;
+
+  --overlay: rgb(15 15 15 / 0.4);
+  --selection: rgb(86 69 212 / 0.16);
+  --elevation-popover: 0 4px 12px 0 rgb(15 15 15 / 0.08), 0 12px 32px -8px rgb(15 15 15 / 0.12);
+  --elevation-overlay: 0 16px 48px -8px rgb(15 15 15 / 0.16), 0 4px 12px 0 rgb(15 15 15 / 0.06);
+
+  --radius: 0.5rem;
 
   /* Layering: sticky UI < mobile nav < overlays (dialogs, sheets, selects use z-50). */
   --z-sticky: 30;
@@ -140,57 +182,78 @@
 .dark {
   color-scheme: dark;
 
-  --canvas: oklch(0.19 0 0);
-  --background: oklch(0 0 0);
-  --surface: oklch(0.17 0 0);
-  --foreground: oklch(0.95 0 0);
-  --card: oklch(0 0 0);
-  --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.2 0 0);
-  --popover-foreground: oklch(0.95 0 0);
+  --canvas: #1c1b19;
+  --background: #000000;
+  --surface: #141312;
+  --foreground: #ebeae6;
+  --card: #000000;
+  --card-foreground: #ebeae6;
+  --popover: #22211f;
+  --popover-foreground: #ebeae6;
 
-  --muted-foreground: oklch(0.72 0 0);
-  --subtle-foreground: oklch(0.64 0 0);
+  --muted-foreground: #b4b2ab;
+  --subtle-foreground: #9a9892;
 
-  --primary: oklch(0.95 0 0);
-  --primary-hover: oklch(0.86 0 0);
-  --primary-foreground: oklch(0.12 0 0);
-  --secondary: oklch(0.26 0 0);
-  --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.22 0 0);
-  --accent: oklch(0.26 0 0);
-  --accent-foreground: oklch(0.95 0 0);
+  /* Lighter than the light-theme purple, still 4.8:1 under white text. */
+  --primary: #6c5ce6;
+  --primary-hover: #5b4ad8;
+  --primary-foreground: #ffffff;
+  --secondary: #2c2b28;
+  --secondary-foreground: #ebeae6;
+  --muted: #252422;
+  --accent: #2c2b28;
+  --accent-foreground: #ebeae6;
 
-  --border: oklch(0.265 0 0);
-  --border-strong: oklch(0.33 0 0);
-  --input: oklch(0.33 0 0);
-  --field: oklch(0.14 0 0);
-  --ring: oklch(0.7 0 0);
+  --border: #2e2d2a;
+  --border-strong: #3d3b37;
+  --input: #3d3b37;
+  --field: #131211;
+  --ring: #8f84f2;
 
-  --positive: oklch(0.79 0.12 158);
-  --caution: oklch(0.83 0.11 82);
-  --negative: oklch(0.72 0.14 24);
+  --link: #62aef5;
+  --link-hover: #8cc4f8;
+  --info: #62aef5;
+
+  --positive: #5cc97a;
+  --caution: #f0913f;
+  --negative: #f2665e;
   --destructive: var(--negative);
 
-  --chart-1: oklch(0.92 0 0);
-  --chart-2: oklch(0.74 0 0);
-  --chart-3: oklch(0.58 0 0);
-  --chart-4: oklch(0.48 0 0);
-  --chart-5: oklch(0.36 0 0);
+  --tooltip: #2f2e2b;
+  --tooltip-foreground: #ebeae6;
 
-  --sidebar: oklch(0.19 0 0);
-  --sidebar-foreground: oklch(0.72 0 0);
-  --sidebar-primary: oklch(0.95 0 0);
-  --sidebar-primary-foreground: oklch(0.12 0 0);
-  --sidebar-accent: oklch(0.25 0 0);
-  --sidebar-accent-foreground: oklch(0.95 0 0);
-  --sidebar-border: oklch(0.26 0 0);
-  --sidebar-ring: oklch(0.7 0 0);
+  --tag-gray: #2f2e2b;
+  --tag-gray-foreground: #d2d0ca;
+  --tag-orange: #4a2a12;
+  --tag-orange-foreground: #f7c49b;
+  --tag-green: #17371f;
+  --tag-green-foreground: #9fdcb0;
+  --tag-blue: #15314d;
+  --tag-blue-foreground: #a4cdf7;
+  --tag-purple: #2d2656;
+  --tag-purple-foreground: #c9befa;
+  --tag-red: #4b1e1a;
+  --tag-red-foreground: #f6aea6;
 
-  --overlay: oklch(0 0 0 / 0.7);
-  --selection: oklch(1 0 0 / 0.22);
-  --elevation-popover: 0 8px 24px -4px oklch(0 0 0 / 0.7);
-  --elevation-overlay: 0 24px 64px -8px oklch(0 0 0 / 0.85);
+  --chart-1: #ebeae6;
+  --chart-2: #bdbab3;
+  --chart-3: #8f8c85;
+  --chart-4: #6b6863;
+  --chart-5: #4a4844;
+
+  --sidebar: #1c1b19;
+  --sidebar-foreground: #b4b2ab;
+  --sidebar-primary: #6c5ce6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2a2926;
+  --sidebar-accent-foreground: #ebeae6;
+  --sidebar-border: #2e2d2a;
+  --sidebar-ring: #8f84f2;
+
+  --overlay: rgb(0 0 0 / 0.7);
+  --selection: rgb(143 132 242 / 0.3);
+  --elevation-popover: 0 8px 24px -4px rgb(0 0 0 / 0.7);
+  --elevation-overlay: 0 24px 64px -8px rgb(0 0 0 / 0.85);
 }
 
 @layer base {
@@ -203,7 +266,7 @@
     font-kerning: normal;
   }
   body {
-    @apply bg-background text-sm leading-6 text-foreground;
+    @apply bg-background text-sm leading-normal text-foreground;
     font-optical-sizing: auto;
   }
   ::selection {

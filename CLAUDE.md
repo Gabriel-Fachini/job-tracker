@@ -12,9 +12,9 @@
 ## UI / Design System
 
 - Spec normativa: `DESIGN.md` (tokens, receitas de componentes, do's/don'ts). Contexto de produto: `PRODUCT.md`.
-- Monocromático com dois temas: escuro (padrão, conteúdo em `#000` dentro de moldura grafite) e claro. Só tokens de `src/app/globals.css`; nunca cores da paleta Tailwind (`emerald-400`...), hex, oklch literal ou `bg-black`/`text-white`/`shadow-black` em componentes.
+- Linguagem adaptada da Notion: neutros quentes, roxo só no botão principal (um por tela) e no foco, status como tags pastel (`Tag`). Dois temas: escuro (padrão, conteúdo em `#000` dentro de moldura grafite quente) e claro (branco + texto charcoal `#37352f`). Só tokens de `src/app/globals.css`; nunca cores da paleta Tailwind (`emerald-400`...), hex, oklch literal ou `bg-black`/`text-white`/`shadow-black` em componentes.
 - Tema: `src/lib/theme.ts` (script anti-flash no `<head>`) + `src/hooks/use-theme.ts`. Seletor na sidebar e em Perfil → Aparência.
-- Números/datas/scores em `font-data` (Geist Mono). Primitives próprios em `src/components/ui/`: `status`, `panel`, `notice`, `meta-line`, `tab-bar`, `segmented-control`, `native-select`.
+- Fonte Inter (UI) + Geist Mono (`font-data`) para números/datas/scores. Primitives próprios em `src/components/ui/`: `tag`, `status`, `panel`, `notice`, `meta-line`, `tab-bar`, `segmented-control`, `native-select`.
 - Logo: `public/brand/jt-monogram.png` (fonte) e `jt-mark.png` (máscara da sidebar); ícones em `src/app/icon.png`, `apple-icon.png`, `favicon.ico`.
 
 ## AI Runtime — Ollama Cloud

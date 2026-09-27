@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
  * State indicator: a 6px dot plus a label. The dot carries the meaning, the
  * label stays in secondary text so a column of statuses reads calmly.
  *
- * - `active`   in flight, needs attention (bright neutral)
+ * - `active`   in flight (blue, like a Notion "In progress")
  * - `neutral`  open, waiting
  * - `positive` good outcome
  * - `caution`  needs a decision
@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 const statusDotVariants = cva("inline-block size-1.5 shrink-0 rounded-full", {
   variants: {
     tone: {
-      active: "bg-foreground",
+      active: "bg-info",
       neutral: "bg-muted-foreground",
       positive: "bg-positive",
       caution: "bg-caution",

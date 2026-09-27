@@ -2,8 +2,8 @@
 
 import { ChevronDown } from "lucide-react";
 
-import { applicationStatusTone } from "@/components/applications/application-status-badge";
-import { StatusDot } from "@/components/ui/status";
+import { applicationStatusColor } from "@/components/applications/application-status-badge";
+import { TagDot } from "@/components/ui/tag";
 import {
   applicationStatusLabelMap,
   applicationStatusOptions,
@@ -37,7 +37,7 @@ export function ApplicationStatusSelect({
         className,
       )}
     >
-      <StatusDot tone={applicationStatusTone[value]} />
+      <TagDot color={applicationStatusColor[value]} />
       <span aria-hidden>{applicationStatusLabelMap[value]}</span>
       <ChevronDown aria-hidden className="size-3 shrink-0 text-subtle-foreground" />
       <select

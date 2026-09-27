@@ -55,7 +55,7 @@ export function MobileNav() {
                   {showRadarSignal ? (
                     <span
                       aria-hidden
-                      className="absolute top-0.5 right-0 size-1.5 rounded-full bg-foreground ring-2 ring-canvas motion-safe:animate-pulse"
+                      className="absolute top-0.5 right-0 size-1.5 rounded-full bg-info ring-2 ring-canvas motion-safe:animate-pulse"
                     />
                   ) : null}
                 </span>

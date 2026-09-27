@@ -4,7 +4,7 @@ import { Building2, ChevronRight, Plus } from "lucide-react";
 
 import {
   CompanyStatusBadge,
-  companyStatusTone,
+  companyStatusColor,
 } from "@/components/companies/company-status-badge";
 import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
 import { PageHeader } from "@/components/page-header";
@@ -18,7 +18,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { MetaLine } from "@/components/ui/meta-line";
-import { Status } from "@/components/ui/status";
+import { Tag } from "@/components/ui/tag";
 import {
   getCompanySizeLabel,
   isCompanyStatus,
@@ -201,16 +201,13 @@ export default async function CompaniesPage() {
             <div className="flex min-h-11 items-center border-b border-border px-4 py-2.5 sm:px-5">
               <ul
                 aria-label="Empresas por status"
-                className="flex flex-wrap items-center gap-x-5 gap-y-1.5"
+                className="flex flex-wrap items-center gap-1.5"
               >
                 {statusSummary.map((item) => (
                   <li key={item.status}>
-                    <Status tone={companyStatusTone[item.status]}>
-                      <span className={cn("font-data", item.count > 0 && "text-foreground")}>
-                        {item.count}
-                      </span>{" "}
-                      {item.label}
-                    </Status>
+                    <Tag variant="status" color={companyStatusColor[item.status]}>
+                      <span className="font-data">{item.count}</span> {item.label}
+                    </Tag>
                   </li>
                 ))}
               </ul>

@@ -1,9 +1,9 @@
-import { Status, type StatusTone } from "@/components/ui/status";
+import { Tag, type TagColor } from "@/components/ui/tag";
 import { getJobLeadStatusLabel, isJobLeadStatus, type JobLeadStatus } from "@/lib/job-leads";
 
-const leadStatusTone: Record<JobLeadStatus, StatusTone> = {
-  interesting: "positive",
-  review: "caution",
+const leadStatusColor: Record<JobLeadStatus, TagColor> = {
+  interesting: "green",
+  review: "orange",
   discarded: "muted",
 };
 
@@ -21,8 +21,8 @@ export function LeadStatusBadge({
   }
 
   return (
-    <Status tone={leadStatusTone[status]} className={className}>
+    <Tag variant="status" color={leadStatusColor[status]} className={className}>
       {label}
-    </Status>
+    </Tag>
   );
 }

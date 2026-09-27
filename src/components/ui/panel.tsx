@@ -32,7 +32,7 @@ function PanelTitle({ className, ...props }: React.ComponentProps<"h2">) {
   return (
     <h2
       data-slot="panel-title"
-      className={cn("min-w-0 truncate text-sm font-medium text-foreground", className)}
+      className={cn("min-w-0 truncate text-sm font-semibold text-foreground", className)}
       {...props}
     />
   );

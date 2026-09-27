@@ -1,14 +1,14 @@
-import { Status, type StatusTone } from "@/components/ui/status";
+import { Tag, type TagColor } from "@/components/ui/tag";
 import {
   companyStatusLabelMap,
   type CompanyStatus,
 } from "@/lib/companies";
 
-export const companyStatusTone: Record<CompanyStatus, StatusTone> = {
-  monitoring: "neutral",
-  in_process: "active",
+export const companyStatusColor: Record<CompanyStatus, TagColor> = {
+  monitoring: "gray",
+  in_process: "blue",
   discarded: "muted",
-  blacklist: "negative",
+  blacklist: "red",
 };
 
 type CompanyStatusBadgeProps = {
@@ -18,8 +18,8 @@ type CompanyStatusBadgeProps = {
 
 export function CompanyStatusBadge({ status, className }: CompanyStatusBadgeProps) {
   return (
-    <Status tone={companyStatusTone[status]} className={className}>
+    <Tag variant="status" color={companyStatusColor[status]} className={className}>
       {companyStatusLabelMap[status]}
-    </Status>
+    </Tag>
   );
 }

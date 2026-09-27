@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Compact single-choice toggle group (period, classification...). Items are
+ * Compact single-choice toggle group (period, classification...) drawn as
+ * Notion pill tabs: outlined pills, the pressed one filled with ink. Items are
  * plain buttons with `aria-pressed`, so the group reads as a set of toggles.
  */
 function SegmentedControl({
@@ -13,7 +14,7 @@ function SegmentedControl({
       role="group"
       data-slot="segmented-control"
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-0.5 rounded-lg border border-border bg-canvas p-0.5 pointer-coarse:h-10",
+        "inline-flex h-7 shrink-0 items-center gap-1.5 pointer-coarse:h-9",
         className,
       )}
       {...props}
@@ -38,14 +39,14 @@ function SegmentedControlItem({
       aria-pressed={pressed}
       data-slot="segmented-control-item"
       className={cn(
-        "group/segment inline-flex h-full min-w-0 items-center justify-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium whitespace-nowrap text-muted-foreground transition-colors duration-150 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-accent aria-pressed:text-foreground",
+        "group/segment inline-flex h-full min-w-0 items-center justify-center gap-1.5 rounded-full border border-border px-3 text-[13px] font-medium whitespace-nowrap text-muted-foreground transition-colors duration-150 outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background",
         className,
       )}
       {...props}
     >
       {children}
       {count !== undefined ? (
-        <span className="font-data text-xs text-subtle-foreground group-aria-pressed/segment:text-muted-foreground">
+        <span className="font-data text-xs text-subtle-foreground group-aria-pressed/segment:text-background/70">
           {count}
         </span>
       ) : null}

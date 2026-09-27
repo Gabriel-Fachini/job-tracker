@@ -1,15 +1,15 @@
-import { Status, type StatusTone } from "@/components/ui/status";
+import { Tag, type TagColor } from "@/components/ui/tag";
 import {
   applicationStatusLabelMap,
   type ApplicationStatus,
 } from "@/lib/applications";
 
-export const applicationStatusTone: Record<ApplicationStatus, StatusTone> = {
-  applied: "neutral",
-  in_process: "active",
-  offer: "positive",
-  approved: "positive",
-  rejected: "negative",
+export const applicationStatusColor: Record<ApplicationStatus, TagColor> = {
+  applied: "gray",
+  in_process: "blue",
+  offer: "purple",
+  approved: "green",
+  rejected: "red",
   withdrawn: "muted",
 };
 
@@ -19,8 +19,8 @@ type ApplicationStatusBadgeProps = {
 
 export function ApplicationStatusBadge({ status }: ApplicationStatusBadgeProps) {
   return (
-    <Status tone={applicationStatusTone[status]}>
+    <Tag variant="status" color={applicationStatusColor[status]}>
       {applicationStatusLabelMap[status]}
-    </Status>
+    </Tag>
   );
 }

@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Underlined view tabs that head a list panel. The active tab gets a 1px
+ * Underlined view tabs that head a list panel. The active tab gets a 2px
  * foreground rule sitting on the bar's bottom border.
  */
 function TabBar({ className, ...props }: React.ComponentProps<"div">) {
@@ -35,8 +35,8 @@ function TabBarItem({
       aria-selected={selected}
       data-slot="tab-bar-item"
       className={cn(
-        "group/tab relative flex h-11 shrink-0 snap-start items-center gap-2 px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors duration-150 outline-none hover:text-foreground focus-visible:bg-accent aria-selected:text-foreground",
-        "after:absolute after:inset-x-3 after:bottom-0 after:h-px after:bg-transparent after:transition-colors after:duration-150 aria-selected:after:bg-foreground",
+        "group/tab relative flex h-11 shrink-0 snap-start items-center gap-2 px-3 text-sm font-medium whitespace-nowrap text-subtle-foreground transition-colors duration-150 outline-none hover:text-foreground focus-visible:bg-accent aria-selected:text-foreground",
+        "after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-transparent after:transition-colors after:duration-150 aria-selected:after:bg-foreground",
         className,
       )}
       {...props}

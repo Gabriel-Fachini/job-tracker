@@ -19,10 +19,10 @@ import { Notice } from "@/components/ui/notice";
 import { cn } from "@/lib/utils";
 import type { ClassificationDist, ScoreBucket } from "@/server/queries/dashboard";
 
-// Stack order is deliberate: the positive and caution tokens sit too close to
-// tell apart side by side (dark palette: protanopia ΔE 5.4, normal vision
-// 14.8), so the neutral "discarded" segment always separates them. The order
-// stays safe in any theme; re-check the ΔE if the tokens change.
+// Stack order is deliberate: green and orange blur together under
+// protanopia (CIEDE2000 8.7 light / 10.5 dark, vs ~50 for normal vision), so
+// the neutral "discarded" segment always separates them. The order stays safe
+// in any theme; re-check the ΔE if the tokens change.
 const SEGMENTS = [
   { key: "interesting", label: "Interessante", swatch: "bg-positive" },
   { key: "discarded", label: "Descartado", swatch: "bg-chart-4" },

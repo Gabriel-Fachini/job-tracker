@@ -1,71 +1,102 @@
 ---
 name: Job Tracker
-description: Personal job-hunting operations center. Monochrome and precise; dark by default, light on request.
+description: Personal job-hunting operations center, adapted from Notion's design language. Warm neutrals, one purple action, pastel property tags; dark by default, light on request.
 colors:
-  # Dark theme (default): absolute black content inside a graphite frame.
-  canvas: "oklch(0.19 0 0)"
-  background: "oklch(0 0 0)"
-  surface: "oklch(0.17 0 0)"
-  popover: "oklch(0.2 0 0)"
-  field: "oklch(0.14 0 0)"
-  muted: "oklch(0.22 0 0)"
-  accent: "oklch(0.26 0 0)"
-  border: "oklch(0.265 0 0)"
-  border-strong: "oklch(0.33 0 0)"
-  foreground: "oklch(0.95 0 0)"
-  muted-foreground: "oklch(0.72 0 0)"
-  subtle-foreground: "oklch(0.64 0 0)"
-  primary: "oklch(0.95 0 0)"
-  primary-hover: "oklch(0.86 0 0)"
-  primary-foreground: "oklch(0.12 0 0)"
-  ring: "oklch(0.7 0 0)"
-  positive: "oklch(0.79 0.12 158)"
-  caution: "oklch(0.83 0.11 82)"
-  negative: "oklch(0.72 0.14 24)"
-  # Light theme: white content inside a light-gray frame.
-  light-canvas: "oklch(0.97 0 0)"
-  light-background: "oklch(1 0 0)"
-  light-surface: "oklch(0.972 0 0)"
-  light-popover: "oklch(1 0 0)"
-  light-field: "oklch(1 0 0)"
-  light-muted: "oklch(0.955 0 0)"
-  light-accent: "oklch(0.94 0 0)"
-  light-border: "oklch(0.915 0 0)"
-  light-border-strong: "oklch(0.86 0 0)"
-  light-foreground: "oklch(0.18 0 0)"
-  light-muted-foreground: "oklch(0.44 0 0)"
-  light-subtle-foreground: "oklch(0.52 0 0)"
-  light-primary: "oklch(0.18 0 0)"
-  light-primary-hover: "oklch(0.32 0 0)"
-  light-primary-foreground: "oklch(0.985 0 0)"
-  light-ring: "oklch(0.5 0 0)"
-  light-positive: "oklch(0.5 0.12 155)"
-  light-caution: "oklch(0.545 0.115 66)"
-  light-negative: "oklch(0.53 0.18 27)"
+  # Dark theme (default): absolute black content inside a warm graphite frame.
+  canvas: "#1c1b19"
+  background: "#000000"
+  surface: "#141312"
+  popover: "#22211f"
+  field: "#131211"
+  muted: "#252422"
+  accent: "#2c2b28"
+  border: "#2e2d2a"
+  border-strong: "#3d3b37"
+  foreground: "#ebeae6"
+  muted-foreground: "#b4b2ab"
+  subtle-foreground: "#9a9892"
+  primary: "#6c5ce6"
+  primary-hover: "#5b4ad8"
+  primary-foreground: "#ffffff"
+  ring: "#8f84f2"
+  link: "#62aef5"
+  positive: "#5cc97a"
+  caution: "#f0913f"
+  negative: "#f2665e"
+  tag-gray: "#2f2e2b"
+  tag-gray-foreground: "#d2d0ca"
+  tag-orange: "#4a2a12"
+  tag-orange-foreground: "#f7c49b"
+  tag-green: "#17371f"
+  tag-green-foreground: "#9fdcb0"
+  tag-blue: "#15314d"
+  tag-blue-foreground: "#a4cdf7"
+  tag-purple: "#2d2656"
+  tag-purple-foreground: "#c9befa"
+  tag-red: "#4b1e1a"
+  tag-red-foreground: "#f6aea6"
+  # Light theme: white content inside a warm-gray frame, charcoal text.
+  light-canvas: "#f6f5f4"
+  light-background: "#ffffff"
+  light-surface: "#f7f6f3"
+  light-popover: "#ffffff"
+  light-field: "#ffffff"
+  light-muted: "#f1f0ed"
+  light-accent: "#eeece9"
+  light-border: "#e5e3df"
+  light-border-strong: "#cfcbc5"
+  light-foreground: "#37352f"
+  light-muted-foreground: "#5d5b54"
+  light-subtle-foreground: "#6b6963"
+  light-primary: "#5645d4"
+  light-primary-hover: "#4534b3"
+  light-primary-foreground: "#ffffff"
+  light-ring: "#5645d4"
+  light-link: "#006ccf"
+  light-positive: "#18803a"
+  light-caution: "#b45000"
+  light-negative: "#cc2b2b"
+  light-tag-gray: "#efedea"
+  light-tag-gray-foreground: "#55534e"
+  light-tag-orange: "#ffe8d4"
+  light-tag-orange-foreground: "#793400"
+  light-tag-green: "#dcf1e1"
+  light-tag-green-foreground: "#1d5a2f"
+  light-tag-blue: "#dcecfa"
+  light-tag-blue-foreground: "#0b4f8a"
+  light-tag-purple: "#e6e0f5"
+  light-tag-purple-foreground: "#4534b3"
+  light-tag-red: "#fde4e1"
+  light-tag-red-foreground: "#a3261b"
 typography:
   headline:
-    fontFamily: "Geist, system-ui, sans-serif"
-    fontSize: "1.5rem"
+    fontFamily: "Inter, system-ui, sans-serif"
+    fontSize: "1.75rem"
     fontWeight: 600
     lineHeight: 1.25
-    letterSpacing: "-0.015em"
+    letterSpacing: "-0.02em"
   title:
-    fontFamily: "Geist, system-ui, sans-serif"
+    fontFamily: "Inter, system-ui, sans-serif"
     fontSize: "0.9375rem"
     fontWeight: 500
     lineHeight: 1.35
+  section:
+    fontFamily: "Inter, system-ui, sans-serif"
+    fontSize: "0.875rem"
+    fontWeight: 600
+    lineHeight: 1.4
   body:
-    fontFamily: "Geist, system-ui, sans-serif"
+    fontFamily: "Inter, system-ui, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.5
   meta:
-    fontFamily: "Geist, system-ui, sans-serif"
+    fontFamily: "Inter, system-ui, sans-serif"
     fontSize: "0.8125rem"
     fontWeight: 400
     lineHeight: 1.45
   label:
-    fontFamily: "Geist, system-ui, sans-serif"
+    fontFamily: "Inter, system-ui, sans-serif"
     fontSize: "0.75rem"
     fontWeight: 500
     lineHeight: 1.33
@@ -76,9 +107,12 @@ typography:
     lineHeight: 1.33
     fontFeature: "tnum, zero"
 rounded:
-  md: "4.8px"
-  lg: "6px"
-  xl: "8.4px"
+  sm: "4px"
+  md: "6px"
+  lg: "8px"
+  xl: "12px"
+  2xl: "16px"
+  full: "9999px"
 spacing:
   row-y: "14px"
   panel: "20px"
@@ -95,21 +129,51 @@ components:
   button-outline:
     backgroundColor: "transparent"
     textColor: "{colors.foreground}"
+    border: "1px solid {colors.border-strong}"
     rounded: "{rounded.lg}"
     height: "32px"
   button-ghost:
     backgroundColor: "transparent"
     textColor: "{colors.muted-foreground}"
-    rounded: "{rounded.lg}"
-    height: "32px"
+    rounded: "{rounded.md}"
+    height: "28px"
   input:
     backgroundColor: "{colors.field}"
     textColor: "{colors.foreground}"
+    border: "1px solid {colors.border-strong}"
     rounded: "{rounded.lg}"
     height: "32px"
     padding: "0 10px"
+  search-pill:
+    backgroundColor: "{colors.surface}"
+    border: "1px solid {colors.border}"
+    rounded: "{rounded.lg}"
+    height: "32px"
+  pill-tab:
+    backgroundColor: "transparent"
+    textColor: "{colors.muted-foreground}"
+    border: "1px solid {colors.border}"
+    rounded: "{rounded.full}"
+    height: "28px"
+  pill-tab-active:
+    backgroundColor: "{colors.foreground}"
+    textColor: "{colors.background}"
+  tab-active:
+    textColor: "{colors.foreground}"
+    border: "0 0 2px {colors.foreground} solid"
+  tag-status:
+    backgroundColor: "{colors.tag-green}"
+    textColor: "{colors.tag-green-foreground}"
+    rounded: "{rounded.full}"
+    height: "20px"
+  tag-select:
+    backgroundColor: "{colors.tag-gray}"
+    textColor: "{colors.tag-gray-foreground}"
+    rounded: "{rounded.sm}"
+    height: "20px"
   panel:
     backgroundColor: "{colors.background}"
+    border: "1px solid {colors.border}"
     rounded: "{rounded.xl}"
   popover:
     backgroundColor: "{colors.popover}"
@@ -121,163 +185,168 @@ components:
 
 ## 1. Overview
 
-**Creative North Star: "The Precision Instrument"**
+**Creative North Star: "A Notion workspace for one job hunt"**
 
-A tool one engineer uses every day, usually in a dark room, to move job leads into submitted applications. It should read like a well-made instrument panel: an absolute-black display inside a graphite chassis, hairline structure, numbers set in a monospaced data face, and color that appears only when it means something. Nothing is decorative. Hierarchy comes from weight, size, spacing and three text tiers, not from tinted boxes.
+A tool one engineer uses every day to move job leads into submitted applications. It borrows Notion's product language: warm off-white and charcoal (or black and warm graphite), calm sentence-case type in Inter, rectangular controls with soft 8px corners, 12px panels, and color concentrated in two places: one purple button for the main action, and pastel property tags for state. Everything else is neutral, hairline-structured and dense.
 
-The system is monochrome with two themes. Dark is the default and is designed first: content on `#000`, frame, sidebar, controls and popovers in graphite grays. Light mirrors it: content on white inside a light-gray frame. The user picks Sistema / Claro / Escuro (sidebar footer, or the Aparência panel in Perfil); the choice is stored per device and applied before first paint. The primary action is an inverted button (white on dark, black on light), used once per view. Status is a 6px dot next to a quiet label. Lists are dense rows divided by hairlines, not card grids. Density is deliberate: 14px UI text, 32px controls, 14px row padding.
+The source reference is Notion's marketing design system (purple `#5645d4` CTA, pastel tints, 8/12px radii, pill tabs, underline tabs). Only the product-relevant parts are adopted. The marketing pieces (navy hero band, sticky-note decoration, pastel feature cards, pricing tiers, testimonials, logo wall, footer) have no place in a sidebar app and are out.
 
-It rejects, by name (from PRODUCT.md): generic SaaS dashboards (gray card grids, hero metrics, blue primary buttons, identical card columns, "enterprise" roundedness); recruitment-platform UIs (Greenhouse, LinkedIn, Indeed, dense HR tables); and gradient-heavy, animation-first portfolio tools.
+Two themes. Dark is the default: content on `#000` inside a warm graphite frame. Light: white content inside a warm-gray frame with charcoal text. The user picks Sistema / Claro / Escuro (sidebar footer, or Perfil → Aparência); the choice is stored per device and applied before first paint.
+
+It rejects, by name (from PRODUCT.md): generic SaaS dashboards (gray card grids, hero metrics, identical card columns, "enterprise" roundedness); recruitment-platform UIs (Greenhouse, LinkedIn, Indeed, dense HR tables); and gradient-heavy, animation-first portfolio tools.
 
 **Key Characteristics:**
-- Monochrome in two themes; depth by lightness steps, never by decorative shadow.
-- One inverted primary button per view; everything else outline or ghost.
-- Semantic color (positive / caution / negative) only for state, desaturated.
-- Geist for UI, Geist Mono (`font-data`) for every number, date, score, count.
-- Hairline dividers (`border-border`), rows over cards, panels over boxes-in-boxes.
+- Warm neutrals in both themes; depth by lightness steps, not decorative shadow.
+- One purple primary button per view; everything else outline or ghost. Purple also marks keyboard focus.
+- Workflow state as pastel status tags (tint + deep text + dot); categories as gray select tags.
+- Inter for UI (optical sizes on), Geist Mono (`font-data`) for every number, date, score, count.
+- Hairline dividers, rows over cards, panels over boxes-in-boxes.
 - Sentence case everywhere. No uppercase tracked eyebrows.
 
-## 2. Colors: The Graphite Palette
-
-Pure neutral grays (chroma 0) in both themes. The only hues are three desaturated semantic states, tuned per theme to keep 4.5:1 as text.
+## 2. Colors: The Warm Workspace Palette
 
 ### Neutral roles (dark / light)
-- **Canvas** (`--canvas`, #141414 / #f5f5f5): app frame behind the content panel, sidebar, mobile tab bar, segmented-control track, log wells. The gray "chassis".
-- **Background** (`--background`, #000000 / #ffffff): the content panel and every page surface. Panels and cards use this same value plus a border.
-- **Surface** (`--surface`, #0f0f0f / #f6f6f6): row hover, table-header fills, empty-state icon tiles.
-- **Popover** (`--popover`, #161616 / #ffffff): dialogs, sheets, menus, tooltips, toasts.
-- **Field** (`--field`, #090909 / #ffffff): input, select and textarea fills.
-- **Muted / Accent** (`--muted`, `--accent`): skeletons, code, selected segment, menu-item hover.
-- **Border** (`--border`, #252525 / #e6e6e6): every hairline divider and panel outline.
-- **Border Strong** (`--border-strong` / `--input`, #363636 / #d4d4d4): input and outline-button strokes.
-- **Foreground** (#eeeeee / #121212): primary text, titles, values. ~18:1 on background.
-- **Muted Foreground** (#a4a4a4 / #525252): secondary text, descriptions, meta, prose. ≥6.2:1 everywhere.
-- **Subtle Foreground** (#8c8c8c / #696969): tertiary text: timestamps, separators, placeholders, field labels in `dl`. ≥4.6:1 on every surface; it is the floor. Never go dimmer with alpha.
+- **Canvas** (`--canvas`, #1c1b19 / #f6f5f4): app frame behind the content panel, sidebar, mobile tab bar, log wells.
+- **Background** (`--background`, #000000 / #ffffff): the content panel and every page surface. Panels use this value plus a border.
+- **Surface** (`--surface`, #141312 / #f7f6f3): row hover, table-header fills, search pill, empty-state icon tiles.
+- **Popover** (`--popover`, #22211f / #ffffff): dialogs, sheets, menus, toasts.
+- **Field** (`--field`, #131211 / #ffffff): input, select and textarea fills.
+- **Muted / Accent** (`--muted`, `--accent`): skeletons, meter tracks, code, ghost/menu hover.
+- **Border** (`--border`, #2e2d2a / #e5e3df): hairline dividers and panel outlines.
+- **Border Strong** (`--border-strong` / `--input`, #3d3b37 / #cfcbc5): input and outline-button strokes.
+- **Foreground** (#ebeae6 / #37352f charcoal): primary text, titles, values.
+- **Muted Foreground** (#b4b2ab / #5d5b54): secondary text, descriptions, meta. ≥5.7:1 everywhere.
+- **Subtle Foreground** (#9a9892 / #6b6963): tertiary text: timestamps, separators, placeholders, inactive tabs. ≥4.5:1 on every surface, including hover fills; it is the floor.
 
-### Semantic (state only)
-- **Positive** (dark oklch(0.79 0.12 158) / light oklch(0.5 0.12 155)): good outcomes: interesting lead, offer, approved, rising delta.
-- **Caution** (dark oklch(0.83 0.11 82) / light oklch(0.545 0.115 66)): needs a decision: review, stale backlog, mismatch warnings.
-- **Negative** (dark oklch(0.72 0.14 24) / light oklch(0.53 0.18 27)): bad outcomes and destructive actions: rejected, blacklist, failures, falling delta.
-- Positive and caution are too close for color-blind readers when adjacent in a chart: keep a neutral segment between them (see the classification bar).
+### Brand
+- **Primary** (#6c5ce6 dark / #5645d4 light): the page's main action and nothing else. White text at 4.8:1 / 6.6:1. Hover #5b4ad8 / #4534b3.
+- **Ring** (#8f84f2 / #5645d4): focus ring and focused input border.
+- **Link** (#62aef5 / #006ccf): inline text links (`Button variant="link"`, markdown links). The spec's #0075de is darkened to keep 4.5:1 on the frame. Never mix link blue and primary purple roles.
+- **Selection:** purple at 16% (light) / 30% (dark).
+
+### Property tags
+Each tag color is a tint plus deep text of the same hue (light) or a deep tint plus light text (dark); text passes 6:1 on its tint in both themes. Colors: `gray`, `orange`, `green`, `blue`, `purple`, `red`, plus `muted` (outlined, no fill) for closed or inactive states.
+
+### Semantic (inline feedback)
+- **Positive** (#5cc97a / #18803a), **Caution** (#f0913f / #b45000), **Negative** (#f2665e / #cc2b2b): notice dots, score numbers, deltas, destructive actions. Info (#62aef5 / #006ccf) is the "in progress" dot.
+- Green and orange are close for protan/deutan readers (CIEDE2000 ~9-11 simulated): never place them adjacent in a chart; keep a neutral segment between them.
 
 ### Charts
-`--chart-1` (most prominent) to `--chart-5` (least): light-on-dark ramp in dark, dark-on-light in light. `--chart-4` is the dimmest step that still reaches 3:1 on the background; `--chart-5` is decorative only.
+`--chart-1` (most prominent) to `--chart-5` (least), warm neutral ramp. `--chart-3` clears 4.5:1 and `--chart-4` ~3:1 on the background; `--chart-5` is decorative only. Status series use the semantic tokens. Purple never appears in charts.
 
 ### Named Rules
-**The No-Accent Rule.** There is no brand hue. The primary button is the inverted neutral (white on dark, black on light). Never introduce blue, violet, sky, emerald, amber or any Tailwind palette color (`emerald-400`, `sky-400/8`, `zinc-500`...). Only the tokens above, and never a literal `bg-black`, `text-white`, `shadow-black/*`, hex or oklch in components: both themes must work from the same class names.
+**The One-Purple Rule.** Purple fills exactly one thing per view: the primary button. Not links, not charts, not selected states (selected pills and tabs use ink).
 
-**The Meaning-Only Rule.** Color appears only on the dot, number or word that carries the state. Never tint a container background or border to signal a category.
+**The Tag Rule.** Color on a container is allowed only as a property tag (`Tag`) that names a state or category. No tinted panels, stat tiles or alert boxes.
 
-**The Floor Rule.** `subtle-foreground` is the dimmest legal text. `text-muted-foreground/60`, `text-foreground/40` and similar alpha text are banned.
+**The Token Rule.** Only tokens from `globals.css`. Never a Tailwind palette color (`emerald-400`, `sky-400/8`...), literal hex/oklch, `bg-black`, `text-white` or `shadow-black/*` in components: both themes must work from the same class names.
+
+**The Floor Rule.** `subtle-foreground` is the dimmest legal text. No alpha text like `text-muted-foreground/60`.
 
 ## 3. Typography
 
-**UI Font:** Geist (`font-sans`, `--font-geist-sans`)
+**UI Font:** Inter (`font-sans`, `--font-inter`, `opsz` axis loaded). Notion Sans is proprietary; Inter is its base.
 **Data Font:** Geist Mono (`font-data` utility: mono + tabular + slashed zero)
 
-**Character:** One neutral grotesque carries every word; the mono face marks anything countable, so numbers scan as a column and the tool reads as engineered.
-
 ### Hierarchy
-- **Headline** (600, 24px / `text-2xl`, 20px on phones, tracking -0.015em): page titles, via `PageHeader` only.
-- **Title** (500, 15px / `text-[15px]`): row titles, entity names in lists, dialog titles use 18-20px semibold.
-- **Section** (500, 14px / `text-sm font-medium text-foreground`): panel headings, form sections. Sentence case.
-- **Body** (400, 14px / `text-sm`, line-height 1.5-1.7): UI text and prose. Long prose (job descriptions, notes) is capped at `max-w-[68ch]`.
-- **Meta** (400, 13px / `text-[13px] text-muted-foreground`): company, seniority, location, descriptions.
-- **Label** (500, 12px / `text-xs`): status labels, field labels (`text-subtle-foreground`), table headers (`text-muted-foreground`).
-- **Data** (`font-data`, 12-15px; KPI values 24-28px `font-medium`): scores, counts, dates, deltas, percentages, IDs.
+- **Headline** (600, 28px / 22px on phones, tracking -0.02em): page titles, via `PageHeader` only.
+- **Title** (500, 15px): row titles, entity names; dialog titles 16px semibold.
+- **Section** (600, 14px): panel headings (`PanelTitle`), form sections. Sentence case.
+- **Body** (400, 14px, line-height 1.5): UI text and prose. Long prose capped at `max-w-[68ch]`.
+- **Meta** (400, 13px, `muted-foreground`): company, seniority, location, descriptions.
+- **Label** (500, 12px): tags, field labels, table headers.
+- **Data** (`font-data`, 12-15px; KPI values 24-28px medium): scores, counts, dates, deltas, percentages, IDs.
 
 ### Named Rules
-**The Data-Face Rule.** Every number a user compares (score, count, date, percent, delta, N) is set in `font-data`. Words stay in Geist.
+**The Data-Face Rule.** Every number a user compares is set in `font-data`. Words stay in Inter.
 
-**The No-Eyebrow Rule.** Never `text-[11px] uppercase tracking-[0.18em]` labels above sections or in stat tiles. Use a sentence-case Section heading.
+**The No-Eyebrow Rule.** Never `text-[11px] uppercase tracking-[0.18em]` labels. Use a sentence-case Section heading.
 
 ## 4. Elevation
 
-Flat by default. Depth is tonal: in dark, black content sits inside a lighter graphite frame and floating layers get lighter still; in light, white content sits inside a light-gray frame. Panels are outlined with a 1px `border-border`, never shadowed. Shadows exist only on floating layers, through theme tokens: menus and tooltips use `shadow-popover`, dialogs and sheets use `shadow-overlay`. Modal backdrops use `bg-overlay` (black at 70% in dark, 40% in light), with no blur.
+Flat by default (Notion level 0: hairline border, no shadow). Shadows only on floating layers, via tokens: menus use `shadow-popover` (`0 4px 12px rgb(15 15 15 / .08)` + soft spread), dialogs and sheets use `shadow-overlay` (Notion's modal level, `0 16px 48px -8px rgb(15 15 15 / .16)`). Dark theme uses strong black shadows plus borders. Backdrops use `bg-overlay`, no blur.
 
 ### Named Rules
-**The Hairline Rule.** Structure is drawn with 1px lines in `border-border`. No double borders (a bordered panel inside a bordered panel), no side stripes, no nested cards.
+**The Hairline Rule.** Structure is 1px `border-border`. No double borders, no side stripes, no nested cards.
 
 ## 5. Components
 
-Primitives live in `src/components/ui/`. Use them; never restyle their height or radius at the call site.
+Primitives live in `src/components/ui/`. Use them; don't restyle height or radius at the call site.
 
 ### Buttons (`Button`, `buttonVariants`)
-- **Shape:** `rounded-lg` (6px). Sizes: `sm` 28px, `default` 32px, `lg` 36px; touch pointers get +8px automatically.
-- **Primary (`default`):** white `bg-primary`, dark text, `hover:bg-primary-hover`. One per view: the page-level action (Rodar radar, Nova candidatura, Salvar).
-- **Outline:** `border-border-strong`, foreground text, `hover:bg-accent`. Row-level main action (Aprovar, Criar candidatura), secondary page actions.
-- **Ghost:** muted text, `hover:bg-accent hover:text-foreground`. Tertiary: Descartar, Editar, icon buttons, close.
-- **Destructive:** `bg-destructive/12 text-destructive`.
-- **Focus:** `ring-2 ring-ring`. **Disabled:** 40% opacity. Pending labels end with an ellipsis: "Salvando…".
-- Don't pass `h-10`, `h-11`, `rounded-xl`, `px-5` overrides. Don't use a `brand` variant (it was removed).
+- **Shape:** `rounded-lg` (8px); `sm`/icon-sm `rounded-md` (6px). Heights: `sm` 28px, `default` 32px, `lg` 36px; touch pointers get +8px.
+- **Primary (`default`):** purple, white text, one per view (Rodar radar, Nova candidatura, Salvar).
+- **Outline:** `border-border-strong`, foreground text, `hover:bg-accent`. Row-level main action (Aprovar) and secondary page actions.
+- **Ghost:** muted text, `hover:bg-accent`. Tertiary: Descartar, Editar, icon buttons.
+- **Destructive:** `bg-destructive/12 text-destructive`. **Link:** `text-link`, underline on hover.
+- **Focus:** 3px purple halo (`ring-3 ring-ring/40`). **Disabled:** 40% opacity. Pending labels end with an ellipsis.
+
+### Tags (`Tag`, `TagDot` in `ui/tag.tsx`)
+- `variant="status"`: 20px pill, dot + label. Workflow state:
+  - Leads: interesting `green`, review `orange`, discarded `muted`.
+  - Applications (`applicationStatusColor`): applied `gray`, in_process `blue`, offer `purple`, approved `green`, rejected `red`, withdrawn `muted`.
+  - Companies (`companyStatusColor`): monitoring `gray`, in_process `blue`, discarded `muted`, blacklist `red`.
+- `variant="select"`: 20px, 4px corners, no dot: categories.
+- `TagDot`: the same mid-tone dot on its own (status select, legends).
+- **Chip** (`ui/chip.tsx`): gray select tag for skills and keywords; `positive`/`caution`/`info` tints for judgements only.
 
 ### Status (`Status`, `StatusDot` in `ui/status.tsx`)
-6px dot + 12px medium label in `muted-foreground`. Tones:
-- Leads: interesting `positive`, review `caution`, discarded `muted`.
-- Applications: applied `neutral`, in_process `active`, offer `positive`, approved `positive`, rejected `negative`, withdrawn `muted`.
-- Companies: monitoring `neutral`, in_process `active`, discarded `muted`, blacklist `negative`.
-- Live state (radar running): `StatusDot tone="active" pulse`.
-
-### Chips (`Chip`)
-Rarely needed. 20px tall, `rounded-md`, 1px border, 12px text. Prefer a plain meta line instead: items joined by `<span aria-hidden className="mx-1.5 text-subtle-foreground">·</span>`.
+Inline dot + quiet label for feedback, not workflow state ("Currículo gerado com sucesso", classifier health). Live state (radar running): `StatusDot tone="active" pulse` (blue).
 
 ### Panels and lists
-- **Panel primitives** (`ui/panel.tsx`): `Panel` (outlined section), `PanelHeader` (44px bar, hairline below), `PanelTitle` (Section heading), `PanelMeta` (right side: count, period, quiet link), `PanelBody` (`p-4 sm:p-5`). Never nest a Panel in a Panel.
-- **Notice** (`ui/notice.tsx`): `<Notice tone="caution">…</Notice>`; add `bordered` when it stands alone, `pulse` for in-progress states.
-- **MetaLine** (`ui/meta-line.tsx`): `<MetaLine items={[company, seniority, model]} />`, falsy items skipped.
-- **List panel:** `<section className="-mx-4 border-y border-border sm:mx-0 sm:rounded-xl sm:border-x">`, a header bar (`TabBar` or `flex h-11 items-center justify-between gap-3 border-b border-border px-4 sm:px-5`), then `<ul className="divide-y divide-border">`. Rows: `px-4 py-3.5 sm:px-5`, `hover:bg-surface`, whole row clickable through a stretched `absolute inset-0` button with row actions at `relative z-10`.
-- **Panel:** `rounded-xl border border-border`; header `flex items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5` with a Section heading and optional `font-data text-xs text-subtle-foreground` meta; body `p-4 sm:p-5`.
-- **Panel grid (dashboards):** `grid gap-px overflow-hidden rounded-xl border border-border bg-border lg:grid-cols-2`, each cell `bg-background p-4 sm:p-5`. Shared hairlines instead of separate cards.
-- **Metric strip:** one bordered `dl`, cells divided by hairlines; `dt` 13px `muted-foreground`, `dd` `font-data text-2xl font-medium`, optional delta `font-data text-xs text-positive|text-negative|text-subtle-foreground`. No icons, no tints.
-- **Definition rows:** `dt text-xs text-subtle-foreground`, `dd text-sm text-foreground`; empty values read "Não informado" in `subtle-foreground`.
-- **Inline notice** (replaces tinted alert boxes): `flex items-start gap-2 text-[13px] text-muted-foreground` with `<StatusDot tone="caution|negative" className="mt-[7px]" />`. Optionally inside `rounded-lg border border-border px-3 py-2.5`.
+- **Panel** (`ui/panel.tsx`): `Panel` (12px, hairline), `PanelHeader` (44px bar), `PanelTitle` (Section), `PanelMeta`, `PanelBody` (`p-4 sm:p-5`). Never nest.
+- **Notice** (`ui/notice.tsx`): one-line feedback with a semantic dot; `bordered` when alone, `pulse` in progress.
+- **MetaLine** (`ui/meta-line.tsx`): items joined by middots, falsy items skipped.
+- **List panel:** `rounded-xl border` section, header bar (`TabBar` or summary tags), `divide-y` rows (`px-4 py-3.5 sm:px-5`, `hover:bg-surface`), whole row clickable with actions at `relative z-10`.
+- **Panel grid (dashboards):** shared hairlines (`gap-px bg-border`), not separate cards.
+- **Metric strip:** one bordered `dl`, `dt` 13px muted, `dd` `font-data text-2xl`, optional delta. No icons, no tints.
 
 ### Tabs and toggles
-- **TabBar / TabBarItem** (`ui/tab-bar.tsx`): underlined view tabs heading a list panel; count in `font-data`; active tab gets a 1px foreground rule.
-- **SegmentedControl / SegmentedControlItem** (`ui/segmented-control.tsx`): single-choice filters (period, classification); canvas track, `bg-accent` selected segment.
+- **TabBar** (`ui/tab-bar.tsx`): underline view tabs; inactive `subtle-foreground`, active foreground with a 2px ink rule; count in `font-data`.
+- **SegmentedControl** (`ui/segmented-control.tsx`): Notion pill tabs. 28px outlined pills, `rounded-full`; pressed pill filled with ink (`bg-foreground text-background`). Period, classification, theme.
 
 ### Inputs / Fields
-- **Style:** `Input`, `Textarea`, `SelectTrigger`, `NativeSelect` (native `<select>` for uncontrolled forms and phone pickers): 32px, `rounded-lg`, `border-input`, `bg-field`, placeholder `subtle-foreground`.
-- **Focus:** `border-ring` + `ring-2 ring-ring/25`. **Error:** `aria-invalid` → destructive border and ring.
-- Labels 13px medium foreground; descriptions 13px `muted-foreground`. Group with `FieldSet` + `FieldLegend` (14px semibold) and hairline separators between sections.
+- `Input`, `Textarea`, `SelectTrigger`, `NativeSelect`: 32px, `rounded-lg`, `border-input`, `bg-field`, placeholder `subtle-foreground`.
+- **Focus:** purple border + `ring-2 ring-ring/25`. **Error:** `aria-invalid` → destructive border and ring.
+- **Search pill:** list search uses `bg-surface` + `border-border`, turning `bg-field` on focus.
 
-### Dialogs and sheets
-`bg-popover`, `border-border`, `rounded-xl`, header and footer separated by hairlines, body in `ScrollArea` (`min-h-0 flex-1`). Phones get the draggable bottom sheet automatically.
+### Dialogs, sheets, tooltips
+Dialogs and sheets: `bg-popover`, hairline border, `rounded-xl`, header/footer hairlines, body in `ScrollArea`; phones get the bottom sheet (`rounded-t-2xl`). Tooltips are dark in both themes (`bg-tooltip`), 12px medium, 6px corners.
 
 ### Empty states
-`Empty` inside the panel that would hold the content: bordered icon tile (`EmptyMedia variant="icon"`), 14px title, 13px description that teaches the next step, one outline action.
+`Empty` inside the panel that would hold the content: bordered icon tile, 14px title, 13px description with the next step, one outline action.
 
 ### Navigation
-Sidebar on canvas: the `jt` monogram (`public/brand/jt-mark.png`, drawn through a CSS mask on `bg-foreground`, so it follows the theme) + `job-tracker` in the data face; 32px items, 16px icons in `subtle-foreground`, active item `bg-sidebar-accent` + foreground. Radar-running row appears in the footer with a pulsing dot and `font-data` progress. Footer: theme picker (`ThemeToggle`, icons only; `ThemeCycleButton` when the sidebar is collapsed) next to the collapse trigger. Phones: bottom tab bar on canvas; active tab gets a 1px foreground rule on the bar's top edge; the theme picker lives in Perfil → Aparência.
+Sidebar on canvas: `jt` monogram (CSS mask on `bg-foreground`) + `job-tracker` in the data face; 32px items, icons in `subtle-foreground`, active item `bg-sidebar-accent` + foreground. Radar-running row in the footer (blue pulsing dot + `font-data` progress). Footer: `ThemeToggle` pills (icons only; `ThemeCycleButton` when collapsed) next to the collapse trigger. Phones: bottom tab bar on canvas, active tab with a top ink rule; theme picker in Perfil → Aparência.
 
 ### Theme
-`src/lib/theme.ts` holds the preference type, storage key and the inline `<head>` script that sets `light`/`dark` on `<html>` before paint. `src/hooks/use-theme.ts` exposes `useThemePreference`, `useResolvedTheme` and `setThemePreference` (disables transitions during the swap, syncs across tabs and with the OS when set to Sistema). Default for a new device: dark.
+`src/lib/theme.ts` (preference type, storage key, `<head>` anti-flash script) and `src/hooks/use-theme.ts` (`useThemePreference`, `useResolvedTheme`, `setThemePreference`; freezes transitions during the swap, syncs across tabs and with the OS). Default for a new device: dark.
 
 ### Brand mark
-`public/brand/jt-monogram.png` (1024px, black on transparent) is the source. `jt-mark.png` is the trimmed mask. App icons (`src/app/icon.png`, `apple-icon.png`, `favicon.ico`) put the white glyph on a graphite tile so it reads on light and dark tab bars.
+`public/brand/jt-monogram.png` is the source; `jt-mark.png` the trimmed mask. App icons (`src/app/icon.png`, `apple-icon.png`, `favicon.ico`) put the white glyph on a graphite tile.
 
 ### Charts
-Monochrome ramp `--chart-1` (lightest) to `--chart-5`; semantic tokens only for status series (interesting/review/discarded). Hairline grid in `var(--border)`, ticks in `font-data` 10-11px `subtle-foreground`, tooltip on `popover` with `border`. Prefer bars and stacked bars over pies.
+Warm neutral ramp; semantic tokens for status series; hairline grid `var(--border)`; ticks in `font-data` 10-11px `subtle-foreground`; tooltip on `popover`. Bars and stacked bars over pies.
 
 ## 6. Do's and Don'ts
 
 ### Do:
-- **Do** use one white primary button per view and make row actions outline or ghost.
-- **Do** set every number in `font-data` (Geist Mono, tabular, slashed zero).
-- **Do** show state as `Status` dot + label; color the dot, not the container.
-- **Do** build lists as hairline-divided rows inside one panel, with the whole row clickable.
-- **Do** keep page descriptions to real information: "8 na triagem · 2 aprovados", not restated titles.
-- **Do** respect `prefers-reduced-motion`; motion is 150-200ms, `ease-out-quart`, state changes only.
+- **Do** use one purple primary button per view; row actions outline or ghost.
+- **Do** show workflow state as a status `Tag`, categories as select tags or chips.
+- **Do** set every number in `font-data`.
+- **Do** build lists as hairline-divided rows inside one panel, whole row clickable.
+- **Do** keep page descriptions to real information: "8 na triagem · 2 aprovados".
+- **Do** respect `prefers-reduced-motion`; motion 150-200ms, `ease-out-quart`, state changes only.
 - **Do** keep text at or above `subtle-foreground` (4.5:1) and prose under 68ch.
 
 ### Don't:
-- **Don't** build generic SaaS dashboards: gray card grids, hero metrics, blue primary buttons, identical card columns, "enterprise" roundedness.
-- **Don't** reproduce recruitment-platform UI (Greenhouse, LinkedIn, Indeed) or dense HR-department tables.
+- **Don't** import Notion's marketing pieces: navy hero bands, sticky-note or mesh decoration, pastel feature cards, pricing tiers, testimonials, logo walls.
+- **Don't** use purple for text, links, charts, selected states or large surfaces.
+- **Don't** build generic SaaS dashboards (card grids, hero metrics, identical card columns) or recruitment-platform UIs.
 - **Don't** add gradients, glows, glassmorphism, `backdrop-blur`, gradient text or animated shine.
-- **Don't** assume a theme: no `bg-black/*`, `text-white`, `shadow-black/*`, `rgba(...)`, hex or oklch in components; use tokens (`bg-overlay`, `shadow-popover`, `shadow-overlay`, `var(--chart-3)`).
-- **Don't** use colored stat tiles (`border-sky-400/20 bg-sky-400/8` and friends) or tinted alert boxes.
-- **Don't** use uppercase tracked eyebrows (`text-[11px] uppercase tracking-[0.18em]`).
-- **Don't** use `rounded-2xl`, `rounded-3xl` or pills on containers; panels are `rounded-xl`, controls `rounded-lg`.
-- **Don't** use `border-left`/`border-right` wider than 1px as an accent stripe.
-- **Don't** nest cards or put a bordered box inside a bordered panel.
+- **Don't** assume a theme: no palette colors, hex, oklch, `bg-black/*`, `text-white`, `shadow-black/*` in components.
+- **Don't** tint containers except property tags; no colored stat tiles or alert boxes.
+- **Don't** use uppercase tracked eyebrows.
+- **Don't** round containers past `rounded-xl` (sheets on phones excepted); `rounded-full` is for pills, tags and dots only.
+- **Don't** use side stripes wider than 1px or nest bordered boxes.
 - **Don't** use em dashes in copy; use a period, colon or parentheses.
