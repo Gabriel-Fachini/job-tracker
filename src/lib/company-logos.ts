@@ -1,13 +1,15 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
+import { lookup as lookupCallback, type LookupAddress } from "node:dns";
 import { lookup } from "node:dns/promises";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { BlockList, isIP } from "node:net";
+import { BlockList, isIP, type LookupFunction } from "node:net";
 import path from "node:path";
 
 import * as cheerio from "cheerio";
 import { and, eq, isNull } from "drizzle-orm";
+import { Agent, fetch, type Response } from "undici";
 
 import { getUploadsRoot } from "@/lib/applications/resume-upload";
 import { db } from "@/lib/db";
@@ -519,12 +521,36 @@ async function assertPublicUrl(url: URL) {
     ? [hostname]
     : (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address);
 
-  // Checked before connecting; fetch resolves the name again, so a DNS answer
-  // that changes in between isn't covered. Fine for a single-user tool.
+  // Fails fast with a definitive error; publicOnlyAgent checks again at connect time.
   if (addresses.length === 0 || addresses.some(isBlockedAddress)) {
     throw new LogoFetchError(`Blocked host: ${hostname}`, false);
   }
 }
+
+// The connection resolves the name again, so a DNS answer that changes after
+// assertPublicUrl (DNS rebinding) is caught here, on the addresses the socket
+// actually uses. IP literals skip lookup and are covered by assertPublicUrl.
+const publicOnlyLookup: LookupFunction = (hostname, options, callback) => {
+  lookupCallback(hostname, { ...options, all: true, verbatim: true }, (error, entries: LookupAddress[]) => {
+    if (error) {
+      callback(error, "", 0);
+      return;
+    }
+
+    if (entries.length === 0 || entries.some((entry) => isBlockedAddress(entry.address))) {
+      callback(new LogoFetchError(`Blocked host: ${hostname}`, false), "", 0);
+      return;
+    }
+
+    if (options.all) {
+      (callback as unknown as (error: null, addresses: LookupAddress[]) => void)(null, entries);
+    } else {
+      callback(null, entries[0].address, entries[0].family);
+    }
+  });
+};
+
+const publicOnlyAgent = new Agent({ connect: { lookup: publicOnlyLookup } });
 
 async function fetchPublicResource(
   target: URL,
@@ -537,6 +563,7 @@ async function fetchPublicResource(
     await assertPublicUrl(url);
 
     const response = await fetch(url, {
+      dispatcher: publicOnlyAgent,
       redirect: "manual",
       signal: AbortSignal.any([options.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]),
       headers: {

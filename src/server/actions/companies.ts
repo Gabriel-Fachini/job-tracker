@@ -16,7 +16,6 @@ import { removeCompanyLogoFile } from "@/lib/company-logos";
 import {
   linkLegacyJobsToCompany,
   renameCompanyLinks,
-  syncCompanyStatus,
 } from "@/lib/company-links";
 import { db } from "@/lib/db";
 import { companies, jobLeads, jobs } from "@/lib/db/schema";
@@ -72,11 +71,9 @@ export async function createCompany(formData: FormData) {
     .returning({ id: companies.id })
     .get();
 
-  // Only jobs saved under this name before the company existed can override
-  // the status picked in the form.
-  if (linkLegacyJobsToCompany(result.id, fields.name) > 0) {
-    syncCompanyStatus(result.id);
-  }
+  // Jobs saved under this name before the company existed get linked, but the
+  // status picked in the form stands: only application changes recalculate it.
+  linkLegacyJobsToCompany(result.id, fields.name);
 
   revalidateCompanyViews(result.id);
   redirect(`/companies/${result.id}`);

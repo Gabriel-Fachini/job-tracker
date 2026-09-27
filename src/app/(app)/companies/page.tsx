@@ -25,6 +25,7 @@ import { Tag } from "@/components/ui/tag";
 import {
   getCompanySizeLabel,
   isCompanyStatus,
+  isMonitorableJobsBoardUrl,
   radarSkippedCompanyStatuses,
   type CompanyStatus,
 } from "@/lib/companies";
@@ -202,7 +203,7 @@ export default async function CompaniesPage() {
   // Same rule as the bulk scan: a job board and a status still being followed.
   const radarCount = rows.filter(
     (row) =>
-      row.formValues.jobsBoardUrl !== "" &&
+      isMonitorableJobsBoardUrl(row.formValues.jobsBoardUrl) &&
       isCompanyStatus(row.status) &&
       !radarSkippedCompanyStatuses.includes(row.status),
   ).length;

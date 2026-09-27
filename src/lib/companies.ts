@@ -51,6 +51,20 @@ const activeApplicationStatuses = new Set<ApplicationStatus>([
 /** Statuses the bulk radar skips: the user stopped following these companies. */
 export const radarSkippedCompanyStatuses: CompanyStatus[] = ["discarded", "blacklist"];
 
+/** Job board URLs the bulk radar accepts: any value `new URL` can parse. */
+export function isMonitorableJobsBoardUrl(value: string | null | undefined): value is string {
+  if (!value) {
+    return false;
+  }
+
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function isCompanyStatus(value: string): value is CompanyStatus {
   return companyStatusOptions.some((option) => option.value === value);
 }

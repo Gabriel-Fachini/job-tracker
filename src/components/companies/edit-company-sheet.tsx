@@ -349,14 +349,14 @@ export function EditCompanySheet({
                 <p className="mt-1 text-[13px] text-pretty text-muted-foreground">
                   {company.canDelete
                     ? "Remove a empresa e os leads do radar ligados a ela."
-                    : "Disponível apenas quando não há candidaturas vinculadas."}
+                    : "Bloqueado enquanto houver vagas ou candidaturas vinculadas."}
                 </p>
               </div>
               <Button
                 type="button"
                 variant="destructive"
                 className="w-full sm:w-auto sm:self-start"
-                disabled={!company.canDelete || isSaving}
+                disabled={isSaving}
                 onClick={() => setDeleteOpen(true)}
               >
                 Excluir empresa
