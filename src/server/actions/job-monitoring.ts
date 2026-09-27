@@ -1,11 +1,14 @@
 "use server";
 
-import { and, eq, isNotNull, ne } from "drizzle-orm";
+import { and, eq, isNotNull, ne, notInArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { normalizeApplicationStatus } from "@/lib/applications";
 import { createApplicationRecord } from "@/lib/applications/create-application-record";
-import { isCompanyJobBoardNavigationMode } from "@/lib/companies";
+import {
+  isCompanyJobBoardNavigationMode,
+  radarSkippedCompanyStatuses,
+} from "@/lib/companies";
 import { db } from "@/lib/db";
 import { companies, jobLeads } from "@/lib/db/schema";
 import { getRecentLeadFeedbackSummary } from "@/lib/job-monitoring/feedback";
@@ -115,10 +118,13 @@ export async function runCompanyMonitoring(
   }
 }
 
-export async function runAllCompaniesMonitoringStream(
-  onEvent: (event: MonitoringStreamEvent) => void,
-): Promise<void> {
-  const monitorableCompanies = db
+/**
+ * Companies the bulk radar covers: a valid job board and a status still being
+ * followed. Discarded and blacklisted companies are skipped; scanning one of
+ * them from its detail page (runCompanyMonitoring) still works.
+ */
+function getBulkMonitorableCompanies() {
+  return db
     .select({
       id: companies.id,
       name: companies.name,
@@ -128,9 +134,20 @@ export async function runAllCompaniesMonitoringStream(
       atsBoardToken: companies.atsBoardToken,
     })
     .from(companies)
-    .where(isNotNull(companies.jobsBoardUrl))
+    .where(
+      and(
+        isNotNull(companies.jobsBoardUrl),
+        notInArray(companies.status, radarSkippedCompanyStatuses),
+      ),
+    )
     .all()
     .filter((company) => Boolean(company.jobsBoardUrl && isValidUrl(company.jobsBoardUrl)));
+}
+
+export async function runAllCompaniesMonitoringStream(
+  onEvent: (event: MonitoringStreamEvent) => void,
+): Promise<void> {
+  const monitorableCompanies = getBulkMonitorableCompanies();
 
   console.log("[job-monitoring] [action] run-all-stream-start", {
     companiesFound: monitorableCompanies.length,
@@ -300,19 +317,7 @@ export async function runAllCompaniesMonitoringStream(
 }
 
 export async function runAllCompaniesMonitoring(): Promise<MonitoringActionResult> {
-  const monitorableCompanies = db
-    .select({
-      id: companies.id,
-      name: companies.name,
-      jobsBoardUrl: companies.jobsBoardUrl,
-      jobBoardNavigationMode: companies.jobBoardNavigationMode,
-      atsProvider: companies.atsProvider,
-      atsBoardToken: companies.atsBoardToken,
-    })
-    .from(companies)
-    .where(isNotNull(companies.jobsBoardUrl))
-    .all()
-    .filter((company) => Boolean(company.jobsBoardUrl && isValidUrl(company.jobsBoardUrl)));
+  const monitorableCompanies = getBulkMonitorableCompanies();
 
   console.log("[job-monitoring] [action] run-all-start", {
     companiesFound: monitorableCompanies.length,

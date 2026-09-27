@@ -29,20 +29,22 @@ export function findCompanyByName(name: string) {
   );
 }
 
+/** Returns how many jobs were linked. */
 export function linkLegacyJobsToCompany(companyId: number, companyName: string) {
   const normalized = companyName.trim();
 
   if (!normalized) {
-    return;
+    return 0;
   }
 
-  db.update(jobs)
+  return db
+    .update(jobs)
     .set({
       companyId,
       company: normalized,
     })
     .where(exactCompanyNameCondition(normalized))
-    .run();
+    .run().changes;
 }
 
 export function renameCompanyLinks(

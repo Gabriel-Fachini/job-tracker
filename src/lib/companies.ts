@@ -48,6 +48,9 @@ const activeApplicationStatuses = new Set<ApplicationStatus>([
   "approved",
 ]);
 
+/** Statuses the bulk radar skips: the user stopped following these companies. */
+export const radarSkippedCompanyStatuses: CompanyStatus[] = ["discarded", "blacklist"];
+
 export function isCompanyStatus(value: string): value is CompanyStatus {
   return companyStatusOptions.some((option) => option.value === value);
 }

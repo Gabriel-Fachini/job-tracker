@@ -1,7 +1,10 @@
 import Link from "next/link";
-import { desc, eq, sql } from "drizzle-orm";
-import { Building2, ChevronRight, Plus } from "lucide-react";
+import { desc, sql } from "drizzle-orm";
+import { Building2, Plus } from "lucide-react";
 
+import type { CompanyFormValues } from "@/components/companies/company-form";
+import { CompanyLogo } from "@/components/companies/company-logo";
+import { CompanyRowActions } from "@/components/companies/company-row-actions";
 import {
   CompanyStatusBadge,
   companyStatusColor,
@@ -22,10 +25,12 @@ import { Tag } from "@/components/ui/tag";
 import {
   getCompanySizeLabel,
   isCompanyStatus,
+  radarSkippedCompanyStatuses,
   type CompanyStatus,
 } from "@/lib/companies";
+import { getCompanyLogoView, type CompanyLogoView } from "@/lib/company-logos";
 import { db } from "@/lib/db";
-import { applications, companies, jobs } from "@/lib/db/schema";
+import { companies } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
 import { runAllCompaniesMonitoring } from "@/server/actions/job-monitoring";
 
@@ -40,6 +45,10 @@ type CompanyListItem = {
   website: string | null;
   updatedAt: Date | null;
   applicationsCount: number;
+  jobsCount: number;
+  leadsCount: number;
+  logo: CompanyLogoView;
+  formValues: CompanyFormValues;
 };
 
 function CompanyRow({ item }: { item: CompanyListItem }) {
@@ -47,24 +56,32 @@ function CompanyRow({ item }: { item: CompanyListItem }) {
   const hasApplications = item.applicationsCount > 0;
 
   return (
-    <li className="group relative transition-colors duration-150 hover:bg-surface has-[a:active]:bg-surface">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-4 py-3.5 sm:px-5 lg:grid-cols-[minmax(0,1fr)_7rem_5.5rem_1rem] lg:items-center lg:gap-x-6">
-        <h2 className="col-start-1 row-start-1 min-w-0 text-[15px] leading-snug font-medium break-words text-foreground">
+    <li className="group relative transition-colors duration-150 hover:bg-surface has-[a[data-row-link]:active]:bg-surface">
+      <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] gap-x-3 px-4 py-3.5 sm:px-5 lg:grid-cols-[2.5rem_minmax(0,1fr)_7rem_5.5rem_auto] lg:items-center lg:gap-x-5">
+        <CompanyLogo
+          name={item.name}
+          {...item.logo}
+          className="col-start-1 row-span-3 row-start-1 self-start lg:self-center"
+        />
+
+        <h2 className="col-start-2 row-start-1 min-w-0 text-[15px] leading-snug font-medium break-words text-foreground">
           {/* Stretched link: the whole row opens the company. */}
           <Link
             href={`/companies/${item.id}`}
+            data-row-link
             className="outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
           >
             {item.name}
           </Link>
         </h2>
 
-        <p className="col-span-2 col-start-1 row-start-2 mt-0.5 truncate text-[13px] text-subtle-foreground lg:col-span-1">
+        {/* lg:col-span-1 is the grid-column shorthand: restate the start after it. */}
+        <p className="col-span-2 col-start-2 row-start-2 mt-0.5 truncate text-[13px] text-subtle-foreground lg:col-span-1 lg:col-start-2">
           {item.website ? readableUrl(item.website) : "Sem site registrado"}
         </p>
 
         <MetaLine
-          className="col-span-2 col-start-1 row-start-3 mt-1.5 lg:col-span-1"
+          className="col-span-2 col-start-2 row-start-3 mt-1.5 lg:col-span-1 lg:col-start-2"
           items={[
             item.sector || (
               <span key="sector" className="text-subtle-foreground">
@@ -82,26 +99,37 @@ function CompanyRow({ item }: { item: CompanyListItem }) {
         />
 
         {/* Beside the name on phones; from lg its children become fixed
-            columns so statuses and dates line up down the list. */}
-        <div className="col-start-2 row-start-1 flex items-center gap-3 self-start pt-0.5 lg:contents">
+            columns so statuses, dates and actions line up down the list. */}
+        <div className="col-start-3 row-start-1 flex items-center gap-3 self-start lg:contents">
           {isCompanyStatus(item.status) ? (
             <CompanyStatusBadge
               status={item.status}
-              className="lg:col-start-2 lg:row-span-3 lg:row-start-1"
+              className="lg:col-start-3 lg:row-span-3 lg:row-start-1 lg:justify-self-start"
             />
           ) : null}
           {item.updatedAt ? (
             <time
               dateTime={item.updatedAt.toISOString()}
-              className="hidden font-data text-xs text-subtle-foreground sm:block lg:col-start-3 lg:row-span-3 lg:row-start-1 lg:text-right"
+              // md has the sidebar and a narrow row: the name needs the room more.
+              className="hidden font-data text-xs text-subtle-foreground sm:block md:hidden lg:col-start-4 lg:row-span-3 lg:row-start-1 lg:block lg:text-right"
             >
               <span className="sr-only">Atualizada em </span>
               {formatDate(item.updatedAt)}
             </time>
           ) : null}
-          <ChevronRight
-            aria-hidden
-            className="size-4 text-subtle-foreground transition-colors duration-150 group-hover:text-foreground lg:col-start-4 lg:row-span-3 lg:row-start-1"
+          <CompanyRowActions
+            company={{
+              id: item.id,
+              name: item.name,
+              status: item.status,
+              website: item.website,
+              logo: item.logo,
+              applicationsCount: item.applicationsCount,
+              leadsCount: item.leadsCount,
+              canDelete: item.jobsCount === 0,
+            }}
+            values={item.formValues}
+            className="-my-1 lg:col-start-5 lg:row-span-3 lg:row-start-1 lg:my-0"
           />
         </div>
       </div>
@@ -110,7 +138,7 @@ function CompanyRow({ item }: { item: CompanyListItem }) {
 }
 
 export default async function CompaniesPage() {
-  const rows = db
+  const rows: CompanyListItem[] = db
     .select({
       id: companies.id,
       name: companies.name,
@@ -118,18 +146,51 @@ export default async function CompaniesPage() {
       sector: companies.sector,
       size: companies.size,
       website: companies.website,
+      jobsBoardUrl: companies.jobsBoardUrl,
+      jobBoardNavigationMode: companies.jobBoardNavigationMode,
+      atsProvider: companies.atsProvider,
+      glassdoorUrl: companies.glassdoorUrl,
+      notes: companies.notes,
+      logoUrl: companies.logoUrl,
+      logoPath: companies.logoPath,
+      logoCheckedAt: companies.logoCheckedAt,
       updatedAt: companies.updatedAt,
-      applicationsCount: sql<number>`count(distinct ${applications.id})`,
+      // Spelled out: in a single-table select drizzle leaves column names
+      // unqualified, which makes correlated subqueries ambiguous.
+      applicationsCount: sql<number>`(select count(*) from applications a inner join jobs j on a.job_id = j.id where j.company_id = companies.id)`,
+      // Any job blocks deleting; leads go with the company.
+      jobsCount: sql<number>`(select count(*) from jobs j where j.company_id = companies.id)`,
+      leadsCount: sql<number>`(select count(*) from job_leads l where l.company_id = companies.id)`,
     })
     .from(companies)
-    .leftJoin(jobs, eq(jobs.companyId, companies.id))
-    .leftJoin(applications, eq(applications.jobId, jobs.id))
-    .groupBy(companies.id)
     .orderBy(desc(companies.updatedAt))
     .all()
     .map((row) => ({
-      ...row,
+      id: row.id,
+      name: row.name,
+      status: row.status,
+      sector: row.sector,
+      size: row.size,
+      website: row.website,
+      updatedAt: row.updatedAt,
       applicationsCount: Number(row.applicationsCount ?? 0),
+      jobsCount: Number(row.jobsCount ?? 0),
+      leadsCount: Number(row.leadsCount ?? 0),
+      logo: getCompanyLogoView(row),
+      // Everything the row's edit sheet opens with, so it opens instantly.
+      formValues: {
+        name: row.name,
+        website: row.website ?? "",
+        sector: row.sector ?? "",
+        size: row.size ?? "",
+        jobsBoardUrl: row.jobsBoardUrl ?? "",
+        jobBoardNavigationMode: row.jobBoardNavigationMode ?? "fetch",
+        atsProvider: row.atsProvider,
+        glassdoorUrl: row.glassdoorUrl ?? "",
+        logoUrl: row.logoUrl ?? "",
+        status: row.status,
+        notes: row.notes ?? "",
+      },
     }));
 
   const totalCompanies = rows.length;
@@ -138,6 +199,13 @@ export default async function CompaniesPage() {
   const inProcessCount = rows.filter((row) => row.status === "in_process").length;
   const discardedCount = rows.filter((row) => row.status === "discarded").length;
   const blacklistedCount = rows.filter((row) => row.status === "blacklist").length;
+  // Same rule as the bulk scan: a job board and a status still being followed.
+  const radarCount = rows.filter(
+    (row) =>
+      row.formValues.jobsBoardUrl !== "" &&
+      isCompanyStatus(row.status) &&
+      !radarSkippedCompanyStatuses.includes(row.status),
+  ).length;
   const totalLinkedApplications = rows.reduce(
     (accumulator, row) => accumulator + row.applicationsCount,
     0,
@@ -166,6 +234,8 @@ export default async function CompaniesPage() {
               <span aria-hidden className="mx-1.5 text-subtle-foreground">·</span>
               <span className="font-data text-foreground">{totalLinkedApplications}</span>{" "}
               {totalLinkedApplications === 1 ? "candidatura" : "candidaturas"}
+              <span aria-hidden className="mx-1.5 text-subtle-foreground">·</span>
+              <span className="font-data text-foreground">{radarCount}</span> no radar
             </>
           ) : undefined
         }

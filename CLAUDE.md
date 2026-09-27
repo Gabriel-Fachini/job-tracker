@@ -75,6 +75,13 @@ Fluxo quando usuário dispara o radar:
 - `src/providers/query-provider.tsx` — QueryClientProvider
 - `src/server/actions/leads.ts` — Server Actions de leads
 
+## Empresas (lista CRUD + logos)
+
+- Lista (`src/app/(app)/companies/page.tsx`): linha inteira abre o detalhe; `CompanyRowActions` põe Editar/Excluir (ícones a partir de `sm`, botão ⋯ com bottom sheet no celular). O sheet de edição abre com os dados da linha (sem fetch) e salva sem sair da lista.
+- Server actions (`src/server/actions/companies.ts`): `updateCompany`/`deleteCompany` retornam `CompanyMutationResult` (sem redirect; `deleteCompany(id, { redirectToList: true })` no detalhe). Excluir é bloqueado se há `jobs` vinculados; os `job_leads` da empresa são apagados junto (FK ligada no better-sqlite3).
+- Status: o valor escolhido no form é salvo como está. Só `syncCompanyStatusForApplication` (candidatura criada ou status alterado) recalcula; `updateCompany` não chama `syncCompanyStatus`.
+- Logos (`src/lib/company-logos.ts` + `GET /api/companies/[id]/logo`): buscados no próprio site da empresa (apple-touch-icon > ícones `<link>` > `/favicon.ico`) na 1ª vez que a linha pede, cacheados em `<UPLOADS_PATH>/logos` (`companies.logo_path`). `logo_url` é override manual. Sem ícone: nova tentativa em 3 dias; falha transitória: 30 min. Fetch bloqueia IPs privados/loopback/tailnet e segue redirects manualmente.
+
 ## Job Description Formatting
 
 **OpenAI opcional:**

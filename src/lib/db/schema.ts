@@ -101,6 +101,12 @@ export const companies = sqliteTable("companies", {
   glassdoorUrl: text("glassdoor_url"),
   status: text("status").notNull().default("monitoring"),
   notes: text("notes"),
+  /** Optional override; without it the logo comes from the website's icons. */
+  logoUrl: text("logo_url"),
+  /** Cached logo file name under `<UPLOADS_PATH>/logos`. */
+  logoPath: text("logo_path"),
+  /** Last lookup attempt, so a site without an icon isn't fetched on every view. */
+  logoCheckedAt: integer("logo_checked_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
