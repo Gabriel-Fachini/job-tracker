@@ -50,7 +50,7 @@ Status e radar: `discarded` e `blacklist` ficam fora da varredura em lote (`rada
 `/companies/new` → `createCompany(formData)` (form action):
 
 - inválido → `redirect("/companies/new?error=validation")` (a página mostra um aviso; o formulário volta vazio);
-- válido → insere, liga jobs antigos com o mesmo nome (`linkLegacyJobsToCompany`) e, se ligou algum, recalcula o status → `redirect("/companies/<id>")`.
+- válido → insere, liga jobs antigos com o mesmo nome (`linkLegacyJobsToCompany`) sem recalcular o status (o do form vale) → `redirect("/companies/<id>")`.
 
 ### Editar
 
@@ -97,7 +97,7 @@ Fonte: `logo_url` (override manual) ou o próprio `website`. Nenhum serviço de 
 - **Busca** (`readCompanyLogo`, disparada pelo primeiro GET da rota): baixa a home, respeita `<base href>`, pontua os `<link>` (apple-touch-icon > ícone raster grande > SVG > ícones pequenos) e sempre adiciona `/apple-touch-icon.png` e `/favicon.ico`. Tenta até 5 candidatos. Requisições simultâneas compartilham a mesma promessa.
 - **Validação do arquivo**: formato por magic bytes (png, jpg, gif, webp, avif, ico, svg), não pelo `Content-Type`; rejeita ícones menores que 16 px.
 - **Limites atuais** (constantes em `company-logos.ts`): página ≤ 2 MB, imagem ≤ 1 MB, prazo total 10 s, 5 s por request, até 4 redirects, nova tentativa em 3 dias sem ícone e em 30 min após falha transitória.
-- **Proteção SSRF**: redirects seguidos manualmente e revalidados a cada salto; só `http(s)`; todas as respostas DNS checadas contra faixas bloqueadas (privadas, loopback, CGNAT/tailnet `100.64/10`, link-local/metadata, TEST-NET, multicast, reservadas e equivalentes IPv6). O próprio código registra a lacuna de o DNS ser resolvido de novo na conexão.
+- **Proteção SSRF**: redirects seguidos manualmente e revalidados a cada salto; só `http(s)`; todas as respostas DNS checadas contra faixas bloqueadas (privadas, loopback, CGNAT/tailnet `100.64/10`, link-local/metadata, TEST-NET, multicast, reservadas e equivalentes IPv6). A checagem se repete no `lookup` do `Agent` do `undici` usado pelo `fetch`, sobre os endereços em que o socket conecta (fecha DNS rebinding).
 - **Armazenamento**: `<UPLOADS_PATH>/logos/<id>-<sha256[0:12]>[-cover].<ext>`; `companies.logo_path` e `logo_checked_at`. A gravação só vale se `website`/`logo_url` não mudaram durante a busca; o arquivo antigo é removido.
 - **Rota** `GET /api/companies/[id]/logo` (`runtime = "nodejs"`, `force-dynamic`): 404 `no-store` sem logo; com `?v=` igual à versão atual → `private, max-age=31536000, immutable`; senão `private, no-cache`. Sempre `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox` e `X-Content-Type-Options: nosniff` (bytes de terceiros; um SVG aberto direto não executa script).
 - **Render** (`company-logo.tsx`): tile de 40 px `aria-hidden` sobre o token `--logo-tile` (claro nos dois temas, porque favicons são desenhados para aba clara); apple-touch-icon preenche (`cover`), outros ficam com padding (`contain`). Sem logo: iniciais (ignora "de/da/do/e/of/the/&"). `<img>` simples porque `next/image` não aceita ICO/SVG.
