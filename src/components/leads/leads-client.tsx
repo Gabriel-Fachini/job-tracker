@@ -269,7 +269,7 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
             events={monitoringProgress.events}
             stats={monitoringProgress.stats}
             result={monitoringProgress.result}
-            onCancel={cancelMonitoring}
+            onCancel={monitoringProgress.eventSource ? cancelMonitoring : undefined}
             onDismiss={() => setShowProgressDisplay(false)}
           />
         )}
@@ -408,7 +408,7 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
                 </EmptyMedia>
                 <EmptyTitle>Nenhum lead salvo ainda</EmptyTitle>
                 <EmptyDescription>
-                  O radar percorre os job boards das empresas monitoradas e traz as vagas para cá.
+                  O radar percorre os job boards das suas empresas, exceto as descartadas e as da blacklist, e traz as vagas para cá.
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>

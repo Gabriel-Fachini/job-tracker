@@ -37,6 +37,7 @@ export type CompanyFormValues = {
   atsProvider?: string;
   atsBoardToken?: string;
   glassdoorUrl: string;
+  logoUrl: string;
   status: string;
   notes: string;
 };
@@ -61,6 +62,9 @@ export const atsProviderOptions = [
 export const automationStatusList = new Intl.ListFormat("pt-BR", {
   type: "disjunction",
 }).format(companyAutomationStatusLabels);
+
+/** The status field's help text, shared by the create form and the edit sheet. */
+export const companyStatusHelp = `Fica como você escolher. Só muda sozinho quando uma candidatura desta empresa é criada ou muda de status: Em processo se alguma está em ${automationStatusList}; Descartada quando todas foram encerradas. Blacklist nunca é sobrescrito.`;
 
 export function CompanyForm({
   action,
@@ -121,6 +125,20 @@ export function CompanyForm({
                 </SelectGroup>
               </SelectContent>
             </Select>
+          </Field>
+          <Field className="md:col-span-2">
+            <FieldLabel htmlFor="company-logo">Logo</FieldLabel>
+            <Input
+              id="company-logo"
+              name="logoUrl"
+              type="url"
+              inputMode="url"
+              defaultValue={values.logoUrl}
+              placeholder="https://empresa.com/logo.png"
+            />
+            <FieldDescription>
+              Opcional. Em branco, o logo vem do ícone do site.
+            </FieldDescription>
           </Field>
         </FieldGroup>
       </FieldSet>
@@ -225,11 +243,7 @@ export function CompanyForm({
                   </SelectGroup>
                 </SelectContent>
               </Select>
-              <FieldDescription>
-                Recalculado pelas candidaturas: Em processo quando alguma está em{" "}
-                {automationStatusList}; Descartada quando todas foram encerradas.
-                Blacklist é uma exceção manual e nunca é sobrescrito.
-              </FieldDescription>
+              <FieldDescription>{companyStatusHelp}</FieldDescription>
             </Field>
           </FieldGroup>
         </FieldSet>

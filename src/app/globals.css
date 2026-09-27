@@ -54,6 +54,7 @@
   --color-overlay: var(--overlay);
   --color-tooltip: var(--tooltip);
   --color-tooltip-foreground: var(--tooltip-foreground);
+  --color-logo-tile: var(--logo-tile);
   --color-tag-gray: var(--tag-gray);
   --color-tag-gray-foreground: var(--tag-gray-foreground);
   --color-tag-orange: var(--tag-orange);
@@ -133,6 +134,10 @@
 
   --tooltip: #2f2e2b;
   --tooltip-foreground: #ffffff;
+
+  /* Behind company logos in both themes: favicons are drawn for light
+     browser tabs, and a dark glyph would vanish on the black page. */
+  --logo-tile: #ffffff;
 
   /* Property tags: tint + deep text of the same hue. */
   --tag-gray: #efedea;
@@ -221,6 +226,8 @@
 
   --tooltip: #2f2e2b;
   --tooltip-foreground: #ebeae6;
+
+  --logo-tile: #ebeae6;
 
   --tag-gray: #2f2e2b;
   --tag-gray-foreground: #d2d0ca;

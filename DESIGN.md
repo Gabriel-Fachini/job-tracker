@@ -7,6 +7,7 @@ colors:
   background: "#000000"
   surface: "#141312"
   popover: "#22211f"
+  logo-tile: "#ebeae6"
   field: "#131211"
   muted: "#252422"
   accent: "#2c2b28"
@@ -40,6 +41,7 @@ colors:
   light-background: "#ffffff"
   light-surface: "#f7f6f3"
   light-popover: "#ffffff"
+  light-logo-tile: "#ffffff"
   light-field: "#ffffff"
   light-muted: "#f1f0ed"
   light-accent: "#eeece9"
@@ -210,6 +212,7 @@ It rejects, by name (from PRODUCT.md): generic SaaS dashboards (gray card grids,
 - **Background** (`--background`, #000000 / #ffffff): the content panel and every page surface. Panels use this value plus a border.
 - **Surface** (`--surface`, #141312 / #f7f6f3): row hover, table-header fills, search pill, empty-state icon tiles.
 - **Popover** (`--popover`, #22211f / #ffffff): dialogs, sheets, menus, toasts.
+- **Logo tile** (`--logo-tile`, #ebeae6 / #ffffff): behind company logos only. Light in both themes: favicons are drawn for light browser tabs, and a dark glyph would vanish on black.
 - **Field** (`--field`, #131211 / #ffffff): input, select and textarea fills.
 - **Muted / Accent** (`--muted`, `--accent`): skeletons, meter tracks, code, ghost/menu hover.
 - **Border** (`--border`, #2e2d2a / #e5e3df): hairline dividers and panel outlines.
@@ -298,6 +301,8 @@ Inline dot + quiet label for feedback, not workflow state ("Currículo gerado co
 - **Notice** (`ui/notice.tsx`): one-line feedback with a semantic dot; `bordered` when alone, `pulse` in progress.
 - **MetaLine** (`ui/meta-line.tsx`): items joined by middots, falsy items skipped.
 - **List panel:** `rounded-xl border` section, header bar (`TabBar` or summary tags), `divide-y` rows (`px-4 py-3.5 sm:px-5`, `hover:bg-surface`), whole row clickable with actions at `relative z-10`.
+- **Company logo** (`companies/company-logo.tsx`): 40px `rounded-lg` tile with a hairline. Apple-touch icons fill it (`cover`), other icons sit padded on `bg-logo-tile`; no logo shows the initials on `bg-surface`, never a tinted monogram.
+- **Row actions (CRUD):** from `sm`, ghost `icon-sm` buttons with tooltips at the row end (delete turns destructive on hover). Phones get one ⋯ button that opens a bottom sheet (48px items, company logo and name on top, destructive item last). Deleting always confirms in a dialog; when it's blocked, the dialog says why and offers the way out.
 - **Panel grid (dashboards):** shared hairlines (`gap-px bg-border`), not separate cards.
 - **Metric strip:** one bordered `dl`, `dt` 13px muted, `dd` `font-data text-2xl`, optional delta. No icons, no tints.
 

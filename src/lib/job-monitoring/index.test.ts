@@ -27,7 +27,7 @@ function createMockLeadSnapshot(lead: { sourceUrl: string; title: string }): Lea
   };
 }
 
-test("runMonitoringForCompany aggregates discoveries and skips discarded jobs", async () => {
+test("runMonitoringForCompany aggregates discoveries and persists discarded jobs without counting them as leads", async () => {
   const persisted: Array<{ sourceUrl: string; classificationStatus: string }> = [];
 
   const summary = await runMonitoringForCompany(
@@ -96,7 +96,8 @@ test("runMonitoringForCompany aggregates discoveries and skips discarded jobs", 
 
   assert.deepEqual(summary, {
     linksFound: 2,
-    jobsParsed: 2,
+    skippedLinks: 0,
+    jobsParsed: 1,
     leadsSaved: 1,
     reviewsSaved: 0,
     discarded: 1,
@@ -106,6 +107,11 @@ test("runMonitoringForCompany aggregates discoveries and skips discarded jobs", 
     {
       sourceUrl: "https://example.com/jobs/frontend",
       classificationStatus: "interesting",
+    },
+    // Discarded leads are persisted too: they are what later runs skip.
+    {
+      sourceUrl: "https://example.com/jobs/platform",
+      classificationStatus: "discarded",
     },
   ]);
 });
@@ -160,7 +166,8 @@ test("runMonitoringForCompany skips classification failures without persisting b
 
   assert.deepEqual(summary, {
     linksFound: 1,
-    jobsParsed: 1,
+    skippedLinks: 0,
+    jobsParsed: 0,
     leadsSaved: 0,
     reviewsSaved: 0,
     discarded: 0,
@@ -234,5 +241,58 @@ test("runMonitoringForCompany applies discovery hints before classification and 
 
   assert.equal(receivedWorkModel, "remote");
   assert.equal(receivedSeniority, "senior");
+  assert.equal(summary.failed, 0);
+});
+
+test("runMonitoringForCompany leaves links alone once the run is aborted", async () => {
+  const disconnect = new AbortController();
+  const extracted: string[] = [];
+  const persisted: string[] = [];
+
+  const summary = await runMonitoringForCompany(
+    {
+      id: 1,
+      name: "Acme",
+      jobsBoardUrl: "https://example.com/careers",
+      jobBoardNavigationMode: "fetch",
+    },
+    {
+      companyName: "Acme",
+      profile: null,
+      feedbackSummary: {
+        promotedExamples: [],
+        dismissedExamples: [],
+      },
+    },
+    {
+      signal: disconnect.signal,
+      discoverJobLinksFn: async () => {
+        // The client disconnects while discovery runs.
+        disconnect.abort();
+        return [
+          { url: "https://example.com/jobs/frontend", text: "Frontend" },
+          { url: "https://example.com/jobs/platform", text: "Platform" },
+        ];
+      },
+      extractJobDetailFn: async (url) => {
+        extracted.push(url);
+        return null;
+      },
+      upsertJobLeadFn: (lead) => {
+        persisted.push(lead.sourceUrl);
+
+        return {
+          id: persisted.length,
+          created: true,
+          promotedToApplicationId: null,
+          leadSnapshot: createMockLeadSnapshot({ sourceUrl: lead.sourceUrl, title: lead.title }),
+        };
+      },
+    },
+  );
+
+  assert.deepEqual(extracted, []);
+  assert.deepEqual(persisted, []);
+  assert.equal(summary.linksFound, 2);
   assert.equal(summary.failed, 0);
 });

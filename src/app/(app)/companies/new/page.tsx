@@ -55,6 +55,7 @@ export default async function CompaniesNewPage({
           jobsBoardUrl: "",
           jobBoardNavigationMode: "fetch",
           glassdoorUrl: "",
+          logoUrl: "",
           status: "monitoring",
           notes: "",
         }}

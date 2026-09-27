@@ -2,7 +2,7 @@
   "version": "6",
   "dialect": "sqlite",
   "id": "230aee68-cd34-443b-8ac7-6a95b657b308",
-  "prevId": "036c2a06-c7b4-4ec2-913c-5d2d62946cb8",
+  "prevId": "448c1ee4-c058-4acf-b1f0-70cc18f40c66",
   "tables": {
     "application_stages": {
       "name": "application_stages",

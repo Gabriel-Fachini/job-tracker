@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { ArrowUpRight, ChevronLeft, Radar, Waypoints } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
+import { CompanyLogo } from "@/components/companies/company-logo";
 import { CompanyStatusBadge } from "@/components/companies/company-status-badge";
 import { EditCompanySheet } from "@/components/companies/edit-company-sheet";
 import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
@@ -39,22 +40,18 @@ import {
   getCompanyStatusLabel,
   isCompanyStatus,
 } from "@/lib/companies";
+import { getCompanyLogoView } from "@/lib/company-logos";
 import { db } from "@/lib/db";
-import { applications, companies, jobs } from "@/lib/db/schema";
+import { applications, companies, jobLeads, jobs } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
-import { deleteCompany, updateCompany } from "@/server/actions/companies";
 import { runCompanyMonitoring } from "@/server/actions/job-monitoring";
 
 type CompanyDetailPageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
 };
 
-export default async function CompanyDetailPage({
-  params,
-  searchParams,
-}: CompanyDetailPageProps) {
-  const [{ id }, query] = await Promise.all([params, searchParams]);
+export default async function CompanyDetailPage({ params }: CompanyDetailPageProps) {
+  const { id } = await params;
   const companyId = Number(id);
 
   if (!Number.isInteger(companyId)) {
@@ -91,10 +88,22 @@ export default async function CompanyDetailPage({
   const openProcesses = relatedApplications.filter((application) =>
     ["applied", "in_process", "offer", "approved"].includes(application.status),
   ).length;
-  const hasValidationError = query.error === "validation";
-  const hasLinkedApplicationsError = query.error === "linked-applications";
-  const boundUpdateAction = updateCompany.bind(null, company.id);
-  const boundDeleteAction = deleteCompany.bind(null, company.id);
+  // Any job blocks deleting; leads go with the company.
+  const jobsCount = Number(
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(jobs)
+      .where(eq(jobs.companyId, company.id))
+      .get()?.count ?? 0,
+  );
+  const leadsCount = Number(
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(jobLeads)
+      .where(eq(jobLeads.companyId, company.id))
+      .get()?.count ?? 0,
+  );
+  const logo = getCompanyLogoView(company);
   const boundRunMonitoringAction = runCompanyMonitoring.bind(null, company.id);
 
   const sizeLabel = getCompanySizeLabel(company.size);
@@ -123,7 +132,12 @@ export default async function CompanyDetailPage({
             Empresas
           </Link>
         }
-        title={company.name}
+        title={
+          <span className="flex items-center gap-3">
+            <CompanyLogo name={company.name} {...logo} />
+            <span className="min-w-0">{company.name}</span>
+          </span>
+        }
         description={
           <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
             {isCompanyStatus(company.status) ? (
@@ -340,8 +354,16 @@ export default async function CompanyDetailPage({
             {/* Negative margins keep the header at the same height as its neighbor. */}
             <div className="-my-2 -mr-2">
               <EditCompanySheet
-                action={boundUpdateAction}
-                deleteAction={boundDeleteAction}
+                company={{
+                  id: company.id,
+                  name: company.name,
+                  status: company.status,
+                  applicationsCount: relatedApplications.length,
+                  leadsCount,
+                  canDelete: jobsCount === 0,
+                }}
+                logo={logo}
+                redirectAfterDelete
                 values={{
                   name: company.name,
                   website: company.website ?? "",
@@ -351,12 +373,10 @@ export default async function CompanyDetailPage({
                   jobBoardNavigationMode: company.jobBoardNavigationMode ?? "fetch",
                   atsProvider: company.atsProvider,
                   glassdoorUrl: company.glassdoorUrl ?? "",
+                  logoUrl: company.logoUrl ?? "",
                   status: company.status,
                   notes: company.notes ?? "",
                 }}
-                hasValidationError={hasValidationError}
-                hasLinkedApplicationsError={hasLinkedApplicationsError}
-                canDelete={relatedApplications.length === 0}
               />
             </div>
           </PanelHeader>

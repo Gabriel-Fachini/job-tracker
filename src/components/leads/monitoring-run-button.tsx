@@ -120,7 +120,7 @@ export function MonitoringRunButton({
         )}
       </Button>
 
-      {showCancel && isStreamRunning ? (
+      {showCancel && isStreamRunning && contextProgress?.eventSource ? (
         <Button type="button" variant="outline" onClick={cancelMonitoring}>
           Cancelar
         </Button>
