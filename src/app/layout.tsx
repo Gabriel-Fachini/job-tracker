@@ -1,15 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 
 import { QueryProvider } from "@/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { THEME_COLORS, themeInitScript } from "@/lib/theme";
 
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Notion Sans is proprietary; Inter is its base. The optical-size axis gives
+// page titles the tighter display cut.
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  axes: ["opsz"],
 });
 
 const geistMono = Geist_Mono({
@@ -30,9 +34,13 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  // Matches --background (oklch 0.21) so the browser chrome blends into the app.
-  themeColor: "#181818",
-  colorScheme: "dark",
+  // Matches --background per theme; the theme store rewrites it when the user
+  // picks a theme that differs from the OS.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: THEME_COLORS.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLORS.dark },
+  ],
+  colorScheme: "dark light",
 };
 
 export default function RootLayout({
@@ -41,10 +49,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+    // The theme script sets `light`/`dark` on <html> before hydration.
     <html
       lang="pt-BR"
-      className={`${geistSans.variable} ${geistMono.variable} dark`}
+      className={`${inter.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body suppressHydrationWarning className="min-h-svh antialiased">
         <QueryProvider>
           <TooltipProvider>{children}</TooltipProvider>

@@ -7,6 +7,8 @@ const eslintConfig = defineConfig([
   ...nextTypescript,
   globalIgnores([
     ".next/**",
+    // Agent worktrees are full checkouts (with their own .next); lint them from inside.
+    ".claude/worktrees/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

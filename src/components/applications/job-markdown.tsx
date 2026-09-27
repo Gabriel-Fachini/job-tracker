@@ -19,7 +19,7 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           h1: ({ className, ...props }) => (
             <h1
               className={cn(
-                "mb-4 text-xl leading-tight font-heading font-semibold tracking-tight text-balance text-foreground sm:mb-5 sm:text-2xl",
+                "mb-3 text-lg leading-snug font-heading font-semibold tracking-tight text-balance text-foreground",
                 className,
               )}
               {...props}
@@ -28,7 +28,7 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           h2: ({ className, ...props }) => (
             <h2
               className={cn(
-                "mt-7 mb-3 text-lg leading-tight font-heading font-semibold tracking-tight text-balance text-foreground sm:mt-8 sm:mb-4 sm:text-xl",
+                "mt-6 mb-2 text-[15px] leading-snug font-heading font-semibold tracking-tight text-balance text-foreground first:mt-0",
                 className,
               )}
               {...props}
@@ -37,7 +37,7 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           h3: ({ className, ...props }) => (
             <h3
               className={cn(
-                "mt-6 mb-2.5 text-base leading-tight font-heading font-semibold tracking-tight text-foreground sm:mb-3 sm:text-lg",
+                "mt-5 mb-2 text-sm leading-snug font-heading font-semibold text-foreground first:mt-0",
                 className,
               )}
               {...props}
@@ -46,7 +46,7 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           p: ({ className, ...props }) => (
             <p
               className={cn(
-                "mb-4 text-[15px] leading-7 text-pretty text-foreground last:mb-0 sm:text-sm",
+                "mb-3 text-[15px] leading-7 text-pretty text-muted-foreground last:mb-0 sm:text-sm sm:leading-6",
                 className,
               )}
               {...props}
@@ -55,7 +55,7 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           ul: ({ className, ...props }) => (
             <ul
               className={cn(
-                "mb-4 list-disc pl-5 text-[15px] leading-7 text-foreground marker:text-muted-foreground sm:pl-6 sm:text-sm",
+                "mb-3 list-disc pl-5 text-[15px] leading-7 text-muted-foreground marker:text-subtle-foreground sm:text-sm sm:leading-6",
                 className,
               )}
               {...props}
@@ -64,14 +64,14 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           ol: ({ className, ...props }) => (
             <ol
               className={cn(
-                "mb-4 list-decimal pl-5 text-[15px] leading-7 text-foreground marker:text-muted-foreground sm:pl-6 sm:text-sm",
+                "mb-3 list-decimal pl-5 text-[15px] leading-7 text-muted-foreground marker:font-data marker:text-subtle-foreground sm:text-sm sm:leading-6",
                 className,
               )}
               {...props}
             />
           ),
           li: ({ className, ...props }) => (
-            <li className={cn("mt-2 pl-1", className)} {...props} />
+            <li className={cn("mt-1 pl-1", className)} {...props} />
           ),
           hr: ({ className, ...props }) => (
             <hr
@@ -94,7 +94,7 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           code: ({ className, ...props }) => (
             <code
               className={cn(
-                "rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em]",
+                "rounded bg-muted px-1 py-0.5 font-mono text-[0.88em] text-foreground",
                 className,
               )}
               {...props}
@@ -103,7 +103,7 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           pre: ({ className, ...props }) => (
             <pre
               className={cn(
-                "mb-4 overflow-x-auto rounded-lg border border-border bg-background px-4 py-3 text-sm",
+                "mb-3 overflow-x-auto rounded-lg border border-border bg-canvas px-4 py-3 text-[13px]",
                 className,
               )}
               {...props}
@@ -111,14 +111,14 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           ),
           // Wide tables scroll inside their own box instead of widening the page.
           table: ({ className, ...props }) => (
-            <div className="mb-4 max-w-full overflow-x-auto rounded-lg border border-border">
+            <div className="mb-3 max-w-full overflow-x-auto rounded-lg border border-border">
               <table className={cn("w-full text-sm", className)} {...props} />
             </div>
           ),
           th: ({ className, ...props }) => (
             <th
               className={cn(
-                "border-b border-border bg-muted/30 px-3 py-2 text-left font-medium whitespace-nowrap text-foreground",
+                "border-b border-border bg-surface px-3 py-2 text-left text-xs font-medium whitespace-nowrap text-muted-foreground",
                 className,
               )}
               {...props}
@@ -126,14 +126,14 @@ export function JobMarkdown({ content, className }: JobMarkdownProps) {
           ),
           td: ({ className, ...props }) => (
             <td
-              className={cn("border-b border-border/50 px-3 py-2 align-top text-foreground/90", className)}
+              className={cn("border-b border-border px-3 py-2 align-top text-muted-foreground", className)}
               {...props}
             />
           ),
           blockquote: ({ className, ...props }) => (
             <blockquote
               className={cn(
-                "mb-4 border-l-2 border-border pl-4 text-muted-foreground",
+                "mb-3 border-l border-border-strong pl-4 text-subtle-foreground",
                 className,
               )}
               {...props}

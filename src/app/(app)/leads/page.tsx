@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { desc, eq, ne } from "drizzle-orm";
 
 import { LeadsClient } from "@/components/leads/leads-client";
-import type { LeadListItem } from "@/components/leads/types";
 import { db } from "@/lib/db";
 import { companies, jobLeads } from "@/lib/db/schema";
 import { mapRawLeadToListItem } from "@/lib/job-leads/mapper";
@@ -50,8 +49,24 @@ export default async function LeadsPage() {
   return (
     <Suspense
       fallback={
-        <div className="rounded-3xl border border-border/50 bg-card/40 px-5 py-10 text-sm text-muted-foreground">
-          Carregando fila de leads...
+        <div aria-hidden className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2 border-b border-border pb-5">
+            <div className="h-7 w-28 animate-pulse rounded-md bg-muted" />
+            <div className="h-4 w-44 animate-pulse rounded-md bg-muted" />
+          </div>
+          <div className="overflow-hidden rounded-xl border border-border">
+            <div className="h-11 border-b border-border" />
+            {Array.from({ length: 4 }, (_, index) => (
+              <div key={index} className="flex gap-4 border-b border-border px-5 py-4 last:border-b-0">
+                <div className="h-4 w-7 animate-pulse rounded bg-muted" />
+                <div className="flex flex-1 flex-col gap-2">
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+                  <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+                  <div className="h-3 w-5/6 animate-pulse rounded bg-muted" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       }
     >

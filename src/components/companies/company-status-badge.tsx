@@ -1,28 +1,25 @@
-import { Badge } from "@/components/ui/badge";
+import { Tag, type TagColor } from "@/components/ui/tag";
 import {
   companyStatusLabelMap,
   type CompanyStatus,
 } from "@/lib/companies";
 
-const companyStatusClassNameMap: Record<CompanyStatus, string> = {
-  monitoring:
-    "border-zinc-400/30 bg-zinc-400/10 text-zinc-100 ring-1 ring-zinc-300/10",
-  in_process:
-    "border-emerald-400/30 bg-emerald-400/12 text-emerald-100 ring-1 ring-emerald-300/10",
-  discarded:
-    "border-amber-400/30 bg-amber-400/12 text-amber-100 ring-1 ring-amber-300/10",
-  blacklist:
-    "border-rose-400/30 bg-rose-400/12 text-rose-100 ring-1 ring-rose-300/10",
+export const companyStatusColor: Record<CompanyStatus, TagColor> = {
+  monitoring: "gray",
+  in_process: "blue",
+  discarded: "muted",
+  blacklist: "red",
 };
 
 type CompanyStatusBadgeProps = {
   status: CompanyStatus;
+  className?: string;
 };
 
-export function CompanyStatusBadge({ status }: CompanyStatusBadgeProps) {
+export function CompanyStatusBadge({ status, className }: CompanyStatusBadgeProps) {
   return (
-    <Badge variant="outline" className={companyStatusClassNameMap[status]}>
+    <Tag variant="status" color={companyStatusColor[status]} className={className}>
       {companyStatusLabelMap[status]}
-    </Badge>
+    </Tag>
   );
 }

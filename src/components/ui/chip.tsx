@@ -3,19 +3,20 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 /**
- * Small metadata pill (seniority, work model, score...). Color is reserved for
- * meaning: `positive`/`caution` for judgements, `neutral` for plain facts.
+ * Small metadata tag (skills, seniority, work model...): a gray Notion select
+ * tag by default. `positive`/`caution`/`info` tint it for judgements only.
+ * For workflow state use `Tag variant="status"`.
  */
 const chipVariants = cva(
-  "inline-flex max-w-full min-w-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs leading-5 font-medium whitespace-nowrap [&>svg]:size-3 [&>svg]:shrink-0",
+  "inline-flex h-5 max-w-full min-w-0 items-center gap-1 rounded-sm border border-transparent px-1.5 text-xs font-medium whitespace-nowrap [&>svg]:size-3 [&>svg]:shrink-0",
   {
     variants: {
       tone: {
-        neutral: "border-border bg-foreground/[0.04] text-foreground/75",
-        positive: "border-emerald-400/25 bg-emerald-400/10 text-emerald-200",
-        caution: "border-amber-400/25 bg-amber-400/10 text-amber-200",
-        info: "border-sky-400/20 bg-sky-400/8 text-sky-200",
-        muted: "border-border/70 bg-transparent text-muted-foreground",
+        neutral: "bg-tag-gray text-tag-gray-foreground",
+        positive: "bg-tag-green text-tag-green-foreground",
+        caution: "bg-tag-orange text-tag-orange-foreground",
+        info: "bg-tag-blue text-tag-blue-foreground",
+        muted: "px-0 text-subtle-foreground",
       },
     },
     defaultVariants: {

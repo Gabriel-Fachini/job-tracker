@@ -1,9 +1,7 @@
 "use client";
 
-import { AlertCircle } from "lucide-react";
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -12,39 +10,36 @@ import {
   YAxis,
 } from "recharts";
 
+import {
+  ChartTooltip,
+  DashboardWidget,
+  chartTick,
+} from "@/components/dashboard/dashboard-widget";
+import { Notice } from "@/components/ui/notice";
+import { cn } from "@/lib/utils";
 import type { TimelineDay } from "@/server/queries/dashboard";
 
 interface RadarTimelineWidgetProps {
   data: TimelineDay[];
+  className?: string;
 }
 
-const COLORS = {
-  total: "#64748b",
-  interesting: "#34d399",
-};
+// Emphasis: "interesting" is the story (same positive token it wears across
+// the dashboard); the total is context in a recessive gray (chart-3 clears
+// 3:1 on the dark page surface).
+const SERIES = [
+  { key: "total", label: "Total do radar", color: "var(--chart-3)", swatch: "bg-chart-3" },
+  { key: "interesting", label: "Interessantes", color: "var(--positive)", swatch: "bg-positive" },
+] as const;
+
+const SERIES_NAMES = Object.fromEntries(SERIES.map((s) => [s.key, s.label]));
 
 function formatDate(dateStr: string): string {
   const [, month, day] = dateStr.split("-");
   return `${day}/${month}`;
 }
 
-export function RadarTimelineWidget({ data }: RadarTimelineWidgetProps) {
-  if (data.length === 0) {
-    return (
-      <div className="rounded-2xl border border-border/50 bg-card/40 p-5">
-        <h3 className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Atividade do radar
-        </h3>
-        <div className="flex flex-col items-center justify-center gap-1 py-10 text-center">
-          <p className="text-sm text-muted-foreground">Dados insuficientes</p>
-          <p className="text-xs text-muted-foreground/50">
-            Nenhum lead no período
-          </p>
-        </div>
-      </div>
-    );
-  }
-
+export function RadarTimelineWidget({ data, className }: RadarTimelineWidgetProps) {
   const zeroDays = data.filter((d) => d.total === 0).length;
   const hasGap = zeroDays > 0;
 
@@ -54,78 +49,78 @@ export function RadarTimelineWidget({ data }: RadarTimelineWidgetProps) {
     interesting: Number(d.interesting),
   }));
 
-  return (
-    <div className="rounded-2xl border border-border/50 bg-card/40 p-5">
-      <h3 className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        Atividade do radar
-      </h3>
+  const totals = {
+    total: chartData.reduce((sum, d) => sum + d.total, 0),
+    interesting: chartData.reduce((sum, d) => sum + d.interesting, 0),
+  };
 
-      <div className="mt-4 h-48 min-w-0">
+  return (
+    <DashboardWidget
+      title="Atividade do radar"
+      actual={data.length}
+      insufficientDetail="Nenhum lead no período"
+      className={className}
+    >
+      <ul aria-label="Legenda" className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
+        {SERIES.map((series) => (
+          <li key={series.key} className="flex items-center gap-2 text-[13px] text-muted-foreground">
+            <span aria-hidden className={cn("h-0.5 w-3 rounded-full", series.swatch)} />
+            {series.label}
+            <span className="font-data text-xs font-medium text-foreground">
+              {totals[series.key]}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <div className="h-48 min-w-0 lg:h-56">
         <ResponsiveContainer width="100%" height="100%" debounce={50}>
-          <LineChart
-            data={chartData}
-            margin={{ top: 4, right: 8, left: -24, bottom: 0 }}
-          >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="rgba(255,255,255,0.06)"
-            />
+          <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="var(--border)" />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 10, fill: "#6b7280" }}
+              tick={chartTick}
               tickLine={false}
               axisLine={false}
+              tickMargin={6}
+              minTickGap={24}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: "#6b7280" }}
+              tick={chartTick}
               tickLine={false}
               axisLine={false}
               allowDecimals={false}
+              width={32}
             />
             <Tooltip
-              contentStyle={{
-                background: "#1a1a2e",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
-              labelStyle={{ color: "#9ca3af" }}
+              cursor={{ stroke: "var(--border-strong)", strokeWidth: 1 }}
+              isAnimationActive={false}
+              content={<ChartTooltip names={SERIES_NAMES} />}
             />
-            <Legend
-              wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
-              formatter={(value) =>
-                value === "total" ? "Total radar" : "Interessantes"
-              }
-            />
-            <Line
-              type="monotone"
-              dataKey="total"
-              stroke={COLORS.total}
-              strokeWidth={1.5}
-              dot={false}
-              activeDot={{ r: 3 }}
-            />
-            <Line
-              type="monotone"
-              dataKey="interesting"
-              stroke={COLORS.interesting}
-              strokeWidth={1.5}
-              dot={false}
-              activeDot={{ r: 3 }}
-            />
+            {SERIES.map((series) => (
+              <Line
+                key={series.key}
+                type="monotone"
+                dataKey={series.key}
+                stroke={series.color}
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                dot={false}
+                activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--background)" }}
+                isAnimationActive={false}
+              />
+            ))}
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       {hasGap && (
-        <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-400/20 bg-amber-400/8 px-3 py-2.5">
-          <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-amber-400" />
-          <p className="text-xs text-amber-300/90">
-            {zeroDays} dia{zeroDays > 1 ? "s" : ""} sem leads — radar pode não
-            ter rodado ou ATS mudou.
-          </p>
-        </div>
+        <Notice tone="caution">
+          <span className="font-data text-foreground">{zeroDays}</span> dia{zeroDays > 1 ? "s" : ""}{" "}
+          sem leads: o radar pode não ter rodado ou o ATS mudou.
+        </Notice>
       )}
-    </div>
+    </DashboardWidget>
   );
 }

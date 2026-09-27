@@ -65,7 +65,7 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/40 duration-150 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-overlay duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -105,7 +105,7 @@ function DialogContent({
       <DrawerPrimitive.Portal>
         <DrawerPrimitive.Backdrop
           data-slot="dialog-overlay"
-          className="fixed inset-0 z-50 bg-black/60 opacity-[calc(1_-_var(--drawer-swipe-progress,0))] transition-opacity duration-300 ease-(--ease-out-quart) data-starting-style:opacity-0 data-ending-style:opacity-0 data-swiping:duration-0"
+          className="fixed inset-0 z-50 bg-overlay opacity-[calc(1_-_var(--drawer-swipe-progress,0))] transition-opacity duration-300 ease-(--ease-out-quart) data-starting-style:opacity-0 data-ending-style:opacity-0 data-swiping:duration-0"
         />
         <DrawerPrimitive.Viewport className="fixed inset-0 z-50 flex items-end justify-center">
           <DrawerPrimitive.Popup
@@ -118,7 +118,7 @@ function DialogContent({
             }
             data-slot="dialog-content"
             className={cn(
-              "relative flex max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] w-full flex-col gap-4 rounded-t-[1.25rem] bg-popover px-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))] text-sm text-popover-foreground shadow-[0_-16px_48px_rgba(0,0,0,0.45)] ring-1 ring-foreground/10 outline-none touch-none",
+              "relative flex max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] w-full flex-col gap-4 rounded-t-2xl border-t border-border bg-popover px-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))] text-sm text-popover-foreground shadow-overlay outline-none touch-none",
               // Follows the finger while dragging, then eases home or away.
               "[transform:translateY(var(--drawer-swipe-movement-y,0))] transition-transform duration-[420ms] ease-(--ease-out-expo) will-change-transform",
               "data-starting-style:[transform:translateY(100%)] data-ending-style:[transform:translateY(100%)] data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*320ms)] data-swiping:select-none data-swiping:duration-0",
@@ -132,10 +132,10 @@ function DialogContent({
           >
             <div
               aria-hidden
-              className="absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-foreground/20"
+              className="absolute top-2 left-1/2 h-1 w-9 -translate-x-1/2 rounded-full bg-border-strong"
             />
             {children}
-            {showCloseButton && <DialogCloseButton className="top-2.5 right-2.5" />}
+            {showCloseButton && <DialogCloseButton className="top-3 right-3" />}
           </DrawerPrimitive.Popup>
         </DrawerPrimitive.Viewport>
       </DrawerPrimitive.Portal>
@@ -149,13 +149,13 @@ function DialogContent({
         initialFocus={initialFocus}
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100svh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden overscroll-contain rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-150 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100svh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden overscroll-contain rounded-xl border border-border bg-popover p-4 text-sm text-popover-foreground shadow-overlay duration-150 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.98] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.98]",
           className
         )}
         {...props}
       >
         {children}
-        {showCloseButton && <DialogCloseButton className="top-2 right-2" />}
+        {showCloseButton && <DialogCloseButton className="top-3 right-3" />}
       </DialogPrimitive.Popup>
     </DialogPortal>
   )
@@ -168,9 +168,9 @@ function DialogCloseButton({ className }: { className?: string }) {
       render={
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           className={cn(
-            "absolute z-10 rounded-full text-muted-foreground hover:text-foreground",
+            "absolute z-10 text-muted-foreground hover:text-foreground",
             className
           )}
         />
@@ -204,7 +204,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t border-border p-4 sm:flex-row sm:justify-end",
         className
       )}
       {...props}
@@ -224,7 +224,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        "font-heading text-base leading-none font-medium",
+        "font-heading text-base leading-snug font-semibold tracking-tight",
         className
       )}
       {...props}

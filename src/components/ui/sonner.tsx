@@ -4,14 +4,15 @@ import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useResolvedTheme } from "@/hooks/use-theme"
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const isMobile = useIsMobile()
+  const theme = useResolvedTheme()
 
   return (
     <Sonner
-      // The app is dark-only; there is no ThemeProvider to read from.
-      theme="dark"
+      theme={theme}
       // Bottom of the screen belongs to the tab bar and sheet actions on phones.
       position={isMobile ? "top-center" : "bottom-right"}
       mobileOffset={{ top: "calc(env(safe-area-inset-top) + 0.75rem)" }}
@@ -38,7 +39,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-bg": "var(--popover)",
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
+          "--border-radius": "var(--radius-xl)",
         } as React.CSSProperties
       }
       toastOptions={{

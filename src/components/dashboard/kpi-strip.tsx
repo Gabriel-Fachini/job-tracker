@@ -1,5 +1,4 @@
-import { Activity, FileText, Radar, Send } from "lucide-react";
-
+import { cn } from "@/lib/utils";
 import type { KpiData } from "@/server/queries/dashboard";
 
 function delta(curr: number, prev: number | null): string | null {
@@ -11,43 +10,15 @@ function delta(curr: number, prev: number | null): string | null {
 }
 
 function deltaClass(curr: number, prev: number | null): string {
-  if (prev === null || prev === curr) return "text-muted-foreground/60";
-  return curr >= prev ? "text-emerald-400" : "text-rose-400";
+  if (prev === null || prev === curr) return "text-subtle-foreground";
+  return curr >= prev ? "text-positive" : "text-negative";
 }
 
-const CARDS = [
-  {
-    key: "leadsDiscovered" as keyof KpiData,
-    label: "Leads descobertos",
-    icon: Radar,
-    colorClass: "border-sky-400/20 bg-sky-400/8",
-    iconClass: "text-sky-300/80",
-    textClass: "text-sky-100",
-  },
-  {
-    key: "leadsReviewed" as keyof KpiData,
-    label: "Leads revisados",
-    icon: Activity,
-    colorClass: "border-violet-400/20 bg-violet-400/8",
-    iconClass: "text-violet-300/80",
-    textClass: "text-violet-100",
-  },
-  {
-    key: "appsCreated" as keyof KpiData,
-    label: "Candidaturas",
-    icon: Send,
-    colorClass: "border-emerald-400/20 bg-emerald-400/8",
-    iconClass: "text-emerald-300/80",
-    textClass: "text-emerald-100",
-  },
-  {
-    key: "resumesGenerated" as keyof KpiData,
-    label: "Currículos gerados",
-    icon: FileText,
-    colorClass: "border-amber-400/20 bg-amber-400/8",
-    iconClass: "text-amber-300/80",
-    textClass: "text-amber-100",
-  },
+const METRICS: { key: keyof KpiData; label: string }[] = [
+  { key: "leadsDiscovered", label: "Leads descobertos" },
+  { key: "leadsReviewed", label: "Leads revisados" },
+  { key: "appsCreated", label: "Candidaturas" },
+  { key: "resumesGenerated", label: "Currículos gerados" },
 ];
 
 interface KpiStripProps {
@@ -55,40 +26,32 @@ interface KpiStripProps {
   previous: KpiData | null;
 }
 
+/** One bordered metric strip; the grid gap draws the hairlines between cells. */
 export function KpiStrip({ current, previous }: KpiStripProps) {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {CARDS.map(({ key, label, icon: Icon, colorClass, iconClass, textClass }) => {
+    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border lg:grid-cols-4">
+      {METRICS.map(({ key, label }) => {
         const val = current[key];
         const prev = previous?.[key] ?? null;
         const d = delta(val, prev);
-        const dc = deltaClass(val, prev);
 
         return (
-          <div
-            key={key}
-            className={`relative overflow-hidden rounded-2xl border p-3.5 sm:p-4 ${colorClass}`}
-          >
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/12 to-transparent" />
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-[11px] leading-4 font-medium tracking-[0.12em] text-balance text-muted-foreground uppercase sm:tracking-[0.18em]">
-                {label}
-              </p>
-              <Icon className={`size-3.5 shrink-0 ${iconClass}`} />
-            </div>
-            <div className="mt-3 flex items-end gap-2">
-              <p className={`text-3xl font-semibold tabular-nums ${textClass}`}>
+          <div key={key} className="flex min-w-0 flex-col gap-2 bg-background px-4 py-3.5 sm:px-5 sm:py-4">
+            <dt className="truncate text-[13px] text-muted-foreground">{label}</dt>
+            <dd className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="font-data text-2xl leading-none font-medium text-foreground sm:text-[1.625rem]">
                 {val}
-              </p>
-              {d && (
-                <p className={`mb-0.5 text-xs font-medium tabular-nums ${dc}`}>
+              </span>
+              {d ? (
+                <span className={cn("font-data text-xs", deltaClass(val, prev))}>
                   {d}
-                </p>
-              )}
-            </div>
+                  <span className="sr-only"> em relação ao período anterior</span>
+                </span>
+              ) : null}
+            </dd>
           </div>
         );
       })}
-    </div>
+    </dl>
   );
 }

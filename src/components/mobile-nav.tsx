@@ -17,7 +17,7 @@ export function MobileNav() {
     <nav
       aria-label="Navegação principal"
       data-slot="mobile-nav"
-      className="fixed inset-x-0 bottom-0 z-(--z-nav) border-t border-border bg-sidebar pb-[env(safe-area-inset-bottom)] transition-[translate] duration-200 ease-(--ease-out-quart) md:hidden"
+      className="fixed inset-x-0 bottom-0 z-(--z-nav) border-t border-border bg-canvas pb-[env(safe-area-inset-bottom)] transition-[translate] duration-200 ease-(--ease-out-quart) md:hidden"
     >
       <ul className="mx-auto grid h-(--mobile-nav-height) max-w-lg grid-cols-5">
         {appNavigation.map((item) => {
@@ -32,29 +32,30 @@ export function MobileNav() {
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "group/tab flex h-full flex-col items-center justify-center gap-1 px-0.5 text-[11px] leading-none font-medium tracking-tight outline-none transition-colors duration-150",
+                  "group/tab relative flex h-full flex-col items-center justify-center gap-1 px-0.5 text-[11px] leading-none font-medium outline-none transition-colors duration-150",
                   isActive
                     ? "text-foreground"
-                    : "text-muted-foreground active:text-foreground",
+                    : "text-subtle-foreground active:text-foreground",
                 )}
               >
+                {/* Active tab: hairline on the bar's top edge. */}
                 <span
+                  aria-hidden
                   className={cn(
-                    "relative flex h-7 w-14 items-center justify-center rounded-full transition-colors duration-200 group-focus-visible/tab:ring-2 group-focus-visible/tab:ring-ring",
-                    isActive
-                      ? "bg-foreground/12"
-                      : "group-active/tab:bg-foreground/6",
+                    "absolute inset-x-5 top-[-1px] h-px transition-colors duration-150",
+                    isActive ? "bg-foreground" : "bg-transparent",
                   )}
-                >
+                />
+                <span className="relative flex size-7 items-center justify-center rounded-md group-focus-visible/tab:ring-2 group-focus-visible/tab:ring-ring">
                   <Icon
                     aria-hidden
                     className="size-5"
-                    strokeWidth={isActive ? 2.25 : 1.75}
+                    strokeWidth={isActive ? 2 : 1.75}
                   />
                   {showRadarSignal ? (
                     <span
                       aria-hidden
-                      className="absolute top-0.5 right-3 size-2 rounded-full bg-brand ring-2 ring-sidebar motion-safe:animate-pulse"
+                      className="absolute top-0.5 right-0 size-1.5 rounded-full bg-info ring-2 ring-canvas motion-safe:animate-pulse"
                     />
                   ) : null}
                 </span>

@@ -4,33 +4,22 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import {
-  BriefcaseBusiness,
-  ChevronDown,
-  ExternalLink,
-  MapPin,
-  Radar,
-  ScanSearch,
-  Search,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { ChevronDown, ExternalLink, ScanSearch, Search, X } from "lucide-react";
 
 import {
   ApplicationCreateModal,
   type ApplicationCreateInitialValues,
 } from "@/components/applications/application-create-modal";
-import { JobMarkdown } from "@/components/applications/job-markdown";
-import { scoreTone, useLeadDecisions } from "@/components/leads/lead-decisions";
+import { useLeadDecisions } from "@/components/leads/lead-decisions";
 import { LeadDetailModal } from "@/components/leads/lead-detail-modal";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
+import { ScoreMeter } from "@/components/leads/score-meter";
 import type { LeadListItem, LeadTab } from "@/components/leads/types";
 import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
 import { MonitoringProgressDisplay } from "@/components/leads/monitoring-progress-display";
 import { useMonitoringActions, useMonitoringProgress } from "@/components/leads/monitoring-progress-context";
 import { PageHeader } from "@/components/page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Chip } from "@/components/ui/chip";
 import {
   Empty,
   EmptyContent,
@@ -39,8 +28,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { MetaLine } from "@/components/ui/meta-line";
+import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
+import { TabBar, TabBarItem } from "@/components/ui/tab-bar";
 import { useSearchParamsUpdater } from "@/hooks/use-search-params-updater";
-import { getSeniorityLabel, getSourceNameLabel, getWorkModelLabel } from "@/lib/jobs";
+import { getSeniorityLabel, getWorkModelLabel } from "@/lib/jobs";
 import { cn } from "@/lib/utils";
 import { getLeads } from "@/server/actions/leads";
 import { promoteApprovedLeadToApplication } from "@/server/actions/job-monitoring";
@@ -63,7 +55,7 @@ const tabCopy: Record<
     label: "Triagem",
     emptyTitle: "Nenhum lead pendente na triagem",
     emptyDescription:
-      "Rode o radar para descobrir novas vagas ou ajuste os filtros ativos.",
+      "Rode o radar para descobrir novas vagas nas empresas monitoradas.",
   },
   approved: {
     label: "Aprovados",
@@ -144,7 +136,7 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
       : item.userDecision === "approved",
   );
 
-  // Counts on the classification chips reflect every other active filter.
+  // Counts on the classification toggles reflect every other active filter.
   const facetItems = tabItems.filter((item) => {
     if (companyId !== null && item.companyId !== companyId) {
       return false;
@@ -239,18 +231,27 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
     ? buildInitialValues(createLead)
     : undefined;
 
+  const selectedCompanyName =
+    companyOptions.find((company) => company.id === companyId)?.name ?? null;
+
   return (
     <>
-      <div className="flex flex-1 flex-col gap-5 sm:gap-8">
+      <div className="flex flex-1 flex-col gap-5 sm:gap-6">
         <PageHeader
           title="Leads"
-          description="Aprove, descarte e promova as vagas que o radar encontrou."
+          description={
+            <>
+              <span className="font-data text-foreground">{triageCount}</span> na triagem
+              <span aria-hidden className="mx-1.5 text-subtle-foreground">·</span>
+              <span className="font-data text-foreground">{approvedCount}</span>{" "}
+              {approvedCount === 1 ? "aprovado" : "aprovados"}
+            </>
+          }
           actions={
             <MonitoringRunButton
-              label="Rodar radar completo"
+              label="Rodar radar"
               shortLabel="Radar"
               pendingLabel="Rodando…"
-              className="h-10 rounded-xl px-4 sm:h-11 sm:px-5"
               showCancel={false}
               useStream
             />
@@ -273,162 +274,84 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
           />
         )}
 
-        {/* Phones read these counts from the queue and filter controls instead. */}
-        <div className="hidden gap-3 md:grid md:grid-cols-4">
-          <StatCard
-            label="Na triagem"
-            value={triageCount}
-            icon={ScanSearch}
-            className="border-sky-400/20 bg-sky-400/8"
-          />
-          <StatCard
-            label="Aprovados"
-            value={approvedCount}
-            icon={BriefcaseBusiness}
-            className="border-emerald-400/20 bg-emerald-400/8"
-          />
-          <StatCard
-            label="Interessantes"
-            value={classificationCounts.interesting}
-            icon={Sparkles}
-            className="border-violet-400/20 bg-violet-400/8"
-          />
-          <StatCard
-            label="Para revisar"
-            value={classificationCounts.review}
-            icon={Radar}
-            className="border-amber-400/20 bg-amber-400/8"
-          />
-        </div>
+        <section aria-label="Filtros de leads" className="flex flex-col gap-2 md:flex-row md:items-center">
+          <form
+            role="search"
+            className="relative md:max-w-sm md:flex-1"
+            onSubmit={(event) => {
+              event.preventDefault();
+              (document.activeElement as HTMLElement | null)?.blur();
+            }}
+          >
+            <label htmlFor="lead-search" className="sr-only">
+              Buscar leads
+            </label>
+            <Search
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-subtle-foreground"
+            />
+            <input
+              id="lead-search"
+              type="search"
+              inputMode="search"
+              enterKeyHint="search"
+              autoComplete="off"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Buscar por título, empresa, local…"
+              className="h-8 w-full rounded-lg border border-border bg-surface pr-9 pl-8 text-sm text-foreground outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-subtle-foreground hover:border-input focus-visible:border-ring focus-visible:bg-field focus-visible:ring-2 focus-visible:ring-ring/25 pointer-coarse:h-10 [&::-webkit-search-cancel-button]:hidden"
+            />
+            {query ? (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Limpar busca"
+                className="absolute top-1/2 right-1 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-subtle-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:size-8"
+              >
+                <X className="size-3.5" />
+              </button>
+            ) : null}
+          </form>
 
-        <section aria-label="Filtros de leads" className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div
-              role="group"
-              aria-label="Fila"
-              className="grid grid-cols-2 gap-1 rounded-xl border border-border/60 bg-card/60 p-1 lg:w-80 lg:shrink-0"
-            >
-              {(["triage", "approved"] as const).map((tab) => {
-                const isActive = activeTab === tab;
-                const count = tab === "triage" ? triageCount : approvedCount;
-
-                return (
-                  <button
-                    key={tab}
-                    type="button"
-                    aria-pressed={isActive}
-                    onClick={() => setTab(tab)}
-                    className={cn(
-                      "flex h-9 items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-10",
-                      isActive
-                        ? "bg-foreground/10 text-foreground"
-                        : "text-muted-foreground hover:text-foreground active:bg-foreground/5",
-                    )}
-                  >
-                    {tabCopy[tab].label}
-                    <span
-                      className={cn(
-                        "min-w-5 rounded-full px-1.5 text-xs leading-5 tabular-nums",
-                        isActive ? "bg-brand/20 text-brand" : "bg-foreground/6",
-                      )}
-                    >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <form
-              role="search"
-              className="relative flex-1"
-              onSubmit={(event) => {
-                event.preventDefault();
-                (document.activeElement as HTMLElement | null)?.blur();
-              }}
-            >
-              <label htmlFor="lead-search" className="sr-only">
-                Buscar leads
-              </label>
-              <Search
-                aria-hidden
-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-              />
-              <input
-                id="lead-search"
-                type="search"
-                inputMode="search"
-                enterKeyHint="search"
-                autoComplete="off"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar por título, empresa, local…"
-                className="h-11 w-full rounded-xl border border-input bg-input/30 pr-10 pl-9 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
-              />
-              {query ? (
-                <button
-                  type="button"
-                  onClick={() => setQuery("")}
-                  aria-label="Limpar busca"
-                  className="absolute top-1/2 right-1 flex size-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground active:bg-foreground/5"
-                >
-                  <X className="size-4" />
-                </button>
-              ) : null}
-            </form>
-          </div>
-
-          <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-0.5 scrollbar-none sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-            {classificationOptions.map((option) => {
-              const isActive = status === option.value;
-              const count =
-                option.value === null
-                  ? classificationCounts.all
-                  : classificationCounts[option.value];
-
-              return (
-                <button
+          <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 scrollbar-none md:mx-0 md:overflow-visible md:px-0">
+            <SegmentedControl aria-label="Classificação">
+              {classificationOptions.map((option) => (
+                <SegmentedControlItem
                   key={option.label}
-                  type="button"
-                  aria-pressed={isActive}
+                  pressed={status === option.value}
+                  count={
+                    option.value === null
+                      ? classificationCounts.all
+                      : classificationCounts[option.value]
+                  }
                   onClick={() => setClassification(option.value)}
-                  className={cn(
-                    "flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium whitespace-nowrap transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    isActive
-                      ? "border-foreground/25 bg-foreground/10 text-foreground"
-                      : "border-border/70 text-muted-foreground hover:text-foreground active:bg-foreground/5",
-                  )}
                 >
                   {option.label}
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
 
-            {/* Styled pill over a transparent native select: system picker on
-                phones, and the select stays 16px so iOS doesn't zoom. */}
+            {/* Native select under a styled face: system picker on phones,
+                and the select stays 16px there so iOS doesn't zoom. */}
             <div
               className={cn(
-                "relative flex h-9 shrink-0 items-center gap-1.5 rounded-full border pr-3 pl-3.5 text-sm font-medium transition-colors has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-ring",
+                "relative flex h-8 shrink-0 items-center gap-1.5 rounded-lg border bg-field pr-2 pl-2.5 text-[13px] font-medium transition-[border-color,box-shadow] duration-150 has-[select:focus-visible]:border-ring has-[select:focus-visible]:ring-2 has-[select:focus-visible]:ring-ring/25 pointer-coarse:h-10",
                 companyId !== null
-                  ? "border-foreground/25 bg-foreground/10 text-foreground"
-                  : "border-border/70 text-muted-foreground",
+                  ? "border-border-strong text-foreground"
+                  : "border-input text-muted-foreground",
               )}
             >
               <span aria-hidden className="max-w-[11rem] truncate">
-                {companyOptions.find((company) => company.id === companyId)?.name ??
-                  "Todas as empresas"}
+                {selectedCompanyName ?? "Todas as empresas"}
               </span>
-              <ChevronDown aria-hidden className="size-3.5 shrink-0" />
+              <ChevronDown aria-hidden className="size-3.5 shrink-0 text-subtle-foreground" />
               <select
                 aria-label="Filtrar por empresa"
                 value={companyId?.toString() ?? ""}
                 onChange={(event) =>
                   setCompany(event.target.value ? Number(event.target.value) : null)
                 }
-                className="absolute inset-0 cursor-pointer appearance-none rounded-full text-base opacity-0 outline-none [&>option]:bg-popover [&>option]:text-popover-foreground"
+                className="absolute inset-0 cursor-pointer appearance-none rounded-lg text-base opacity-0 outline-none [&>option]:bg-popover [&>option]:text-popover-foreground"
               >
                 <option value="">Todas as empresas</option>
                 {companyOptions.map((company) => (
@@ -439,76 +362,98 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
               </select>
             </div>
           </div>
-
-          <div className="flex min-h-6 items-center justify-between gap-3 text-sm text-muted-foreground">
-            <p aria-live="polite">
-              {filteredItems.length === tabItems.length
-                ? pluralizeLeads(filteredItems.length)
-                : `${filteredItems.length} de ${pluralizeLeads(tabItems.length)}`}
-            </p>
-            {hasActiveFilters ? (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="-my-2 rounded-md px-2 py-2 font-medium text-foreground/80 underline-offset-4 hover:text-foreground hover:underline"
-              >
-                Limpar filtros
-              </button>
-            ) : null}
-          </div>
         </section>
 
-        {items.length === 0 && liveItems.length === 0 ? (
-          <Empty className="rounded-2xl border border-dashed border-border/50 bg-card/40 py-16">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <ScanSearch />
-              </EmptyMedia>
-              <EmptyTitle>Nenhum lead salvo ainda</EmptyTitle>
-              <EmptyDescription>
-                O radar percorre os job boards das empresas monitoradas e traz as vagas para cá.
-              </EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              <Link
-                href="/companies"
-                className={cn(buttonVariants({ variant: "outline" }), "rounded-xl")}
-              >
-                Ver empresas monitoradas
-              </Link>
-            </EmptyContent>
-          </Empty>
-        ) : filteredItems.length === 0 ? (
-          <Empty className="rounded-2xl border border-dashed border-border/50 bg-card/40 py-16">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <ScanSearch />
-              </EmptyMedia>
-              <EmptyTitle>{tabCopy[activeTab].emptyTitle}</EmptyTitle>
-              <EmptyDescription>{tabCopy[activeTab].emptyDescription}</EmptyDescription>
-            </EmptyHeader>
-            {hasActiveFilters ? (
-              <EmptyContent>
-                <Button type="button" variant="outline" onClick={clearFilters} className="rounded-xl">
+        <section
+          aria-label="Fila de leads"
+          className="-mx-4 border-y border-border sm:mx-0 sm:rounded-xl sm:border-x"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-border pr-3 pl-1 sm:pr-4">
+            <TabBar aria-label="Fila" className="border-b-0">
+              {(["triage", "approved"] as const).map((tab) => (
+                <TabBarItem
+                  key={tab}
+                  selected={activeTab === tab}
+                  count={tab === "triage" ? triageCount : approvedCount}
+                  onClick={() => setTab(tab)}
+                >
+                  {tabCopy[tab].label}
+                </TabBarItem>
+              ))}
+            </TabBar>
+
+            <div className="flex min-w-0 items-center gap-3 text-xs text-subtle-foreground">
+              <p aria-live="polite" className="font-data whitespace-nowrap">
+                {filteredItems.length === tabItems.length
+                  ? pluralizeLeads(filteredItems.length)
+                  : `${filteredItems.length}/${tabItems.length}`}
+              </p>
+              {hasActiveFilters ? (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="-my-1 rounded-md px-1.5 py-1 font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                >
                   Limpar filtros
-                </Button>
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {items.length === 0 && liveItems.length === 0 ? (
+            <Empty className="py-14">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <ScanSearch />
+                </EmptyMedia>
+                <EmptyTitle>Nenhum lead salvo ainda</EmptyTitle>
+                <EmptyDescription>
+                  O radar percorre os job boards das empresas monitoradas e traz as vagas para cá.
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Link href="/companies" className={buttonVariants({ variant: "outline" })}>
+                  Ver empresas monitoradas
+                </Link>
               </EmptyContent>
-            ) : null}
-          </Empty>
-        ) : (
-          <ul className="grid gap-3 sm:gap-4 xl:grid-cols-2">
-            {filteredItems.map((lead) => (
-              <li key={lead.id} className="min-w-0">
-                <LeadCard
+            </Empty>
+          ) : filteredItems.length === 0 ? (
+            <Empty className="py-14">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <ScanSearch />
+                </EmptyMedia>
+                <EmptyTitle>
+                  {hasActiveFilters ? "Nenhum lead com esses filtros" : tabCopy[activeTab].emptyTitle}
+                </EmptyTitle>
+                <EmptyDescription>
+                  {hasActiveFilters
+                    ? "Ajuste a busca ou limpe os filtros para ver a fila completa."
+                    : tabCopy[activeTab].emptyDescription}
+                </EmptyDescription>
+              </EmptyHeader>
+              {hasActiveFilters ? (
+                <EmptyContent>
+                  <Button type="button" variant="outline" onClick={clearFilters}>
+                    Limpar filtros
+                  </Button>
+                </EmptyContent>
+              ) : null}
+            </Empty>
+          ) : (
+            <ul className="divide-y divide-border">
+              {filteredItems.map((lead) => (
+                <LeadRow
+                  key={lead.id}
                   lead={lead}
                   tab={activeTab}
                   onOpen={() => openLead(lead.id)}
                   onCreateApplication={() => setCreateLead(lead)}
                 />
-              </li>
-            ))}
-          </ul>
-        )}
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
 
       <LeadDetailModal
@@ -533,7 +478,7 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
   );
 }
 
-function LeadCard({
+function LeadRow({
   lead,
   tab,
   onOpen,
@@ -545,125 +490,112 @@ function LeadCard({
   onCreateApplication: () => void;
 }) {
   const { approve, discard, isApproving, isDiscarding } = useLeadDecisions(lead.id);
-  const seniorityLabel = getSeniorityLabel(lead.seniority) ?? lead.seniority;
-  const workModelLabel = getWorkModelLabel(lead.workModel) ?? lead.workModel;
   const isBusy = isApproving || isDiscarding;
+  const meta = [
+    getSeniorityLabel(lead.seniority) ?? lead.seniority,
+    getWorkModelLabel(lead.workModel) ?? lead.workModel,
+    lead.locationText,
+    lead.salaryText,
+  ].filter(Boolean);
 
   return (
-    <article className="group relative flex h-full flex-col rounded-2xl border border-border/60 bg-card/85 transition-colors duration-150 hover:border-border has-[>button:active]:bg-card">
-      {/* Stretched target: the whole card opens the detail sheet. */}
+    <li className="group relative transition-colors duration-150 hover:bg-surface has-[>button:active]:bg-surface">
+      {/* Stretched target: the whole row opens the detail sheet. */}
       <button
         type="button"
         onClick={onOpen}
         aria-label={`Ver detalhes: ${lead.title}`}
-        className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="absolute inset-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       />
 
-      <div className="flex flex-1 flex-col gap-3 p-4 sm:gap-4 sm:p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="line-clamp-3 text-base leading-snug font-semibold text-balance text-foreground sm:text-lg">
-              {lead.title}
-            </h3>
-            <p className="mt-1 truncate text-sm text-muted-foreground">
-              {lead.companyName}
-            </p>
-          </div>
-          <LeadStatusBadge status={lead.classificationStatus} />
+      <div className="flex gap-3.5 px-4 py-4 sm:gap-4 sm:px-5">
+        <div className="w-7 shrink-0 pt-0.5">
+          {lead.classificationScore !== null ? (
+            <ScoreMeter score={lead.classificationScore} />
+          ) : (
+            <span className="font-data text-[15px] leading-none text-subtle-foreground">
+              <span className="sr-only">Sem score</span>
+              <span aria-hidden>–</span>
+            </span>
+          )}
         </div>
 
-        {lead.classificationScore !== null || seniorityLabel || workModelLabel || lead.locationText ? (
-          <div className="flex flex-wrap gap-1.5">
-            {lead.classificationScore !== null ? (
-              <Chip tone={scoreTone(lead.classificationScore)}>
-                <Radar aria-hidden />
-                Score {lead.classificationScore}
-              </Chip>
-            ) : null}
-            {seniorityLabel ? <Chip>{seniorityLabel}</Chip> : null}
-            {workModelLabel ? <Chip>{workModelLabel}</Chip> : null}
-            {lead.locationText ? (
-              <Chip className="max-w-[16rem]">
-                <MapPin aria-hidden />
-                <span className="truncate">{lead.locationText}</span>
-              </Chip>
-            ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="line-clamp-2 text-[15px] leading-snug font-medium text-balance text-foreground">
+              {lead.title}
+            </h3>
+            <div className="flex shrink-0 items-center gap-3 pt-0.5">
+              <LeadStatusBadge status={lead.classificationStatus} />
+              <time
+                dateTime={toIsoString(lead.updatedAt)}
+                className="hidden font-data text-xs text-subtle-foreground sm:inline"
+              >
+                {formatShortDate(lead.updatedAt)}
+              </time>
+            </div>
           </div>
-        ) : null}
 
-        <p className="line-clamp-3 text-sm leading-6 text-pretty text-muted-foreground sm:line-clamp-none">
-          {lead.classificationReason || "Sem justificativa resumida."}
-        </p>
+          <div className="mt-1 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
+            <div className="min-w-0 flex-1">
+              <MetaLine
+                items={[
+                  <span key="company" className="text-foreground">{lead.companyName}</span>,
+                  ...meta,
+                ]}
+              />
+              <p className="mt-2 line-clamp-2 text-[13px] leading-5 text-pretty text-muted-foreground">
+                {lead.classificationReason || "Sem justificativa resumida."}
+              </p>
+            </div>
 
-        {lead.description ? (
-          <JobMarkdown
-            content={lead.description}
-            className="hidden max-h-40 overflow-hidden rounded-xl border border-border/50 bg-muted/15 p-4 [mask-image:linear-gradient(to_bottom,black_72%,transparent)] sm:block"
-          />
-        ) : null}
+            <div className="relative z-10 flex items-center gap-1.5">
+              <a
+                href={lead.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Abrir vaga original"
+                className={buttonVariants({ variant: "ghost", size: "icon" })}
+              >
+                <ExternalLink />
+              </a>
 
-        <p className="mt-auto text-xs text-muted-foreground">
-          {[
-            getSourceNameLabel(lead.sourceName) ?? "Outra origem",
-            lead.salaryText,
-            `atualizado em ${formatDate(lead.updatedAt)}`,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
+              {tab === "triage" ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={isBusy}
+                    onClick={discard}
+                    className="flex-1 sm:flex-none"
+                  >
+                    {isDiscarding ? "Descartando…" : "Descartar"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isBusy}
+                    onClick={approve}
+                    className="flex-1 sm:flex-none"
+                  >
+                    {isApproving ? "Aprovando…" : "Aprovar"}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onCreateApplication}
+                  className="flex-1 sm:flex-none"
+                >
+                  Criar candidatura
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
-
-      <div className="relative z-10 flex items-center gap-2 border-t border-border/50 px-4 py-3 sm:px-5">
-        <a
-          href={lead.sourceUrl}
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Abrir vaga original"
-          className={cn(
-            buttonVariants({ variant: "outline", size: "icon-lg" }),
-            "shrink-0 rounded-xl sm:w-auto sm:px-3",
-          )}
-        >
-          <ExternalLink />
-          <span className="hidden sm:inline">Abrir vaga</span>
-        </a>
-
-        {tab === "triage" ? (
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              disabled={isBusy}
-              onClick={discard}
-              className="flex-1 rounded-xl sm:flex-none"
-            >
-              {isDiscarding ? "Descartando…" : "Descartar"}
-            </Button>
-            <Button
-              type="button"
-              size="lg"
-              disabled={isBusy}
-              onClick={approve}
-              className="flex-1 rounded-xl sm:flex-none"
-            >
-              <BriefcaseBusiness data-icon="inline-start" />
-              {isApproving ? "Aprovando…" : "Aprovar"}
-            </Button>
-          </>
-        ) : (
-          <Button
-            type="button"
-            size="lg"
-            onClick={onCreateApplication}
-            className="flex-1 rounded-xl sm:flex-none"
-          >
-            <BriefcaseBusiness data-icon="inline-start" />
-            Criar candidatura
-          </Button>
-        )}
-      </div>
-    </article>
+    </li>
   );
 }
 
@@ -717,38 +649,13 @@ function buildPromotionNote(lead: LeadListItem) {
   return `Promovida a partir do radar manual de vagas. Motivo: ${reason}`;
 }
 
-function StatCard({
-  className,
-  icon: Icon,
-  label,
-  value,
-}: {
-  className: string;
-  icon: typeof Radar;
-  label: string;
-  value: number;
-}) {
-  return (
-    <div className={cn("rounded-2xl border p-4", className)}>
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-          {label}
-        </p>
-        <Icon className="size-3.5 shrink-0 text-foreground/70" />
-      </div>
-      <p className="mt-3 text-3xl font-semibold text-foreground tabular-nums">{value}</p>
-    </div>
-  );
+function toIsoString(date: Date | string) {
+  return new Date(date).toISOString();
 }
 
-function formatDate(date: Date | string | null) {
-  if (!date) {
-    return "sem registro";
-  }
-
+function formatShortDate(date: Date | string) {
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "2-digit",
-    year: "numeric",
   }).format(new Date(date));
 }

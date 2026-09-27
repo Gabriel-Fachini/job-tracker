@@ -1,26 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { Cormorant_Garamond } from "next/font/google";
-import { FilePenLine, FileUp, Sparkles } from "lucide-react";
+import { FilePenLine, FileUp } from "lucide-react";
 
 import type { ProfileSnapshot } from "@/lib/profile/editor";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Panel, PanelTitle } from "@/components/ui/panel";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { ProfileSummary } from "@/components/profile/profile-summary";
 import { ProfileUploadPanel } from "@/components/profile/profile-upload-panel";
-
-const profileDisplay = Cormorant_Garamond({
-  subsets: ["latin"],
-  variable: "--font-profile-display",
-  weight: ["400", "500", "600", "700"],
-});
 
 type ProfileWorkspaceProps = {
   profileSnapshot: ProfileSnapshot | null;
@@ -39,75 +36,61 @@ export function ProfileWorkspace({ profileSnapshot }: ProfileWorkspaceProps) {
   >(null);
 
   return (
-    <div
-      className={`${profileDisplay.variable} relative flex flex-col gap-6 text-stone-100`}
-    >
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(72,161,108,0.16),transparent_32%),radial-gradient(circle_at_85%_14%,rgba(35,96,67,0.22),transparent_26%),linear-gradient(180deg,rgba(10,10,10,0.08),transparent_20%)]" />
-
-      <header className="flex flex-col gap-4 sm:gap-6 sm:px-1 sm:py-2">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex max-w-3xl flex-col gap-1.5 sm:gap-2">
-            <h1 className="font-[family:var(--font-profile-display)] text-[2.6rem] leading-none text-stone-50 sm:text-6xl">
-              Meu perfil
-            </h1>
-            <p className="max-w-2xl text-sm leading-6 text-stone-400 sm:text-[1.02rem] sm:leading-8">
-              Seu perfil profissional e materiais principais.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3">
-            <ProfileUploadPanel />
-
-            {profileSnapshot ? (
+    <div className="flex flex-1 flex-col gap-5 sm:gap-6">
+      <PageHeader
+        title="Perfil"
+        description={
+          profileSnapshot ? (
+            <>
+              Atualizado em{" "}
+              <time dateTime={profileSnapshot.updatedAt.toISOString()}>
+                {new Intl.DateTimeFormat("pt-BR", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }).format(profileSnapshot.updatedAt)}
+              </time>
+            </>
+          ) : undefined
+        }
+        actions={
+          profileSnapshot ? (
+            <>
+              <ProfileUploadPanel />
+              {/* While a section is being edited its Salvar is the primary action. */}
               <Button
-                className="h-11 w-full items-center justify-center gap-2 rounded-[1rem] border border-emerald-400/20 bg-[linear-gradient(180deg,rgba(54,117,84,0.95),rgba(42,96,68,0.92))] px-5 text-emerald-50 hover:bg-[linear-gradient(180deg,rgba(61,129,92,0.98),rgba(46,105,74,0.95))] sm:w-auto"
                 onClick={() => setActiveSection("basics")}
-                size="lg"
                 type="button"
+                variant={activeSection ? "outline" : "default"}
               >
                 <FilePenLine data-icon="inline-start" />
                 <span className="sm:hidden">Editar</span>
                 <span className="hidden sm:inline">Editar perfil</span>
               </Button>
-            ) : null}
-          </div>
-        </div>
+            </>
+          ) : undefined
+        }
+      />
 
-        {profileSnapshot ? (
-          <div className="flex flex-wrap items-center gap-3 text-sm text-stone-400">
-            <span className="hidden items-center gap-2 rounded-full border border-emerald-400/18 bg-emerald-500/6 px-3 py-1.5 text-emerald-200 sm:inline-flex">
-              <Sparkles className="size-4 text-emerald-300" />
-              Edição inline por seção disponível
-            </span>
-            <span>
-              Atualizado em{" "}
-              {new Intl.DateTimeFormat("pt-BR", {
-                dateStyle: "medium",
-                timeStyle: "short",
-              }).format(profileSnapshot.updatedAt)}
-            </span>
-          </div>
-        ) : (
-          <Card className="border-white/8 bg-[linear-gradient(180deg,rgba(31,31,31,0.95),rgba(24,24,24,0.98))] shadow-none">
-            <CardHeader>
-              <CardTitle className="font-[family:var(--font-profile-display)] text-3xl text-stone-50">
-                Nenhum perfil carregado ainda
-              </CardTitle>
-              <CardDescription className="text-stone-400">
+      {profileSnapshot ? null : (
+        <Panel>
+          <Empty className="py-14">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileUp />
+              </EmptyMedia>
+              <EmptyTitle>Nenhum perfil carregado ainda</EmptyTitle>
+              <EmptyDescription>
                 Envie o currículo master em PDF para iniciar a extração local e
-                construir a base do seu perfil.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-stone-400">
-                <FileUp className="size-4" />
-                O fluxo continua local-first e o formulário de revisão aparece
-                depois da primeira extração.
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </header>
+                construir a base do seu perfil. Depois da primeira extração,
+                cada seção pode ser revisada e editada aqui.
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <ProfileUploadPanel hasProfile={false} />
+            </EmptyContent>
+          </Empty>
+        </Panel>
+      )}
 
       <ProfileSummary
         activeSection={activeSection}
@@ -115,6 +98,20 @@ export function ProfileWorkspace({ profileSnapshot }: ProfileWorkspaceProps) {
         onActiveSectionChange={setActiveSection}
         profileSnapshot={profileSnapshot}
       />
+
+      {/* The sidebar holds the same control; phones only reach it here. */}
+      <Panel
+        aria-labelledby="appearance-title"
+        className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
+      >
+        <div className="min-w-0">
+          <PanelTitle id="appearance-title">Aparência</PanelTitle>
+          <p className="text-[13px] text-muted-foreground">
+            Tema da interface neste dispositivo.
+          </p>
+        </div>
+        <ThemeToggle showLabels />
+      </Panel>
     </div>
   );
 }

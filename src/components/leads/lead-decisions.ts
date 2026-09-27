@@ -8,7 +8,7 @@ import type { LeadListItem } from "@/components/leads/types";
 import { approveLead, discardLead } from "@/server/actions/job-monitoring";
 
 /**
- * Optimistic approve/discard shared by the lead card and the detail sheet.
+ * Optimistic approve/discard shared by the lead row and the detail sheet.
  * `onOptimisticUpdate` runs right after the cache changes (e.g. to close a sheet).
  */
 export function useLeadDecisions(leadId: number, onOptimisticUpdate?: () => void) {
@@ -49,4 +49,22 @@ export function scoreTone(score: number) {
   if (score >= 80) return "positive" as const;
   if (score >= 50) return "caution" as const;
   return "muted" as const;
+}
+
+const scoreTextClass = {
+  positive: "text-positive",
+  caution: "text-caution",
+  muted: "text-muted-foreground",
+} as const;
+
+const scoreFillClass = {
+  positive: "bg-positive",
+  caution: "bg-caution",
+  muted: "bg-muted-foreground",
+} as const;
+
+/** Text and meter-fill classes for a classifier score (0-100). */
+export function scoreClasses(score: number) {
+  const tone = scoreTone(score);
+  return { text: scoreTextClass[tone], fill: scoreFillClass[tone] };
 }
