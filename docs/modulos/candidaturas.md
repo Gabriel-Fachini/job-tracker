@@ -103,7 +103,7 @@ Não aparecem na UI: `recruiter_name`, `recruiter_contact`, `tracking_channel` (
 
 `saveApplicationResume` ([`src/lib/applications/resume-upload.ts`](../../src/lib/applications/resume-upload.ts)):
 
-- Arquivo não vazio, até 10 MB, extensão `.pdf` **ou** `type = application/pdf`.
+- Arquivo não vazio e até 10 MB. A checagem de tipo não barra nada: `getPdfExtension` sempre devolve `.pdf`, então qualquer arquivo passa e é salvo como `.pdf`.
 - Salvo em `<UPLOADS_PATH>/resumes/applications/application-<id>-resume-<timestamp>.pdf`.
 - Banco guarda caminho **relativo ao `cwd`** (`path.relative(process.cwd(), …)`) e o nome original.
 
@@ -111,10 +111,11 @@ Não aparecem na UI: `recruiter_name`, `recruiter_contact`, `tracking_channel` (
 
 - `react-markdown` + `remark-gfm`, **sem** plugins rehype: HTML cru não é renderizado.
 - Estilos próprios para títulos, listas, links (`break-all`, sem `target`), código, tabelas (wrapper com scroll horizontal) e citações. 15 px no telefone, 14 px a partir de `sm`.
-- `normalizeMarkdown` remove BOM, converte CRLF, tira indentação comum (fora de blocos de código) e faz trim.
+- `normalizeMarkdown` remove BOM, converte CRLF, tira a indentação comum (o mínimo ignora só linhas de cerca sem indentação, mas o recuo é removido de todas as linhas, inclusive dentro de blocos de código) e faz trim.
 
 ## Armadilhas
 
 - Cancelar/Fechar do modal de criação chamam `onOpenChange(false)` direto, sem o `resetModalState`; em `/applications` o modal não tem `key`, então o estado "criada" pode persistir ao reabrir (não verificado em runtime).
-- Fallback de `source_name` diverge: inválido vira `null` no cadastro manual e `company_site` na promoção; o default da UI é `other`.
+- Fallback de `source_name` diverge: inválido vira `null` no cadastro manual e `company_site` na promoção; o default da UI é `other`. Lead com `inhire` (sem opção no `<select>`) provavelmente é promovido como `linkedin`, a primeira opção (**hipótese**).
+- Depois que existe currículo gerado (o normal, já que ele é gerado ao criar/promover), "Enviar PDF" e "Sem currículo" somem para o status `unknown`; um PDF enviado não tem troca nem desfazer.
 - Não há exclusão de candidatura.

@@ -125,7 +125,8 @@ Rollback preferido: `git revert` na `main` e deixar o timer publicar. Rollback i
 
 ## Cuidados
 
-- O deploy só espera runs disparados por `/leads` (SSE). Runs iniciados em `/companies` não aparecem em `/api/monitoring/current`; um restart no meio mata o scan. E um run SSE com erro em alguma empresa passa a reportar `failed` enquanto ainda roda (ver [problemas-conhecidos.md](problemas-conhecidos.md)).
+- O deploy só espera runs disparados por `/leads` (SSE). Runs iniciados em `/companies` não aparecem em `/api/monitoring/current`; um restart no meio mata o scan. Um run SSE continua `running` mesmo com empresas falhando; um run sem eventos há 15 min vira `stale` e não segura o deploy (ver [problemas-conhecidos.md](problemas-conhecidos.md)).
+- **Rollback não desfaz migrations.** Elas rodam antes da troca de versão; se o health check falhar, a release anterior volta sobre o banco já migrado. Migrations precisam ser compatíveis com a versão anterior, e restaurar o snapshot `pre-deploy` é manual.
 - Migrations rodam antes da troca de versão. Migration que quebra = commit marcado como falho; o backup `pre-deploy` fica disponível.
 - Se `drizzle-kit migrate` sair com exit 1 sem mensagem, compare colunas reais com o SQL pendente (incidente de `__drizzle_migrations` em [banco-de-dados.md](banco-de-dados.md#__drizzle_migrations-dessincronizado-incidente-na-vps)).
 - `tmp/logs/` com dados de extração de perfil fica dentro da release e some quando ela é rotacionada.

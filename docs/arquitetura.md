@@ -51,7 +51,7 @@ flowchart TB
 
 | Necessidade | Mecanismo | Exemplos |
 |---|---|---|
-| Ler dados para a página | Server Component com query Drizzle direta, `export const dynamic = "force-dynamic"` | todas as páginas de `src/app/(app)/` |
+| Ler dados para a página | Server Component com query Drizzle direta, `export const dynamic = "force-dynamic"` na maioria (leads, profile, applications, companies; dashboard, `companies/[id]` e `companies/new` não declaram) | páginas de `src/app/(app)/` |
 | Mutar dados | Server Action (`"use server"`) + `revalidatePath` | `src/server/actions/*.ts` |
 | Refetch no cliente | Server Action como `queryFn` do TanStack Query | `getLeads()` |
 | Stream, binário, upload multipart | Route Handler | `/api/monitoring/*`, `/api/profile/upload`, `/api/applications/[id]/*`, `/api/companies/[id]/logo` |
@@ -60,14 +60,14 @@ flowchart TB
 Regras que o código segue:
 
 - Não existe camada de API REST para CRUD. Tudo que é JSON puro passa por Server Action.
-- Server Actions validam entrada (`Number.isInteger`, `new URL`, enums) e, em geral, devolvem resultados tipados (`{ success }`, `{ ok }`) em vez de lançar para a UI. Exceções: `createCompany` usa `redirect()`, e `approveLead`/`discardLead` não retornam nada.
+- Server Actions validam entrada (`Number.isInteger`, `new URL`, enums) e, em geral, devolvem resultados tipados (`{ success }`, `{ ok }`) em vez de lançar para a UI. Exceções: `createCompany` e `deleteCompany` (com `redirectToList`) usam `redirect()`, e `approveLead`/`discardLead` não retornam nada.
 - Depois de mutar, revalidam as rotas afetadas. Trio comum: `/companies`, `/applications`, `/leads` (`revalidateRadarViews`).
 - Módulos que só podem rodar no servidor importam `server-only` (`company-links.ts`, `profile/queries.ts`, `profile/upload.ts`, `applications/resume-upload.ts`).
-- Route Handlers que usam APIs do Node declaram `export const runtime = "nodejs"`. Parâmetros dinâmicos são `params: Promise<{ id: string }>` com `await` (Next 15+).
+- Route Handlers de upload/PDF/logo e o stream do radar declaram `export const runtime = "nodejs"` (o snapshot `monitoring/current` não precisa). Parâmetros dinâmicos são `params: Promise<{ id: string }>` com `await` (Next 15+).
 
 ## Estado no cliente
 
-- **URL como estado** para abas, filtros e modais (`tab`, `status`, `companyId`, `q`, `leadId`, `applicationId`, `range`), escrita via `useSearchParamsUpdater` (History API, sem round-trip ao servidor). Modais são deep-linkáveis.
+- **URL como estado** para abas, filtros e modais (`tab`, `status`, `companyId`, `q`, `leadId`, `applicationId`), escrita via `useSearchParamsUpdater` (History API, sem round-trip ao servidor). Exceção: o `range` do dashboard usa `router.push` (vai ao servidor). Modais são deep-linkáveis.
 - **TanStack Query** só na tela de leads (`queryKey: ["leads"]`, `initialData` do servidor, `staleTime: 30_000`, updates otimistas).
 - **Contexto React** para o progresso do radar (`MonitoringProgressProvider`), montado no layout `(app)` para sobreviver à navegação.
 - Demais telas: props do Server Component + `router.refresh()`.

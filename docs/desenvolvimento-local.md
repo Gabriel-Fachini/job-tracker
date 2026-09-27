@@ -74,7 +74,7 @@ Typecheck: `npm run typecheck` (`tsc --noEmit`). Testes e lint em [testes-e-qual
 
 - O usuário mantém o app rodando em `http://localhost:3000`. **Não suba outro `npm run dev`** para testar; use o que está no ar.
 - Se `:3000` não responder, peça para o usuário iniciar.
-- Se precisar de um servidor isolado (ex.: banco sintético), suba em outra porta e **encerre ao terminar**. O hook `SessionEnd` mata `next dev` órfão e o que estiver em `:3000`.
+- Se precisar de um servidor isolado (ex.: banco sintético), suba em outra porta e **encerre ao terminar**. O hook `SessionEnd` roda `pkill -f "next dev"` (qualquer projeto) e mata o que estiver em `:3000`, inclusive o servidor do usuário.
 - `.claude/launch.json` define `dev` (`npm run dev`, porta 3000, `autoPort`). O arquivo é versionado: entradas temporárias de preview precisam ser revertidas depois.
 
 ### Celular na mesma rede

@@ -41,7 +41,7 @@ O ambiente de uso atual é `cloud`: a classificação roda via HTTP remoto. O ho
 
 - `POST {base}/api/generate` com `model`, `prompt`, `system`, `format`, `think`, `stream: false`, `options` (geração) e `keep_alive` (default `0`, descarrega o modelo ao responder).
 - Timeout via `AbortController` (`options.timeoutMs` ou `OLLAMA_TIMEOUT_MS`).
-- Erros viram `OllamaRequestError` com mensagem em pt-BR: HTTP não-2xx (inclui o corpo), resposta sem texto, timeout, falha de rede.
+- Erros viram `OllamaRequestError`: HTTP não-2xx (mensagem em inglês, com status, modelo e corpo), resposta sem texto, timeout e falha de rede (mensagens em pt-BR).
 - Retorna só `data.response` (string).
 
 ### `unloadOllamaModelIfLocal()`

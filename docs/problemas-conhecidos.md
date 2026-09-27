@@ -27,6 +27,7 @@ Levantamento feito em 2026-09-27 lendo o código (e, quando indicado, testando).
 
 ## Dashboard
 
+- Match de preferências lê `profile` com `LIMIT 1` sem ordenação (não o perfil mais recente); inofensivo com um perfil só.
 - "Currículos gerados" lê `resumes` → sempre 0.
 - Qualidade do classificador enviesada: `discardLead` sobrescreve `classification_status`; descartes automáticos nunca chegam à UI.
 - Timeline não mostra dias zerados (sem preenchimento de datas; agrupamento em UTC).
@@ -45,6 +46,9 @@ Levantamento feito em 2026-09-27 lendo o código (e, quando indicado, testando).
 
 ## Candidaturas
 
+- **Checagem de tipo de PDF não barra nada** (também no upload do perfil): `getPdfExtension` sempre devolve `.pdf`, então qualquer arquivo de até 10 MB é aceito e salvo como `.pdf`.
+- Com currículo gerado, "Enviar PDF" e "Sem currículo" somem para o status `unknown`; um PDF enviado não tem troca nem desfazer.
+- `generateResume` compila com `execFileSync` (até 60 s): bloqueia o event loop do Node, inclusive o SSE do radar.
 - `applied_at` fica `null` na criação (mesmo com status `applied`).
 - **Hipótese**: estado "criada" do modal de criação pode persistir ao reabrir em `/applications` (Cancelar/Fechar não passam pelo reset; modal sem `key`).
 - Fallback de `source_name` diverge entre cadastro manual (`null`), promoção (`company_site`) e UI (`other`).
@@ -52,6 +56,8 @@ Levantamento feito em 2026-09-27 lendo o código (e, quando indicado, testando).
 
 ## Empresas
 
+- `GET /api/companies/[id]/logo` tem efeito colateral: busca o site, grava arquivo em `<UPLOADS_PATH>/logos` e atualiza a empresa.
+- Rejeição de ícone < 16 px só vale para PNG, GIF e ICO.
 - Erro `linked-applications` bloqueia por qualquer `jobs` ligado, não só candidaturas.
 - Criação via form action perde o que foi digitado quando o servidor rejeita.
 - Ramo de "job antigo sem `company_id`" em `company-links.ts` provavelmente morto (`company_id` é `NOT NULL`).
@@ -72,6 +78,8 @@ Levantamento feito em 2026-09-27 lendo o código (e, quando indicado, testando).
 - `pdfjs-dist` só existe como dependência transitiva de uma devDependency (`pdf-parse`).
 - Chaves de produção com placeholder em 2026-09-26 (pendência do usuário).
 - Backups da VPS no mesmo disco; offsite pendente.
+- Rollback automático do deploy não desfaz migrations: a release anterior volta sobre o banco já migrado.
+- `npm run resume:sample` ignora `UPLOADS_PATH` (grava sempre em `uploads/resumes/generated/__sample__`).
 - Hook `SessionEnd` roda `pkill -f "next dev"` (qualquer projeto na máquina) e mata o processo em `:3000`, inclusive o servidor do usuário.
 - Hook `post-edit-typecheck.sh` usa `timeout`, que não existe no macOS sem coreutils: o `tsc` nunca roda e o hook fica mudo.
 - Scripts `test:profile-extraction` e `analyze:profile-extractions` apontam para arquivos inexistentes em `tmp/` (mantidos por decisão do usuário; também citados no `README.en.md`).

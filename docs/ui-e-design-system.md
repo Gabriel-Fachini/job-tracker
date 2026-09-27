@@ -38,9 +38,9 @@ CSS: tokens claros em `:root`, escuros em `.dark` (`@custom-variant dark (&:is(.
 
 ## Tokens (`globals.css`)
 
-- `@theme inline` mapeia tokens para cores, fontes, sombras, raios (4/6/8/12/16) e easings do Tailwind 4.
+- `@theme inline` mapeia tokens para cores, fontes, sombras, raios (4/6/8/12/16, mais `--radius-3xl` 20 e `--radius-4xl` 24) e easings do Tailwind 4.
 - Por tema: neutros (`canvas`, `background`, `surface`, `popover`, `field`, `muted`, `accent`, `border`, `border-strong`, `input`), texto (`foreground`, `muted-foreground`, `subtle-foreground`), marca (`primary`, `primary-hover`, `ring`, `link`, `selection`), semânticos (`info`, `positive`, `caution`, `negative`, `destructive`), `tooltip`, `logo-tile` (fundo dos logos de empresa), 6 pares de cor de tag, `chart-1..5`, `sidebar-*`, `overlay`, elevação.
-- Só no bloco claro (valem para os dois): raio base, camadas de z-index (30 sticky, 40 nav, 45 action bar, 50 overlays), `--mobile-nav-height`.
+- Só no bloco claro (valem para os dois): raio base, camadas de z-index (30 sticky, 40 nav, 45 action bar; overlays usam a classe `z-50` do Tailwind), `--mobile-nav-height`.
 - Utilitários: padding de safe-area, `font-data` (mono, números tabulares, zero cortado), `scrollbar-none`, controles a 16 px em telas touch (evita zoom do iOS), override de reduced-motion.
 
 Fontes: Inter com eixo `opsz` (`--font-inter`, texto e títulos) e Geist Mono (`--font-geist-mono`, `font-data`).
@@ -84,7 +84,7 @@ O plano de adaptação mobile (histórico) está em [`RESPONSIVE_UI_PLAN.md`](..
 
 - Monograma: `public/brand/jt-monogram.png` (fonte) e `jt-mark.png` (máscara usada na sidebar).
 - Ícones do app: `src/app/icon.png`, `apple-icon.png`, `favicon.ico`.
-- `public/logo.png` e `logo-text.png` são usados no README.
+- `public/logo.png` é usado nos READMEs; `public/logo-text.png` não é referenciado.
 
 ## Skills úteis
 

@@ -40,7 +40,7 @@ sequenceDiagram
     D->>D: router.refresh() e fecha
 ```
 
-1. **Upload** (`POST /api/profile/upload`, `runtime = "nodejs"`): exige campo `file`; aceita arquivo não vazio, ≤ 10 MB, extensão `.pdf` **ou** MIME `application/pdf` (sem checar magic bytes). Salva **antes** de extrair em `<UPLOADS_PATH>/resumes/master/master-resume-<timestamp>.pdf`. Texto via `pdfjs-dist/legacy/build/pdf.mjs` (eval desligado, sem worker fetch); PDF sem texto (escaneado) → erro 400.
+1. **Upload** (`POST /api/profile/upload`, `runtime = "nodejs"`): exige campo `file`; aceita arquivo não vazio, ≤ 10 MB, (a checagem de extensão/MIME não barra nada: `getPdfExtension` sempre devolve `.pdf`; o arquivo é salvo e só o pdfjs rejeita o que não é PDF). Salva **antes** de extrair em `<UPLOADS_PATH>/resumes/master/master-resume-<timestamp>.pdf`. Texto via `pdfjs-dist/legacy/build/pdf.mjs` (eval desligado, sem worker fetch); PDF sem texto (escaneado) → erro 400.
 2. **Extração** (`extractProfileDraft`): **OpenAI** (`extractProfileWithOpenAi`), modelo `OPENAI_COMPARISON_MODEL` (default `gpt-5.4`), `max_output_tokens: 16000`, `json_schema` estrito. `incomplete_details` vira erro. O JSON passa por `parseExtractedProfileResponse` (do módulo Ollama), que tira cercas, valida e normaliza aliases pt/en de enums e datas. Exige `OPENAI_API_KEY`.
 3. **Gravação** (`saveExtractedProfile`) com `preserveExistingPreferences: true`: mantém `company_type_preference` e `values_preference` (a extração não produz esses campos), mas sobrescreve contatos, `notes` e `work_model_preference`.
 
@@ -64,7 +64,7 @@ Não usados hoje: `extractProfile` (rascunho + gravação numa chamada), `extrac
 
 - **Um perfil só**: leitura pega o mais recente por `updated_at`; escrita vai no `profileId` pedido ou no mais recente.
 - Cada gravação **apaga e reinsere todas as linhas filhas** (experiências, bullets, skills, projetos, educação) numa transação.
-- Normalização: nome obrigatório; linhas em branco descartadas; experiência precisa de empresa, cargo e início; anos de experiência inteiro ≥ 0; projeto precisa de nome; educação precisa de instituição.
+- Normalização (`normalizeProfileReviewData`, só no `updateProfile`; o upload usa `validateExtractedProfile`): nome obrigatório; linhas em branco descartadas; experiência precisa de empresa, cargo e início; anos de experiência inteiro ≥ 0; projeto precisa de nome; educação precisa de instituição.
 - Enums não são validados na escrita; valor inválido volta como `null` na leitura.
 - `stack` de projeto e `tags` de bullet viram JSON em `text`.
 - PDFs antigos em `uploads/resumes/master/` nunca são apagados.

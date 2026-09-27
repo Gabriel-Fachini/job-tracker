@@ -11,9 +11,9 @@ O projeto é desenvolvido em boa parte com agentes. A configuração local vive 
 | Hook | Evento | Função |
 |---|---|---|
 | `session-start-health.sh` | `SessionStart` | reporta nº de mudanças não commitadas, se há servidor em `:3000`, idade do último backup em `backups/daily/` (aviso > 24 h) e se faltam `OLLAMA_*` no `.env.local` |
-| `session-end-cleanup.sh` | `SessionEnd` | `pkill -f "next dev"` e mata o que estiver em `:3000` |
+| `session-end-cleanup.sh` | `SessionEnd` | `pkill -f "next dev"` (qualquer projeto na máquina) e mata o que estiver em `:3000` |
 | `pre-schema-edit.sh` | `PreToolUse` (Edit/Write/MultiEdit) | ao tocar `src/lib/db/schema.ts`: lembra de `npm run db:backup` antes e de gerar/aplicar migration depois |
-| `post-edit-typecheck.sh` | `PostToolUse` (Edit/Write/MultiEdit) | `tsc --noEmit --incremental` (timeout 30 s); injeta **só** erros do arquivo editado |
+| `post-edit-typecheck.sh` | `PostToolUse` (Edit/Write/MultiEdit) | `tsc --noEmit --incremental` (timeout 30 s); injeta **só** erros do arquivo editado. Usa o comando `timeout`, que o macOS não tem sem coreutils: no Mac o `tsc` nunca roda e o hook fica mudo |
 | `post-api-route-check.sh` | `PostToolUse` (Edit/Write/MultiEdit) | em `src/app/api/**/route.ts`: export de método HTTP, `runtime`/`dynamic` para rotas com stream, `params` síncrono |
 
 Observações:

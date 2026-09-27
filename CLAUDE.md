@@ -16,7 +16,7 @@ App pessoal (single-user, **sem autenticação**) para busca de emprego: perfil 
 
 - Next.js 16 (App Router, Server Actions, Turbopack) + React 19 + TypeScript
 - SQLite (`better-sqlite3`, síncrono) + Drizzle ORM (`src/lib/db/schema.ts`)
-- TanStack Query só na página de leads; demais telas: Server Component + `router.refresh()`
+- TanStack Query na página de leads (o diálogo de excluir empresa só invalida `["leads"]`); demais telas: Server Component + `router.refresh()`
 - SSE (`EventSource`) para progresso real-time do radar
 - Ollama (modo `cloud`): classificação de leads, seleção do currículo, botão "Formatar" da candidatura
 - OpenAI: extração do perfil a partir do PDF (obrigatória nesse fluxo) + formatação opcional de descrições no radar
@@ -27,7 +27,7 @@ App pessoal (single-user, **sem autenticação**) para busca de emprego: perfil 
 - Spec normativa: `DESIGN.md` (tokens, receitas de componentes, do's/don'ts). Contexto de produto: `PRODUCT.md`. Mapa do código: `docs/ui-e-design-system.md`.
 - Linguagem adaptada da Notion: neutros quentes, roxo só no botão principal (um por tela) e no foco, status como tags pastel (`Tag`). Dois temas: escuro (padrão, conteúdo em `#000` dentro de moldura grafite quente) e claro (branco + texto charcoal `#37352f`). Só tokens de `src/app/globals.css`; nunca cores da paleta Tailwind (`emerald-400`...), hex, oklch literal ou `bg-black`/`text-white`/`shadow-black` em componentes.
 - Tema: `src/lib/theme.ts` (script anti-flash no `<head>`) + `src/hooks/use-theme.ts`. Seletor na sidebar e em Perfil → Aparência.
-- Fonte Inter (UI) + Geist Mono (`font-data`) para números/datas/scores. Primitives próprios em `src/components/ui/`: `tag`, `status`, `panel`, `notice`, `meta-line`, `tab-bar`, `segmented-control`, `native-select`.
+- Fonte Inter (UI) + Geist Mono (`font-data`) para números/datas/scores. Primitives próprios em `src/components/ui/`: `tag`, `status`, `panel`, `notice`, `meta-line`, `tab-bar`, `segmented-control`, `native-select`, `chip`.
 - Logo: `public/brand/jt-monogram.png` (fonte) e `jt-mark.png` (máscara da sidebar); ícones em `src/app/icon.png`, `apple-icon.png`, `favicon.ico`.
 
 ## AI Runtime
@@ -69,7 +69,7 @@ Por empresa (`runMonitoringForCompany`):
 
 **SSE events:** `start`, `company-start`, `link-processing`, `link-skipped`, `link-done` (com `lead` quando não descartado), `company-done`, `all-done`, `error` (falha de uma empresa; o run continua).
 
-Cuidados do run-state (`src/lib/job-monitoring/run-state.ts`, em memória, um processo): um `error` marca o run `failed` enquanto ele continua (o deploy deixa de esperar, o botão reabilita); sem trava contra dois runs; "Cancelar" só fecha o `EventSource` no navegador.
+Ciclo de vida (`src/lib/job-monitoring/bulk-run.ts` + `run-state.ts`, em memória, um processo): um run SSE por vez (o segundo recebe `error` com `fatal: true`, `reason: "already-running"`); erro de empresa (`company`, `fatal: false`) não encerra o run; fechar o `EventSource` (Cancelar, fechar/recarregar a aba) cancela o run no servidor; sem evento há 15 min o run vira `stale`; o estado é sempre limpo em `finally`. Aba sem stream próprio acompanha `/api/monitoring/current` a cada 3 s. Runs de `/companies` não passam pelo tracker.
 
 **Arquivos-chave:**
 - `src/app/api/monitoring/stream/route.ts` — Route Handler SSE (GET)
@@ -180,9 +180,9 @@ Configuração local do agente vive em `.claude/` + `.mcp.json` (Codex: `.codex/
 | Hook | Evento | Função |
 |---|---|---|
 | `session-start-health.sh` | `SessionStart` | Checa git status, dev server :3000, idade do backup (warn >24h), env vars Ollama |
-| `session-end-cleanup.sh` | `SessionEnd` | Mata `next dev` órfão e processos na porta 3000 |
+| `session-end-cleanup.sh` | `SessionEnd` | `pkill -f "next dev"` (qualquer projeto na máquina) e mata o que estiver na porta 3000, inclusive o servidor do usuário |
 | `pre-schema-edit.sh` | `PreToolUse` (Edit/Write) | Lembra `npm run db:backup` antes + `db:generate`/`db:migrate` depois ao tocar `src/lib/db/schema.ts` |
-| `post-edit-typecheck.sh` | `PostToolUse` (Edit/Write) | Roda `tsc --noEmit --incremental`, reporta apenas erros do arquivo editado (instrução: não chase cascade) |
+| `post-edit-typecheck.sh` | `PostToolUse` (Edit/Write) | Roda `tsc --noEmit --incremental`, reporta apenas erros do arquivo editado (instrução: não chase cascade). **No macOS sem coreutils não roda** (usa `timeout`): rode `npx tsc --noEmit` à mão |
 | `post-api-route-check.sh` | `PostToolUse` (Edit/Write) | Sanity check em `src/app/api/**/route.ts`: HTTP export presente, SSE precisa `runtime=nodejs` + `dynamic=force-dynamic`, params async |
 
 ### MCP Servers (`.mcp.json`, project scope)
@@ -208,7 +208,7 @@ User scope (globais):
 
 ### Permissions allowlist
 
-`.claude/settings.json` libera (sem prompt) read-only db ops, lint/typecheck, drizzle-kit, git read, lsof :3000.
+`.claude/settings.json` libera (sem prompt) leitura do banco, lint/typecheck, drizzle-kit, git read, lsof :3000 — e também `db:migrate`, `db:generate` e `db:restore`, que alteram o banco.
 
 ### Dev flow
 

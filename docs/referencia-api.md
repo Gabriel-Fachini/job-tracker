@@ -6,15 +6,15 @@ Não há API pública nem autenticação. Tudo abaixo roda no mesmo processo Nex
 
 | Método e rota | Arquivo | Runtime | Entrada | Resposta |
 |---|---|---|---|---|
-| `GET /api/monitoring/stream` | [`monitoring/stream/route.ts`](../src/app/api/monitoring/stream/route.ts) | default (sem `runtime`/`dynamic` declarados) | — | `text/event-stream`; cada GET **inicia um run completo** do radar. Eventos em [radar-manual-de-vagas-implementacao.md](radar-manual-de-vagas-implementacao.md#streaming-sse) |
-| `GET /api/monitoring/current` | [`monitoring/current/route.ts`](../src/app/api/monitoring/current/route.ts) | default | — | `{ status: "idle", run: null }` ou `{ status, run: {...} }` |
+| `GET /api/monitoring/stream` | [`monitoring/stream/route.ts`](../src/app/api/monitoring/stream/route.ts) | `nodejs`, `force-dynamic` | — | `text/event-stream`; cada GET **inicia um run completo** do radar. Eventos em [radar-manual-de-vagas-implementacao.md](radar-manual-de-vagas-implementacao.md#streaming-sse) |
+| `GET /api/monitoring/current` | [`monitoring/current/route.ts`](../src/app/api/monitoring/current/route.ts) | `force-dynamic`, `no-store` | — | `MonitoringRunSnapshot`: `{ status: "idle", run: null }` ou `{ status: "running" \| "stale", run: {...} }` (ver doc do radar) |
 | `POST /api/profile/upload` | [`profile/upload/route.ts`](../src/app/api/profile/upload/route.ts) | `nodejs` | `multipart/form-data`, campo `file` (PDF ≤ 10 MB) | `{ ok: true, rawText, masterResumePath, originalFilename, size }` · 400 `{ ok: false, error }` (validação/PDF sem texto) · 500 |
 | `POST /api/applications/[id]/resume` | [`applications/[id]/resume/route.ts`](../src/app/api/applications/[id]/resume/route.ts) | `nodejs` | FormData: `mode=empty` · `mode=unknown` · ou `file` (PDF ≤ 10 MB) | `{ ok: true, resumeStatus, resumePath?, originalFilename?, size? }` · 400/404/500 |
 | `GET /api/applications/[id]/resume` | idem | `nodejs` | — | PDF inline com o nome original · 404 se `used_resume_status ≠ uploaded` |
 | `GET /api/applications/[id]/generated-resume` | [`applications/[id]/generated-resume/route.ts`](../src/app/api/applications/[id]/generated-resume/route.ts) | `nodejs` | — | PDF inline · 404 sem currículo gerado · 500 se o arquivo sumiu |
 | `GET /api/companies/[id]/logo` | `companies/[id]/logo/route.ts` | `nodejs`, `force-dynamic` | `?v=<hash>` opcional | bytes da imagem com CSP `sandbox`; cache `immutable` quando `v` confere · 404 `no-store` |
 
-Convenções: `params` é `Promise<{ id: string }>` (await obrigatório); id não inteiro → 400; erros de negócio em pt-BR no campo `error`.
+Convenções: `params` é `Promise<{ id: string }>` (await obrigatório); id não inteiro → 400 (na rota de logo → 404); erros de negócio em pt-BR no campo `error`.
 
 ## Server Actions
 

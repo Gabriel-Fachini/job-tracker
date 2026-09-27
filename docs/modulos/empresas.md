@@ -65,7 +65,7 @@ Status e radar: `discarded` e `blacklist` ficam fora da varredura em lote (`rada
 3. Remove o arquivo de logo e revalida `/companies`, `/companies/<id>`, `/applications`, `/leads`.
 4. Com `redirectToList` (usado no detalhe) → `redirect("/companies")`.
 
-UI: `canDelete = jobsCount === 0`. O diálogo mostra quantos leads vão junto. Bloqueado, mostra quantas candidaturas existem e oferece "Mudar status": se a empresa já está Descartada/Blacklist, avisa que ela continua na lista com esse status; senão, sugere mudar para Descartada ou Blacklist. Sucesso invalida `["leads"]` e mostra toast. O diálogo não fecha durante a exclusão e fica aninhado no sheet de edição para não fechá-lo.
+UI: `canDelete = jobsCount === 0`. O diálogo mostra quantos leads vão junto. Bloqueado (fluxo das ações da linha), mostra quantas candidaturas existem e oferece "Mudar status"; no sheet de edição (único caminho no detalhe) o botão "Excluir empresa" fica desabilitado. No diálogo: se a empresa já está Descartada/Blacklist, avisa que ela continua na lista com esse status; senão, sugere mudar para Descartada ou Blacklist. Sucesso invalida `["leads"]` e mostra toast. O diálogo não fecha durante a exclusão e fica aninhado no sheet de edição para não fechá-lo.
 
 ### Radar
 
@@ -77,8 +77,8 @@ Como esses caminhos não usam SSE, o indicador "Radar em execução" da sidebar 
 ## Lista
 
 - Uma query ordenada por `updated_at DESC`, contagens por subquery correlacionada. Sem filtros, busca, ordenação ou paginação.
-- Cabeçalho: "N empresas · M candidaturas", tags de resumo por status (somente leitura), "Rodar varredura" (outline) e "Nova empresa".
-- Linha: logo, nome (link que cobre a linha toda), site legível, meta (setor · porte · N candidaturas), tag de status, data (a partir de `sm`), ações em `z-10`. `has-[a[data-row-link]:active]` evita que tocar numa ação acenda a linha.
+- Cabeçalho: "N empresas · M candidaturas · K no radar", "Rodar varredura" (outline) e "Nova empresa". As tags de resumo por status (somente leitura) ficam na barra do topo do painel da lista.
+- Linha: logo, nome (link que cobre a linha toda), site legível, meta (setor · porte · N candidaturas), tag de status, data (`sm:block md:hidden lg:block`: some de novo entre 768 e 1023 px), ações em `z-10`. `has-[a[data-row-link]:active]` evita que tocar numa ação acenda a linha.
 - Ações *(branch)*: a partir de `sm`, botões de ícone com tooltip; no telefone, "⋯" abre bottom sheet com Ver detalhes, Editar, Abrir site, Excluir.
 
 ## Detalhe
@@ -95,7 +95,7 @@ Fonte: `logo_url` (override manual) ou o próprio `website`. Nenhum serviço de 
 
 - **Quando buscar**: `getCompanyLogoView` (sem I/O) decide no render. Com arquivo em cache → `/api/companies/<id>/logo?v=<hash>`. Busca pendente (nunca buscou, ou última tentativa há ≥ 3 dias) → URL sem `v` e estado `pending`. Senão, iniciais.
 - **Busca** (`readCompanyLogo`, disparada pelo primeiro GET da rota): baixa a home, respeita `<base href>`, pontua os `<link>` (apple-touch-icon > ícone raster grande > SVG > ícones pequenos) e sempre adiciona `/apple-touch-icon.png` e `/favicon.ico`. Tenta até 5 candidatos. Requisições simultâneas compartilham a mesma promessa.
-- **Validação do arquivo**: formato por magic bytes (png, jpg, gif, webp, avif, ico, svg), não pelo `Content-Type`; rejeita ícones menores que 16 px.
+- **Validação do arquivo**: formato por magic bytes (png, jpg, gif, webp, avif, ico, svg), não pelo `Content-Type`; rejeita ícones menores que 16 px (dimensão só é lida em PNG, GIF e ICO; JPG, WebP, AVIF e SVG passam em qualquer tamanho). O `GET` da rota tem efeito colateral: busca o site, grava o arquivo e atualiza `logo_path`/`logo_checked_at`.
 - **Limites atuais** (constantes em `company-logos.ts`): página ≤ 2 MB, imagem ≤ 1 MB, prazo total 10 s, 5 s por request, até 4 redirects, nova tentativa em 3 dias sem ícone e em 30 min após falha transitória.
 - **Proteção SSRF**: redirects seguidos manualmente e revalidados a cada salto; só `http(s)`; todas as respostas DNS checadas contra faixas bloqueadas (privadas, loopback, CGNAT/tailnet `100.64/10`, link-local/metadata, TEST-NET, multicast, reservadas e equivalentes IPv6). A checagem se repete no `lookup` do `Agent` do `undici` usado pelo `fetch`, sobre os endereços em que o socket conecta (fecha DNS rebinding).
 - **Armazenamento**: `<UPLOADS_PATH>/logos/<id>-<sha256[0:12]>[-cover].<ext>`; `companies.logo_path` e `logo_checked_at`. A gravação só vale se `website`/`logo_url` não mudaram durante a busca; o arquivo antigo é removido.

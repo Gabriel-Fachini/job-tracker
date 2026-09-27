@@ -28,7 +28,7 @@ Gera um PDF personalizado para uma candidatura: a IA escolhe e reescreve bullets
 4. `parseResumeSelectionResponse`: tira cercas, desembrulha `result`/`output`/`data`/`response` se o modelo aninhar, limita projetos a 2.
 5. `buildResumeData`: casa bullets por nome de empresa (exato em minúsculas, depois "um contém o outro"); datas `YYYY-MM` → `MM/YYYY`, atual → "Atual"; projetos filtrados pela seleção (match flexível sem acento); educação com período formatado.
 6. `renderResumeTex`: escapa tudo (`\ & % $ # _ { } ~ ^`), aceita URL só se `new URL()` passar e não tiver `\ { } %`, e renderiza com Mustache (`Mustache.escape` desligado, delimitadores `<< >>`). Seções vazias somem (`<<#lista.length>>`).
-7. Grava `.tex` e compila com `execFileSync("tectonic", [tex, "--outdir", dir])`, timeout 60 s.
+7. Grava `.tex` e compila com `execFileSync("tectonic", [tex, "--outdir", dir])`, timeout 60 s. É síncrono: durante a compilação o event loop do Node fica bloqueado (inclusive o SSE do radar).
 8. Salva o caminho **absoluto** do PDF em `applications.generated_resume_path`.
 
 Saída: `<UPLOADS_PATH>/resumes/generated/<Nome>_<Empresa>_<AAAA-MM>_<HH-MM>.pdf` (+ `.tex`). A empresa passa por `sanitizeFilename` (sem acento, só `[A-Za-z0-9_-]`).
@@ -57,7 +57,7 @@ npm run resume:sample   # renderiza o perfil fictício em uploads/resumes/genera
 npm run test:escape     # só escape.test.ts
 ```
 
-`SAMPLE_PROFILE_*` (ver `.env.example`) sobrescreve a identidade do perfil fictício. Testes de `render`, `profile-adapter` e `resume-generation` rodam com o comando geral em [testes-e-qualidade.md](../testes-e-qualidade.md).
+`SAMPLE_PROFILE_*` (ver `.env.example`) sobrescreve a identidade do perfil fictício. O script ignora `UPLOADS_PATH` e sempre grava em `uploads/resumes/generated/__sample__`. Testes de `render`, `profile-adapter` e `resume-generation` rodam com o comando geral em [testes-e-qualidade.md](../testes-e-qualidade.md).
 
 ## Armadilhas
 

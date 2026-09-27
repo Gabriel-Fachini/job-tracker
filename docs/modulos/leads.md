@@ -92,7 +92,7 @@ No servidor:
 5. Revalida `/leads`, `/companies`, `/applications`.
 6. Com sucesso, o modal dispara `generateResume` automaticamente (ver [curriculo.md](curriculo.md)).
 
-`source_name` inválido na promoção vira `company_site` (no cadastro manual vira `null`).
+`source_name` inválido na promoção vira `company_site` (no cadastro manual vira `null`). Um lead `inhire` não tem opção no `<select>` de origem e provavelmente sai como `linkedin`, a primeira opção (**hipótese**).
 
 ### Modal de detalhe
 
@@ -106,7 +106,7 @@ Sheet em tela cheia (`sheetSize="full"`), mantém o último lead renderizado dur
 
 ## Radar a partir de `/leads`
 
-Botão `MonitoringRunButton` com `useStream` (labels "Rodar radar", "Radar" no mobile, "Rodando…"), `showCancel={false}` porque o painel de progresso já oferece Cancelar. Desabilitado enquanto `progress.isRunning`. Detalhes do SSE no doc do radar.
+Botão `MonitoringRunButton` com `useStream` (labels "Rodar radar", "Radar" no mobile, "Rodando…"), `showCancel={false}` porque o painel de progresso já oferece Cancelar. Desabilitado enquanto `progress.isRunning` (erro de uma empresa não reabilita; só `all-done` ou o servidor dizer que não há run). Um segundo run é recusado e a aba passa a acompanhar o run existente pelo snapshot. Detalhes do SSE no doc do radar.
 
 ## Mobile
 
