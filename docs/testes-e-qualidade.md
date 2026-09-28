@@ -2,7 +2,7 @@
 
 ## Testes unitários
 
-Runner nativo do Node (`node:test`) com `tsx` para TypeScript e aliases `@/`. Sem Jest/Vitest. Arquivos `*.test.ts` ao lado do código.
+Runner nativo do Node (`node:test`) com `tsx` para TypeScript e aliases `@/`. Sem Jest/Vitest. Arquivos `*.test.ts` ao lado do código; `npm test` roda o glob `src/**/*.test.ts` (subpastas incluídas).
 
 | Arquivo | Cobre |
 |---|---|
@@ -11,6 +11,8 @@ Runner nativo do Node (`node:test`) com `tsx` para TypeScript e aliases `@/`. Se
 | `src/lib/job-monitoring/classification.test.ts` | sem perfil → `review`, payload inválido, JSON cercado |
 | `src/lib/job-monitoring/signals.test.ts` | normalização pt-BR, sinais brasileiros |
 | `src/lib/job-monitoring/index.test.ts` | orquestração com dependências injetadas; contadores do `MonitoringSummary` |
+| `src/lib/job-monitoring/index-prefetched.test.ts` | `salaryText`/`workModel` do provider chegam ao lead gravado |
+| `src/lib/job-monitoring/providers/providers.test.ts` | detecção Ashby/Lever, mapeamento de vagas (salário, local, modelo, `applyUrl`), erros HTTP, despacho com `fetchImpl` injetado |
 | `src/lib/job-monitoring/bulk-run.test.ts` | varredura em lote |
 | `src/lib/job-monitoring/progress-state.test.ts` | estado de progresso do radar |
 | `src/lib/job-monitoring/run-state.test.ts` | run-state em memória |
@@ -46,7 +48,7 @@ Semântica do `MonitoringSummary` fixada em `index.test.ts`:
 - `discarded`: gravados com `classification_status = discarded` (o upsert acontece antes da checagem, é a base do skip).
 - `failed`: falha de extração ou classificação; nada é gravado.
 
-Nenhum teste cobre UI, Server Actions, rotas, providers ATS (Greenhouse/Gupy/InHire) ou logos.
+Nenhum teste cobre UI, Server Actions, rotas, providers Greenhouse/Gupy/InHire ou logos. Ashby e Lever têm testes com fixtures.
 
 ## Tipos e lint
 

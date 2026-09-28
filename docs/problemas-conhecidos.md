@@ -12,7 +12,7 @@ Levantamento feito em 2026-09-27 lendo o código (e, quando indicado, testando).
 - **Varredura individual ignora status**: desde `cb455cc` a varredura em lote pula `discarded`/`blacklist`, mas `runCompanyMonitoring` (detalhe da empresa) varre qualquer status. Intencional segundo o código; vale lembrar ao ler leads de empresas descartadas.
 - **`ats_board_token` sem uso**: sem campo na UI, só repassado; nenhum provider lê.
 - **Leads nunca são reclassificados**: URL já conhecida é pulada, mesmo após mudar o perfil ou o prompt.
-- **`sourceName` incompleto**: Greenhouse vira `company_site`; `inhire` não existe em `sourceNameOptions`; no modal de promoção o `<select>` provavelmente cai na primeira opção (`linkedin`) — **hipótese**, não testado.
+- **`sourceName` incompleto**: `inhire` não existe em `sourceNameOptions` (Ashby, Lever e Greenhouse existem desde `feat/radar-internacional`); no modal de promoção o `<select>` provavelmente cai na primeira opção (`linkedin`) — **hipótese**, não testado.
 - **`GET` que dispara scan com `Access-Control-Allow-Origin: *`** e sem auth. Mitigado pela rede (só tailnet), mas qualquer página aberta num dispositivo do tailnet poderia iniciar um run.
 - **Listagem Gupy/InHire fora do ar parece board vazio**: os adapters devolvem `[]` sem lançar, sem fallback HTML; o log diz `provider-discovery-success` com 0 links.
 

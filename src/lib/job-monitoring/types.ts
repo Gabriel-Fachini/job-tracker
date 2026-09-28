@@ -25,6 +25,14 @@ export type DiscoveredLink = {
     offices?: string[];
     updatedAt?: string;
     externalId: string;
+    /** Compensation as shown by the ATS (e.g. "$120K - $150K", "USD 8,000-10,000 / month"). */
+    salaryText?: string;
+    /** `remote`, `hybrid` or `onsite` when the ATS says so explicitly. */
+    workModel?: "remote" | "hybrid" | "onsite";
+    /** Direct application URL when it differs from the posting URL. */
+    applyUrl?: string;
+    /** Structured geo restrictions when the source provides them (countries or regions). */
+    locationRestrictions?: string[];
   };
 };
 

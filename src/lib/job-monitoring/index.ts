@@ -130,10 +130,10 @@ export async function runMonitoringForCompany(
               description: descriptionMarkdown || null,
               sourceUrl: link.url,
               sourceName: detectSourceName(link.url),
-              workModel: null,
+              workModel: prefetched.workModel ?? null,
               seniority: null,
               locationText: prefetched.locationText || null,
-              salaryText: null,
+              salaryText: prefetched.salaryText ?? null,
             };
 
             logMonitoringStep(company.name, "extract-prefetched", {

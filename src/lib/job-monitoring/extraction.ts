@@ -267,6 +267,18 @@ export function detectSourceName(url: string) {
     return "inhire";
   }
 
+  if (hostname === "jobs.ashbyhq.com") {
+    return "ashby";
+  }
+
+  if (hostname === "jobs.lever.co" || hostname === "jobs.eu.lever.co") {
+    return "lever";
+  }
+
+  if (hostname.includes("greenhouse.io")) {
+    return "greenhouse";
+  }
+
   return "company_site";
 }
 

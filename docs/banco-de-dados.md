@@ -75,7 +75,7 @@ Opções e labels: [`src/lib/profile/editor.ts`](../src/lib/profile/editor.ts).
 | `website`, `sector`, `size`, `glassdoor_url`, `notes` | text | `size`: `startup`/`small`/`medium`/`large`/`enterprise` |
 | `jobs_board_url` | text | Entrada do radar. Sem URL válida a empresa não é varrida. |
 | `job_board_navigation_mode` | text, `fetch` | `fetch` (HTML estático) ou `browser` (Playwright). |
-| `ats_provider` | text, `auto` | `auto`, `greenhouse`, `gupy`, `inhire`, `generic`. |
+| `ats_provider` | text, `auto` | `auto`, `greenhouse`, `gupy`, `inhire`, `ashby`, `lever`, `generic`. |
 | `ats_board_token` | text | Salvo e repassado ao radar, mas **nenhum provider lê**: o token do Greenhouse sai da própria URL. |
 | `status` | text, `monitoring` | `monitoring`, `in_process`, `discarded`, `blacklist`. Derivado das candidaturas (ver abaixo). |
 | `logo_url`, `logo_path`, `logo_checked_at` | text/text/timestamp | Logos (migration `0015`). Ver [modulos/empresas.md](modulos/empresas.md). |

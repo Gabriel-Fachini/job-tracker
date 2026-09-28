@@ -14,7 +14,7 @@ Hoje o radar é **disparado manualmente**. Scans agendados (09h, 14h e 19h) est�
 | [`src/lib/job-monitoring/index.ts`](../src/lib/job-monitoring/index.ts) | `runMonitoringForCompany`: orquestra uma empresa |
 | [`src/lib/job-monitoring/bulk-run.ts`](../src/lib/job-monitoring/bulk-run.ts) | `runBulkMonitoring`: roda as empresas em sequência, isola falha por empresa, trata cancelamento e sempre encerra o run |
 | [`src/lib/job-monitoring/discovery.ts`](../src/lib/job-monitoring/discovery.ts) | descoberta de links (provider ATS, fetch ou Playwright) |
-| [`src/lib/job-monitoring/providers/`](../src/lib/job-monitoring/providers/) | adapters Greenhouse, Gupy e InHire |
+| [`src/lib/job-monitoring/providers/`](../src/lib/job-monitoring/providers/) | adapters Greenhouse, Gupy, InHire, Ashby e Lever |
 | [`src/lib/job-monitoring/extraction.ts`](../src/lib/job-monitoring/extraction.ts) | leitura de uma página de vaga (JSON-LD, meta, HTML) → markdown |
 | [`src/lib/job-monitoring/signals.ts`](../src/lib/job-monitoring/signals.ts) | sinais determinísticos (stack, senioridade, modelo, local) |
 | [`src/lib/job-monitoring/classification.ts`](../src/lib/job-monitoring/classification.ts) | prompt, schema JSON e parse da classificação via Ollama |
@@ -78,7 +78,7 @@ Detalhes de cada etapa:
 
 ### 1. Descoberta (`discoverJobLinks`)
 
-1. `resolveAtsProvider(company, company.atsProvider)`: com `auto`, detecta por substring na URL inteira (`url.includes`: `boards.greenhouse.io`/`job-boards.greenhouse.io` → `greenhouse`, `*.gupy.io` → `gupy`, `*.inhire.app` → `inhire`, resto → `generic`). Valor explícito é respeitado.
+1. `resolveAtsProvider(company, company.atsProvider)`: com `auto`, detecta por substring na URL inteira (`url.includes`: `boards.greenhouse.io`/`job-boards.greenhouse.io` → `greenhouse`, `*.gupy.io` → `gupy`, `*.inhire.app` → `inhire`, `jobs.ashbyhq.com` → `ashby`, `jobs.lever.co`/`jobs.eu.lever.co` → `lever`, resto → `generic`). Valor explícito é respeitado.
 2. Provider ≠ `generic`: chama o adapter. Se ele lançar erro, loga `provider-discovery-failed` e cai no scraping HTML. Se devolver `null` (ex.: Greenhouse sem token extraível da URL), também cai.
 3. Scraping HTML conforme `job_board_navigation_mode`:
    - `fetch`: baixa o board, extrai `a[href]` com heurística e segue paginação (`?page=`, `?pagina=`, `/page/N`, `rel=next`, texto "next/próxima").
@@ -102,6 +102,10 @@ Todos devolvem `DiscoveredLink[]` e, quando conseguem, `prefetched` (título + H
 | Greenhouse ([`greenhouse.ts`](../src/lib/job-monitoring/providers/greenhouse.ts)) | `GET boards-api.greenhouse.io/v1/boards/<token>/jobs` | `…/jobs/<id>` | token = 1º segmento do path da URL do board. 404 → erro "token inválido". `content` vem com entidades HTML; é decodificado antes do Turndown. Local = `location` + `offices`. |
 | Gupy ([`gupy.ts`](../src/lib/job-monitoring/providers/gupy.ts)) | HTML de `https://<slug>.gupy.io/`, lendo `__NEXT_DATA__` | `…/jobs/<id>?jobBoardSource=gupy_public_page` (`__NEXT_DATA__`) | descarta vagas com `status ≠ published`. Descrição = `description` + `responsibilities` + `prerequisites`. Board fora do ar → lista vazia (não lança). |
 | InHire ([`inhire.ts`](../src/lib/job-monitoring/providers/inhire.ts)) | `GET api.inhire.app/job-posts/public/pages` com header `X-Tenant: <slug>` | `…/pages/<jobId>` | filtra `status === "published"`. URL pública: `https://<slug>.inhire.app/vagas/<jobId>`. |
+| Ashby ([`ashby.ts`](../src/lib/job-monitoring/providers/ashby.ts)) | `GET api.ashbyhq.com/posting-api/job-board/<org>?includeCompensation=true` | a própria listagem (traz `descriptionHtml`) | só `isListed !== false`. Salário = `compensation.scrapeableCompensationSalarySummary` (ou o componente `Salary`); `workplaceType`/`isRemote` → `workModel`; local = `location` + `secondaryLocations` (dedup, máx. 12); `applyUrl` guardado em `prefetched.applyUrl`. `fetchImpl` injetável. |
+| Lever ([`lever.ts`](../src/lib/job-monitoring/providers/lever.ts)) | `GET api.lever.co/v0/postings/<org>?mode=json` (`api.eu.lever.co` para `jobs.eu.lever.co`) | a própria listagem | descrição = `description` + `lists` (`<h3>` + `<ul>`) + `additional`. `salaryRange {min,max,currency,interval}` → texto ("USD 150,000-190,000 / year"); `workplaceType` → `workModel`; local = `categories.location` + `allLocations`. `fetchImpl` injetável. |
+
+`DiscoveredLink.prefetched` agora aceita também `salaryText`, `workModel`, `applyUrl` e `locationRestrictions`; o pipeline (`index.ts`) grava `salaryText` e `workModel` no lead quando o provider os traz (os providers antigos não preenchem, então nada muda para eles).
 
 `companies.ats_board_token` não tem campo na UI (a criação grava `null` e a edição preserva o valor existente); ele só é repassado ao radar, e nenhum adapter o lê.
 
@@ -305,7 +309,7 @@ Cobrem descoberta (links relativos, dedup, página única, LinkedIn, landing pag
 2. Em [`providers/index.ts`](../src/lib/job-monitoring/providers/index.ts): adicione o valor em `AtsProvider`, a detecção por host em `resolveAtsProvider` e o ramo em `discoverViaProvider`.
 3. Adicione a opção no formulário de empresa ([`company-form.tsx`](../src/components/companies/company-form.tsx)).
 4. Se quiser `sourceName` próprio, atualize `detectSourceName` ([`extraction.ts`](../src/lib/job-monitoring/extraction.ts)) e `sourceNameOptions` ([`src/lib/jobs.ts`](../src/lib/jobs.ts)). Sem isso, o `<select>` de origem do modal de promoção não tem a opção e provavelmente cai na primeira da lista (`linkedin`); o fallback `company_site` do servidor só vale para valor inválido.
-5. Escreva teste com `fetchImpl` falso (os providers Gupy e InHire usam o `fetch` global; injetar exige ajuste).
+5. Escreva teste com `fetchImpl` falso (Greenhouse, Ashby e Lever já o recebem; Gupy e InHire usam o `fetch` global, injetar exige ajuste). Fixtures JSON (empresas fictícias) ficam em `providers/__fixtures__/`.
 
 ## Limitações atuais
 

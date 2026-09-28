@@ -1,0 +1,79 @@
+{
+  "apiVersion": "1",
+  "jobs": [
+    {
+      "id": "11111111-aaaa-4bbb-8ccc-000000000001",
+      "title": "Senior Backend Engineer",
+      "department": "Engineering",
+      "employmentType": "FullTime",
+      "location": "Remote - Americas",
+      "secondaryLocations": [
+        { "location": "Brazil" },
+        { "location": "Canada" },
+        { "location": "Brazil" }
+      ],
+      "publishedAt": "2026-09-01T12:00:00.000+00:00",
+      "isListed": true,
+      "isRemote": true,
+      "workplaceType": "Remote",
+      "jobUrl": "https://jobs.ashbyhq.com/acme-robotics/11111111-aaaa-4bbb-8ccc-000000000001",
+      "applyUrl": "https://jobs.ashbyhq.com/acme-robotics/11111111-aaaa-4bbb-8ccc-000000000001/application",
+      "descriptionHtml": "<p>Build APIs for <b>Acme Robotics</b>.</p><ul><li>TypeScript</li><li>PostgreSQL</li></ul>",
+      "descriptionPlain": "Build APIs for Acme Robotics.",
+      "compensation": {
+        "compensationTierSummary": "$140K – $180K • Offers Equity",
+        "scrapeableCompensationSalarySummary": "$140K - $180K",
+        "summaryComponents": [
+          { "compensationType": "Salary", "interval": "1 YEAR", "currencyCode": "USD", "minValue": 140000, "maxValue": 180000 }
+        ]
+      }
+    },
+    {
+      "id": "11111111-aaaa-4bbb-8ccc-000000000002",
+      "title": "Product Designer",
+      "department": "Design",
+      "employmentType": "FullTime",
+      "location": "Berlin",
+      "secondaryLocations": [],
+      "publishedAt": "2026-09-02T12:00:00.000+00:00",
+      "isListed": true,
+      "isRemote": false,
+      "workplaceType": "Hybrid",
+      "jobUrl": "https://jobs.ashbyhq.com/acme-robotics/11111111-aaaa-4bbb-8ccc-000000000002",
+      "applyUrl": "https://jobs.ashbyhq.com/acme-robotics/11111111-aaaa-4bbb-8ccc-000000000002/application",
+      "descriptionHtml": "<p>Design things.</p>",
+      "descriptionPlain": "Design things.",
+      "compensation": {
+        "compensationTierSummary": "EUR 70,000-90,000",
+        "scrapeableCompensationSalarySummary": null,
+        "summaryComponents": [
+          { "compensationType": "Bonus", "interval": "1 YEAR", "currencyCode": "EUR", "minValue": null, "maxValue": null },
+          { "compensationType": "Salary", "interval": "1 YEAR", "currencyCode": "EUR", "minValue": 70000, "maxValue": 90000 }
+        ]
+      }
+    },
+    {
+      "id": "11111111-aaaa-4bbb-8ccc-000000000003",
+      "title": "Unlisted Role",
+      "location": "Remote",
+      "isListed": false,
+      "isRemote": true,
+      "workplaceType": "Remote",
+      "jobUrl": "https://jobs.ashbyhq.com/acme-robotics/11111111-aaaa-4bbb-8ccc-000000000003",
+      "applyUrl": "https://jobs.ashbyhq.com/acme-robotics/11111111-aaaa-4bbb-8ccc-000000000003/application",
+      "descriptionHtml": "<p>Hidden.</p>",
+      "compensation": null
+    },
+    {
+      "id": "11111111-aaaa-4bbb-8ccc-000000000004",
+      "title": "Support Engineer",
+      "location": "Remote",
+      "isListed": true,
+      "isRemote": true,
+      "workplaceType": null,
+      "jobUrl": "https://jobs.ashbyhq.com/acme-robotics/11111111-aaaa-4bbb-8ccc-000000000004",
+      "applyUrl": "https://jobs.ashbyhq.com/acme-robotics/11111111-aaaa-4bbb-8ccc-000000000004/application",
+      "descriptionHtml": "<p>Help customers.</p>"
+    }
+  ]
+}

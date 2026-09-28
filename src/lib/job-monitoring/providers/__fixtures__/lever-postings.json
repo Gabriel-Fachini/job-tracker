@@ -1,0 +1,47 @@
+[
+  {
+    "id": "22222222-bbbb-4ccc-8ddd-000000000001",
+    "text": "Staff Platform Engineer",
+    "description": "<div>Join <b>Globex Labs</b> to scale our platform.</div>",
+    "descriptionPlain": "Join Globex Labs to scale our platform.",
+    "lists": [
+      { "text": "What you'll do", "content": "<li>Own the deploy pipeline</li><li>Mentor engineers</li>" },
+      { "text": "Requirements", "content": "<li>8+ years with Go or Rust</li>" }
+    ],
+    "additional": "<div>We are an equal opportunity employer.</div>",
+    "additionalPlain": "We are an equal opportunity employer.",
+    "categories": {
+      "location": "Remote - LATAM",
+      "team": "Platform",
+      "commitment": "Full-time",
+      "allLocations": ["Remote - LATAM", "Mexico"]
+    },
+    "workplaceType": "remote",
+    "salaryRange": { "min": 150000, "max": 190000, "currency": "USD", "interval": "per-year-salary" },
+    "createdAt": 1788000000000,
+    "hostedUrl": "https://jobs.lever.co/globex-labs/22222222-bbbb-4ccc-8ddd-000000000001",
+    "applyUrl": "https://jobs.lever.co/globex-labs/22222222-bbbb-4ccc-8ddd-000000000001/apply"
+  },
+  {
+    "id": "22222222-bbbb-4ccc-8ddd-000000000002",
+    "text": "Account Executive",
+    "descriptionPlain": "Sell things.\n\nTravel required.",
+    "lists": [],
+    "additionalPlain": "",
+    "categories": { "location": "New York, NY", "allLocations": ["New York, NY"] },
+    "workplaceType": "onsite",
+    "salaryRange": { "min": 80, "max": 95, "currency": "USD", "interval": "per-hour-wage" },
+    "hostedUrl": "https://jobs.lever.co/globex-labs/22222222-bbbb-4ccc-8ddd-000000000002",
+    "applyUrl": "https://jobs.lever.co/globex-labs/22222222-bbbb-4ccc-8ddd-000000000002/apply"
+  },
+  {
+    "id": "22222222-bbbb-4ccc-8ddd-000000000003",
+    "text": "Data Analyst",
+    "descriptionPlain": "Analyze data.",
+    "lists": [],
+    "categories": {},
+    "workplaceType": "unspecified",
+    "hostedUrl": "https://jobs.lever.co/globex-labs/22222222-bbbb-4ccc-8ddd-000000000003",
+    "applyUrl": "https://jobs.lever.co/globex-labs/22222222-bbbb-4ccc-8ddd-000000000003/apply"
+  }
+]

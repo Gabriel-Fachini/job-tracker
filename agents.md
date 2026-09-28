@@ -64,7 +64,7 @@ Três gatilhos:
 Varredura em lote cobre empresas com `jobs_board_url` válido e status fora de `radarSkippedCompanyStatuses` (`discarded`, `blacklist`).
 
 Por empresa (`runMonitoringForCompany`):
-1. Descoberta: provider ATS (`auto` detecta Greenhouse/Gupy/InHire pela URL) com detalhes pré-carregados; fallback scraping `fetch` ou `browser` (Playwright). LinkedIn é ignorado.
+1. Descoberta: provider ATS (`auto` detecta Greenhouse/Gupy/InHire/Ashby/Lever pela URL) com detalhes pré-carregados; fallback scraping `fetch` ou `browser` (Playwright). LinkedIn é ignorado.
 2. URLs já em `job_leads` (qualquer status) são **puladas** (`link-skipped`, só atualiza `last_viewed`): leads nunca são reclassificados.
 3. Cada link novo, dentro do mesmo callback do `pLimit`: extração → hints do texto do link → formatação OpenAI opcional → classificação → upsert. Sem Phase 2 separada.
 4. Todas as decisões são gravadas, **inclusive `discarded`** (base do skip); as telas filtram descartados. Falha de extração/classificação conta como `failed` e **não grava** (URL é tentada de novo no próximo run). Sem perfil salvo → `review`/40 sem chamar o LLM.

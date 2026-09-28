@@ -23,6 +23,9 @@ export const seniorityOptions = [
 export const sourceNameOptions = [
   { value: "linkedin", label: "LinkedIn" },
   { value: "gupy", label: "Gupy" },
+  { value: "ashby", label: "Ashby" },
+  { value: "lever", label: "Lever" },
+  { value: "greenhouse", label: "Greenhouse" },
   { value: "catho", label: "Catho" },
   { value: "company_site", label: "Site da empresa" },
   { value: "other", label: "Outro" },
