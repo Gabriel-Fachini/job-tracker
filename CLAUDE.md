@@ -198,6 +198,7 @@ MCP global em user scope:
 Project (`.claude/skills/`):
 - `next-best-practices`, `react-best-practices`, `vercel-react-best-practices`
 - `tanstack-query-best-practices`, `shadcn`, `playwright-cli`, `impeccable`
+- `glassdoor-collect` — coleta Glassdoor pelo Chrome logado (Claude in Chrome) → JSON schema v1 → import no app; decide primeira coleta vs atualização e cria empresa inexistente
 
 User scope (globais):
 - `webapp-testing` — Playwright frontend testing
