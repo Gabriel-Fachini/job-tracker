@@ -69,6 +69,21 @@ Não usados hoje: `extractProfile` (rascunho + gravação numa chamada), `extrac
 - `stack` de projeto e `tags` de bullet viram JSON em `text`.
 - PDFs antigos em `uploads/resumes/master/` nunca são apagados.
 
+## Busca internacional (preferências)
+
+Painel "Busca internacional" em `/profile` ([`search-preferences-panel.tsx`](../../src/components/profile/search-preferences-panel.tsx)), abaixo do editor do perfil e independente dele (funciona sem perfil carregado). Grava a linha única de `search_preferences` via `saveSearchPreferencesAction`; sem linha (ou com campos vazios) os filtros correspondentes ficam **desligados**. O código não traz nenhum valor pessoal padrão.
+
+| Campo | Uso |
+|---|---|
+| Mínimo mensal/anual (US$) | piso do filtro de salário do estágio 0 (mensal × 12 vs anual, vale o menor) |
+| Contratos aceitos, elegibilidade geográfica | estágios 0/1 da triagem internacional |
+| Fuso e distância máxima (horas) | reservado para a checagem de fuso |
+| Senioridade e famílias de vaga alvo | estágio 0 (título) e estágio 2 |
+| Palavras que o título deve/não deve ter | filtro de título do estágio 0 |
+| Respostas padrão | kit de candidatura assistida (autorização nos EUA, sponsorship, pretensão, aviso prévio, "como conheceu", pronomes). Perguntas EEO nunca são respondidas |
+
+Código: [`src/lib/search-preferences.ts`](../../src/lib/search-preferences.ts) (tipos, opções, normalização, piso anual), [`search-preferences-queries.ts`](../../src/lib/search-preferences-queries.ts) e [`src/server/actions/search-preferences.ts`](../../src/server/actions/search-preferences.ts). O botão de salvar é `outline` para manter um único botão roxo na tela ("Editar perfil").
+
 ## Onde o perfil é usado
 
 | Consumidor | O que usa |

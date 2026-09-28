@@ -16,6 +16,7 @@ Runner nativo do Node (`node:test`) com `tsx` para TypeScript e aliases `@/`. Se
 | `src/lib/job-monitoring/bulk-run.test.ts` | varredura em lote |
 | `src/lib/job-monitoring/progress-state.test.ts` | estado de progresso do radar |
 | `src/lib/job-monitoring/run-state.test.ts` | run-state em memória |
+| `src/lib/search-preferences.test.ts` | normalização das preferências, piso anual (mensal × 12 vs anual), tolerância a JSON quebrado, linha única no banco de teste |
 | `src/lib/ai/ollama.test.ts` | datas opcionais, config cloud, header `Authorization`, unload em cloud |
 | `src/lib/ai/resume-generation.test.ts` | seleção de projetos (máx. 2) |
 | `src/lib/latex/escape.test.ts` | escape de cada caractere especial |

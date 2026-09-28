@@ -135,6 +135,24 @@ Vagas encontradas pelo radar, antes de virarem candidatura.
 
 Descartes automáticos **são persistidos** (`classification_status = discarded`): é isso que permite pular a URL nas próximas varreduras. As telas filtram `discarded`. Detalhes em [radar-manual-de-vagas-implementacao.md](radar-manual-de-vagas-implementacao.md).
 
+### `search_preferences`
+
+Linha única com as preferências da busca internacional (migration `0017_search_preferences`). Ausência de linha = filtros desligados. Listas em JSON (`text`).
+
+| Coluna | Observação |
+|---|---|
+| `min_monthly_usd`, `min_annual_usd` | integer null; o piso anual efetivo é o menor entre `annual` e `monthly × 12` |
+| `accepted_contracts` | JSON: `employee`, `contractor`, `eor`, `pj` |
+| `accepted_eligibility` | JSON: `worldwide`, `americas`, `latam`, `brazil` |
+| `timezone`, `max_utc_offset_distance_hours` | fuso IANA e distância máxima |
+| `target_seniorities` | JSON: `junior`, `mid`, `senior`, `staff_plus` |
+| `target_job_families` | JSON: `backend`, `fullstack`, `frontend`, `data`, `devops`, `mobile`, `ai_ml` |
+| `title_include_keywords`, `title_exclude_keywords` | JSON de palavras (minúsculas) para o filtro de título |
+| `default_answers` | JSON com respostas padrão de formulário |
+| `updated_at` | |
+
+UI e regras: [modulos/perfil.md](modulos/perfil.md#busca-internacional-preferências).
+
 ### `resumes` (legado)
 
 `application_id`, `job_id`, `pdf_path`, `tex_path`, `generation_prompt`, `generated_at`. Nenhum código grava nessa tabela. A geração atual de currículo usa `applications.generated_resume_path`. O dashboard ainda lê a tabela.
@@ -195,6 +213,8 @@ Consequências práticas:
 | 13 | `0013_outgoing_princess_powerful` | `applications.generated_resume_path` **e repete** as colunas ATS de `0012` |
 | 14 | `0014_add_is_referral` | `applications.is_referral` |
 | 15 | `0015_company_logos` | `companies.logo_url`, `logo_path`, `logo_checked_at` |
+| 16 | `0016_redundant_millenium_guard` | `companies.radar_enabled` |
+| 17 | `0017_search_preferences` | cria `search_preferences` |
 
 A numeração dos arquivos não é a ordem do journal (dois `0013`, sem `0011`). Vale o `idx`/`when` do `_journal.json`.
 

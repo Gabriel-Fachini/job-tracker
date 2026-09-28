@@ -212,6 +212,29 @@ export const applicationStatusHistory = sqliteTable(
   },
 );
 
+/**
+ * International search preferences. Single row (the app has one user); no row
+ * means every preference-based filter is off. List columns hold JSON arrays.
+ */
+export const searchPreferences = sqliteTable("search_preferences", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  minMonthlyUsd: integer("min_monthly_usd"),
+  minAnnualUsd: integer("min_annual_usd"),
+  /** JSON string[]: employee, contractor, eor, pj. */
+  acceptedContracts: text("accepted_contracts"),
+  /** JSON string[]: worldwide, americas, latam, brazil. */
+  acceptedEligibility: text("accepted_eligibility"),
+  timezone: text("timezone"),
+  maxUtcOffsetDistanceHours: integer("max_utc_offset_distance_hours"),
+  targetSeniorities: text("target_seniorities"),
+  targetJobFamilies: text("target_job_families"),
+  titleIncludeKeywords: text("title_include_keywords"),
+  titleExcludeKeywords: text("title_exclude_keywords"),
+  /** JSON object with default form answers (work authorization, notice period...). */
+  defaultAnswers: text("default_answers"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
 export const resumes = sqliteTable("resumes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   applicationId: integer("application_id").references(() => applications.id),
@@ -354,5 +377,6 @@ export type Application = typeof applications.$inferSelect;
 export type NewApplication = typeof applications.$inferInsert;
 export type JobLead = typeof jobLeads.$inferSelect;
 export type NewJobLead = typeof jobLeads.$inferInsert;
+export type SearchPreferencesRow = typeof searchPreferences.$inferSelect;
 export type Resume = typeof resumes.$inferSelect;
 export type NewResume = typeof resumes.$inferInsert;

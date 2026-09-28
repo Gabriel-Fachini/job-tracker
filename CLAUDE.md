@@ -114,6 +114,7 @@ Ciclo de vida (`src/lib/job-monitoring/bulk-run.ts` + `run-state.ts`, em memóri
 
 - Candidaturas (`/applications`): abas por status (não é kanban), troca de status otimista + `application_status_history` + status da empresa derivado. Docs: `docs/modulos/candidaturas.md`.
 - Perfil: PDF → `POST /api/profile/upload` (pdfjs) → `extractProfileDraft` (**OpenAI**) → `saveExtractedProfile`. Cada gravação apaga e reinsere as linhas filhas. Docs: `docs/modulos/perfil.md`.
+- Busca internacional: `search_preferences` (linha única) editada em Perfil → "Busca internacional"; sem linha os filtros ficam desligados e não há valores pessoais no código. Docs: `docs/modulos/perfil.md`.
 - Currículo: `generateResume` (Ollama seleciona bullets/skills → Mustache + LaTeX → `tectonic`), grava caminho absoluto em `applications.generated_resume_path`. Docs: `docs/modulos/curriculo.md`.
 
 ## Job Description Formatting
