@@ -1,6 +1,6 @@
 "use server";
 
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -194,6 +194,96 @@ export async function deleteCompany(
   }
 
   return { ok: true };
+}
+
+export async function setCompanyRadarEnabled(
+  companyId: number,
+  radarEnabled: boolean,
+): Promise<CompanyMutationResult> {
+  const existing = db
+    .select({ id: companies.id })
+    .from(companies)
+    .where(eq(companies.id, companyId))
+    .get();
+
+  if (!existing) {
+    return { ok: false, error: "not-found" };
+  }
+
+  db.update(companies)
+    .set({ radarEnabled, updatedAt: new Date() })
+    .where(eq(companies.id, companyId))
+    .run();
+
+  revalidatePath("/companies");
+  return { ok: true };
+}
+
+export type BulkRadarToggleResult = { updated: number };
+
+export async function bulkSetCompanyRadarEnabled(
+  companyIds: number[],
+  radarEnabled: boolean,
+): Promise<BulkRadarToggleResult> {
+  if (companyIds.length === 0) {
+    return { updated: 0 };
+  }
+
+  db.update(companies)
+    .set({ radarEnabled, updatedAt: new Date() })
+    .where(inArray(companies.id, companyIds))
+    .run();
+
+  revalidatePath("/companies");
+  return { updated: companyIds.length };
+}
+
+export type BulkDeleteCompaniesResult = { deleted: number; blocked: number };
+
+export async function bulkDeleteCompanies(
+  companyIds: number[],
+): Promise<BulkDeleteCompaniesResult> {
+  if (companyIds.length === 0) {
+    return { deleted: 0, blocked: 0 };
+  }
+
+  const rows = db
+    .select({ id: companies.id, logoPath: companies.logoPath })
+    .from(companies)
+    .where(inArray(companies.id, companyIds))
+    .all();
+
+  const linkedJobCompanyIds = new Set(
+    db
+      .select({ companyId: jobs.companyId })
+      .from(jobs)
+      .where(inArray(jobs.companyId, companyIds))
+      .all()
+      .map((row) => row.companyId),
+  );
+
+  const deletable = rows.filter((row) => !linkedJobCompanyIds.has(row.id));
+
+  if (deletable.length > 0) {
+    const deletableIds = deletable.map((row) => row.id);
+
+    db.transaction((tx) => {
+      tx.delete(jobLeads).where(inArray(jobLeads.companyId, deletableIds)).run();
+      tx.delete(companies).where(inArray(companies.id, deletableIds)).run();
+    });
+
+    for (const row of deletable) {
+      await removeCompanyLogoFile(row.logoPath);
+    }
+  }
+
+  revalidatePath("/companies");
+  revalidatePath("/leads");
+
+  return {
+    deleted: deletable.length,
+    blocked: rows.length - deletable.length,
+  };
 }
 
 function readCompanyFields(formData: FormData): CompanyFormFields {

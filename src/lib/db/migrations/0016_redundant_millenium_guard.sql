@@ -1,0 +1,1 @@
+ALTER TABLE `companies` ADD `radar_enabled` integer DEFAULT true NOT NULL;

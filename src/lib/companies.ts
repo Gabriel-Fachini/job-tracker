@@ -65,6 +65,20 @@ export function isMonitorableJobsBoardUrl(value: string | null | undefined): val
   }
 }
 
+/** Same rule the bulk radar applies to decide which companies it scans. */
+export function isCompanyRadarEligible(row: {
+  status: string;
+  jobsBoardUrl: string | null;
+  radarEnabled: boolean;
+}): boolean {
+  return (
+    row.radarEnabled &&
+    isMonitorableJobsBoardUrl(row.jobsBoardUrl) &&
+    isCompanyStatus(row.status) &&
+    !radarSkippedCompanyStatuses.includes(row.status)
+  );
+}
+
 export function isCompanyStatus(value: string): value is CompanyStatus {
   return companyStatusOptions.some((option) => option.value === value);
 }

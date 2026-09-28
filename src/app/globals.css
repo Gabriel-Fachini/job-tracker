@@ -248,7 +248,9 @@
   --chart-4: #6b6863;
   --chart-5: #4a4844;
 
-  --sidebar: #1c1b19;
+  /* Same as --background: no separate "frame" color behind the nav, just
+     the border-r hairline between it and the content. */
+  --sidebar: #000000;
   --sidebar-foreground: #b4b2ab;
   --sidebar-primary: #6c5ce6;
   --sidebar-primary-foreground: #ffffff;

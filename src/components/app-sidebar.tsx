@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { animated } from "@react-spring/web";
 
 import { useMonitoringProgress } from "@/components/leads/monitoring-progress-context";
+import { useNavIndicator } from "@/hooks/use-nav-indicator";
 import { appNavigation } from "@/lib/navigation";
 import {
   Sidebar,
@@ -26,6 +28,13 @@ export function AppSidebar() {
   const { isMobile, setOpenMobile } = useSidebar();
   const monitoring = useMonitoringProgress();
 
+  const activeItem =
+    appNavigation.find((item) => pathname === item.href) ??
+    appNavigation.find((item) => pathname.startsWith(`${item.href}/`));
+  const { containerRef, registerItem, style: indicatorStyle } = useNavIndicator(
+    activeItem?.href ?? "",
+  );
+
   function handleNavigationClick() {
     if (isMobile) {
       setOpenMobile(false);
@@ -33,8 +42,8 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar collapsible="icon" variant="inset">
-      <SidebarHeader className="px-2 pt-2.5 pb-3">
+    <Sidebar collapsible="icon" variant="sidebar">
+      <SidebarHeader className="px-3 pt-3.5 pb-4">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -57,39 +66,55 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup className="px-2 py-0">
+        <SidebarGroup className="px-3 py-2">
           <SidebarGroupContent>
-            <SidebarMenu>
-              {appNavigation.map((item) => {
-                const Icon = item.icon;
-                const isActive =
-                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+            <div ref={containerRef} className="relative">
+              {/* Shared pill: slides and resizes to the active item instead
+                  of the highlight popping straight from one item to the next. */}
+              <animated.div
+                aria-hidden
+                className="pointer-events-none absolute left-0 rounded-md bg-sidebar-accent"
+                style={{
+                  opacity: indicatorStyle.opacity,
+                  width: indicatorStyle.width.to((w) => `${w}px`),
+                  height: indicatorStyle.height.to((h) => `${h}px`),
+                  transform: indicatorStyle.y.to((y) => `translateY(${y}px)`),
+                }}
+              />
 
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      isActive={isActive}
-                      render={<Link href={item.href} />}
-                      tooltip={item.label}
-                      onClick={handleNavigationClick}
-                      className="group/nav"
-                    >
-                      <Icon
-                        aria-hidden
-                        strokeWidth={1.75}
-                        className="text-subtle-foreground transition-colors duration-150 group-hover/nav:text-foreground group-data-active/nav:text-foreground"
-                      />
-                      <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
+              <SidebarMenu className="gap-1">
+                {appNavigation.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = item.href === activeItem?.href;
+
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        ref={registerItem(item.href)}
+                        isActive={isActive}
+                        size="lg"
+                        render={<Link href={item.href} />}
+                        tooltip={item.label}
+                        onClick={handleNavigationClick}
+                        className="group/nav relative gap-3 px-3 data-active:bg-transparent"
+                      >
+                        <Icon
+                          aria-hidden
+                          strokeWidth={1.75}
+                          className="text-subtle-foreground transition-colors duration-150 group-hover/nav:text-foreground group-data-active/nav:text-foreground"
+                        />
+                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </div>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="gap-1 px-2 pb-2.5">
+      <SidebarFooter className="gap-2 px-3 pb-3.5">
         {monitoring?.isRunning ? (
           <SidebarMenu>
             <SidebarMenuItem>
