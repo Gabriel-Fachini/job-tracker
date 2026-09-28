@@ -6,6 +6,8 @@ export type RawLeadRow = {
   title: string;
   sourceUrl: string;
   sourceName: string;
+  sourceKind: string | null;
+  applyUrl: string | null;
   description: string | null;
   workModel: string | null;
   seniority: string | null;

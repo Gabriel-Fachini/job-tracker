@@ -78,6 +78,7 @@ Opções e labels: [`src/lib/profile/editor.ts`](../src/lib/profile/editor.ts).
 | `ats_provider` | text, `auto` | `auto`, `greenhouse`, `gupy`, `inhire`, `ashby`, `lever`, `generic`. |
 | `ats_board_token` | text | Salvo e repassado ao radar, mas **nenhum provider lê**: o token do Greenhouse sai da própria URL. |
 | `status` | text, `monitoring` | `monitoring`, `in_process`, `discarded`, `blacklist`. Derivado das candidaturas (ver abaixo). |
+| `origin` | text, `manual` | `manual` (cadastrada pelo usuário), `aggregator` (criada por uma fonte agregada) ou `yc_import` (script de importação). Migration `0018`. |
 | `logo_url`, `logo_path`, `logo_checked_at` | text/text/timestamp | Logos (migration `0015`). Ver [modulos/empresas.md](modulos/empresas.md). |
 
 **Status derivado** — `deriveCompanyStatus` ([`src/lib/companies.ts`](../src/lib/companies.ts)) roda via `syncCompanyStatus` sempre que uma candidatura é criada ou muda de status:
@@ -126,6 +127,8 @@ Vagas encontradas pelo radar, antes de virarem candidatura.
 |---|---|
 | `company_id` + `source_url` | **índice único** `job_leads_company_source_url_unique`: a mesma vaga numa nova varredura não duplica |
 | `title`, `description` (markdown), `source_name` (default `company_site`), `work_model`, `seniority`, `location_text`, `salary_text` | extraídos da vaga |
+| `source_kind`, `external_id`, `apply_url` | `source_kind`: `himalayas`, `remoteok`, `weworkremotely`, `jobicy`, `hn_whoishiring` ou `company` (achada no board da própria empresa); `external_id`: id da vaga na fonte; `apply_url`: link de candidatura quando difere de `source_url` (migration `0018`) |
+| `dedup_key` | hash (32 hex) de empresa normalizada + título normalizado; índice `job_leads_dedup_key_idx`. Nulo em leads anteriores à `0018` |
 | `classification_status` | `interesting`, `review`, `discarded` (default `review`) |
 | `classification_score` (0–100), `classification_reason` | saída do classificador. Os arrays `matchedSignals`/`riskSignals`/`missingSignals` **não** são persistidos. |
 | `user_decision` | `none`, `approved`, `promoted`, `dismissed` (default `none`); `user_decision_at` |
@@ -134,6 +137,18 @@ Vagas encontradas pelo radar, antes de virarem candidatura.
 | `last_viewed` | atualizado sempre que o radar reencontra a URL (mesmo sem reprocessar) |
 
 Descartes automáticos **são persistidos** (`classification_status = discarded`): é isso que permite pular a URL nas próximas varreduras. As telas filtram `discarded`. Detalhes em [radar-manual-de-vagas-implementacao.md](radar-manual-de-vagas-implementacao.md).
+
+### `job_sources`
+
+Feeds agregados (migration `0018`). Semeada em código na primeira leitura (`ensureDefaultSources`); ver [radar](radar-manual-de-vagas-implementacao.md#fontes-agregadas-feeds).
+
+| Coluna | Observação |
+|---|---|
+| `kind` | `himalayas`, `remoteok`, `weworkremotely`, `jobicy`, `hn_whoishiring` |
+| `name` | rótulo mostrado em `/leads/sources` |
+| `config` | JSON com categorias/tags do fetcher (`categories`, `industry`, `count`, `tags`, `maxPages`); nulo = padrões do código |
+| `enabled` | boolean, default `true` |
+| `last_run_at`, `last_cursor`, `last_error` | último run, marcador da vaga mais nova vista (Himalayas: `pubDate`) e último erro (limpo no run seguinte bem-sucedido) |
 
 ### `search_preferences`
 
@@ -215,6 +230,7 @@ Consequências práticas:
 | 15 | `0015_company_logos` | `companies.logo_url`, `logo_path`, `logo_checked_at` |
 | 16 | `0016_redundant_millenium_guard` | `companies.radar_enabled` |
 | 17 | `0017_search_preferences` | cria `search_preferences` |
+| 18 | `0018_job_sources_and_dedup` | cria `job_sources`; `companies.origin`; `job_leads.source_kind`, `external_id`, `apply_url`, `dedup_key` (+ índice) |
 
 A numeração dos arquivos não é a ordem do journal (dois `0013`, sem `0011`). Vale o `idx`/`when` do `_journal.json`.
 

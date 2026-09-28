@@ -17,7 +17,9 @@ Rotas `/companies`, `/companies/new`, `/companies/[id]`. Cadastro das empresas d
 | [`src/components/companies/delete-company-dialog.tsx`](../../src/components/companies/delete-company-dialog.tsx) *(branch)* | confirmação de exclusão |
 | [`src/components/companies/company-logo.tsx`](../../src/components/companies/company-logo.tsx) *(branch)* | tile do logo com fallback de iniciais |
 | [`src/components/companies/company-status-badge.tsx`](../../src/components/companies/company-status-badge.tsx) | tag de status |
-| [`src/server/actions/companies.ts`](../../src/server/actions/companies.ts) | `createCompany`, `updateCompany`, `deleteCompany` |
+| [`src/server/actions/companies.ts`](../../src/server/actions/companies.ts) | `createCompany`, `updateCompany`, `deleteCompany`, `discoverCompanyAts` |
+| [`src/components/companies/discover-ats-button.tsx`](../../src/components/companies/discover-ats-button.tsx) | botão "Descobrir ATS" do detalhe |
+| [`src/lib/companies/`](../../src/lib/companies/) | `normalize.ts`, `company-index.ts`, `resolve.ts`, `ats-discovery.ts`, `yc-import.ts`, `company-store.ts`, `company-origin.ts` |
 | [`src/lib/companies.ts`](../../src/lib/companies.ts) | enums, labels, `deriveCompanyStatus` |
 | [`src/lib/company-links.ts`](../../src/lib/company-links.ts) | liga jobs antigos por nome, renomeia, recalcula status |
 | [`src/lib/company-logos.ts`](../../src/lib/company-logos.ts) + [`src/app/api/companies/[id]/logo/route.ts`](../../src/app/api/companies/[id]/logo/route.ts) *(branch)* | busca, cache e entrega de logos |
@@ -32,7 +34,8 @@ Rotas `/companies`, `/companies/new`, `/companies/[id]`. Cadastro das empresas d
 | `size` | `startup`, `small`, `medium`, `large`, `enterprise` (inválido → `null`) |
 | `status` | `monitoring` (Monitorando), `in_process` (Em processo), `discarded` (Descartada), `blacklist` (Blacklist). Inválido → `monitoring`. |
 | `jobBoardNavigationMode` | `fetch` ("Fetch padrão", default) ou `browser` ("Browser renderizado", Playwright) |
-| `atsProvider` | `auto` (default), `greenhouse`, `gupy`, `inhire`, `generic`. Aceita qualquer string. |
+| `atsProvider` | `auto` (default), `greenhouse`, `gupy`, `inhire`, `ashby`, `lever`, `generic`. Aceita qualquer string. |
+| `origin` | `manual` (default), `aggregator`, `yc_import`. **Sem input na UI**: é definida por quem cria a empresa (formulário = `manual`; fonte agregada = `aggregator`; `companies:import-yc` = `yc_import`). |
 | `atsBoardToken` | **sem input na UI**. Criação grava `null`; edição preserva o valor (só sobrescreve se o campo vier no FormData). Nenhum provider lê. |
 
 Validação no servidor (`readCompanyFields` + validação em `companies.ts`): trim em tudo, nome não vazio, URLs `http(s)`. O radar usa um `isValidUrl` mais frouxo (qualquer URL parseável).
@@ -74,9 +77,18 @@ UI: `canDelete = jobsCount === 0`. O diálogo mostra quantos leads vão junto. B
 
 Como esses caminhos não usam SSE, o indicador "Radar em execução" da sidebar e o ponto na navegação mobile **não** acendem. Empresa sem URL válida devolve "Empresa fora do radar monitoravel.".
 
+## Origem, importação YC e descoberta de ATS
+
+- Empresas criadas por fontes agregadas (`origin = aggregator`, radar desligado até achar um board) e importadas da YC (`origin = yc_import`) aparecem na lista com uma `Tag` ("via agregador" / "YC"). Quando existe alguma, surge o filtro "Origem" (Todas as origens / Manual / Via agregador / YC) ao lado do filtro de status, e o parâmetro `?origin=` guarda a escolha na URL.
+- Ordem da lista: cadastradas pelo usuário primeiro, depois as demais, cada grupo por `updated_at DESC`. Acima de 60 linhas a entrada animada é desligada (o `trail` de 20 ms levaria segundos com centenas de empresas).
+- Logos: só as empresas `manual` disparam a busca automática de logo ao aparecer na lista. As demais mostram as iniciais (a não ser que já tenham logo em cache ou `logo_url`), para que importar 700 empresas não gere 700 requisições na primeira visita.
+- A empresa "sink" `Vagas descartadas (agregadores)` (guarda os leads descartados de fontes) não aparece na lista.
+- Detalhe: mostra a tag de origem e, **quando a empresa não tem job board**, o botão "Descobrir ATS" (`discoverCompanyAts`): procura Ashby/Lever/Greenhouse no site e pelo nome; achando, grava o board + `ats_provider` e liga o radar (o toast avisa quando foi achado só pelo nome). Empresas com board não são tocadas.
+- Importação em massa: `npm run companies:import-yc [-- --dry-run] [-- --limit N]` (detalhes no [radar](../radar-manual-de-vagas-implementacao.md#importação-yc-e-descoberta-de-ats)).
+
 ## Lista
 
-- Uma query ordenada por `updated_at DESC`, contagens por subquery correlacionada. Sem filtros, busca, ordenação ou paginação.
+- Uma query ordenada (ver acima), contagens por subquery correlacionada. Filtros de status e origem e busca; sem paginação.
 - Cabeçalho: "N empresas · M candidaturas · K no radar", "Rodar varredura" (outline) e "Nova empresa". As tags de resumo por status (somente leitura) ficam na barra do topo do painel da lista.
 - Linha: logo, nome (link que cobre a linha toda), site legível, meta (setor · porte · N candidaturas), tag de status, data (`sm:block md:hidden lg:block`: some de novo entre 768 e 1023 px), ações em `z-10`. `has-[a[data-row-link]:active]` evita que tocar numa ação acenda a linha.
 - Ações *(branch)*: a partir de `sm`, botões de ícone com tooltip; no telefone, "⋯" abre bottom sheet com Ver detalhes, Editar, Abrir site, Excluir.

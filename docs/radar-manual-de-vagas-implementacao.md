@@ -13,6 +13,9 @@ Hoje o radar é **disparado manualmente**. Scans agendados (09h, 14h e 19h) est�
 | [`src/app/api/monitoring/current/route.ts`](../src/app/api/monitoring/current/route.ts) | `GET` snapshot do run em andamento |
 | [`src/lib/job-monitoring/index.ts`](../src/lib/job-monitoring/index.ts) | `runMonitoringForCompany`: orquestra uma empresa |
 | [`src/lib/job-monitoring/bulk-run.ts`](../src/lib/job-monitoring/bulk-run.ts) | `runBulkMonitoring`: roda as empresas em sequência, isola falha por empresa, trata cancelamento e sempre encerra o run |
+| [`src/lib/job-monitoring/source-run.ts`](../src/lib/job-monitoring/source-run.ts) | `runMonitoringForSource`: uma fonte agregada como etapa do run (fetch do feed, dedup, empresa automática, classificação, upsert) |
+| [`src/lib/job-monitoring/sources/`](../src/lib/job-monitoring/sources/) | fetchers Himalayas, Remote OK, We Work Remotely, Jobicy e HN; `store.ts` (tabela `job_sources`), `catalog.ts` (fontes padrão e créditos) |
+| [`src/lib/companies/`](../src/lib/companies/) | normalização de nome/domínio, `CompanyIndex`, resolvedor de empresa, descoberta de ATS e importação YC |
 | [`src/lib/job-monitoring/discovery.ts`](../src/lib/job-monitoring/discovery.ts) | descoberta de links (provider ATS, fetch ou Playwright) |
 | [`src/lib/job-monitoring/providers/`](../src/lib/job-monitoring/providers/) | adapters Greenhouse, Gupy, InHire, Ashby e Lever |
 | [`src/lib/job-monitoring/extraction.ts`](../src/lib/job-monitoring/extraction.ts) | leitura de uma página de vaga (JSON-LD, meta, HTML) → markdown |
@@ -31,11 +34,43 @@ Existem três jeitos de rodar, com comportamentos diferentes:
 
 | Onde | Chamada | Transporte | Escopo | Aparece em `/api/monitoring/current`? |
 |---|---|---|---|---|
-| `/leads` (botão "Rodar radar") | `startMonitoring()` → `new EventSource("/api/monitoring/stream")` | SSE | empresas em lote (sem `discarded`/`blacklist`) | **sim** |
+| `/leads` (botão "Rodar radar") | `startMonitoring()` → `new EventSource("/api/monitoring/stream")` | SSE | empresas em lote (sem `discarded`/`blacklist`, com `radar_enabled`) **e depois as fontes agregadas habilitadas** | **sim** |
 | `/companies` | Server Action `runAllCompaniesMonitoring()` | request único, espera acabar | empresas em lote (sem `discarded`/`blacklist`) | não |
 | `/companies/[id]` | Server Action `runCompanyMonitoring(companyId)` | request único | uma empresa, qualquer status | não |
 
 Só o caminho SSE passa por `runBulkMonitoring`: usa o `run-state` (e a trava de um run por vez), emite progresso, pode ser cancelado e imprime o relatório final. As Server Actions devolvem um `MonitoringActionResult` (resumo + `success`/`error`) e revalidam `/companies`, `/applications` e `/leads`.
+
+## Fontes agregadas (feeds)
+
+Além dos job boards das empresas, o radar lê **feeds agregados** (uma fonte traz vagas de várias empresas). As cinco fontes são semeadas (habilitadas) na primeira leitura de `job_sources` (`ensureDefaultSources`, idempotente) e o usuário só liga/desliga em `/leads/sources`.
+
+| Fonte | Endpoint | Detalhes |
+|---|---|---|
+| Himalayas | `https://himalayas.app/jobs/api?limit=20&cursor=…` | paginação por `nextCursor` (máx. 20 por página, `maxPages` default 15); para na primeira vaga com `pubDate` ≤ cursor (`last_cursor` = maior `pubDate`, Unix s). Traz `locationRestrictions`, `timezoneRestrictions`, faixa salarial e período |
+| Remote OK | `https://remoteok.com/api` | JSON; o item 0 é aviso legal e é ignorado; salário 0 = desconhecido (anual, USD). Os termos pedem crédito: o detalhe do lead mostra "Vaga encontrada via Remote OK" com link |
+| We Work Remotely | RSS `…/categories/<categoria>.rss` (default `remote-programming-jobs` e `remote-devops-sysadmin-jobs`, configurável em `config.categories`) | título "Empresa: Cargo" (quebra no 1º `:`); `region` vira local/restrição; cheerio `xmlMode`; uma categoria que falha é tolerada, todas falhando = falha da fonte |
+| Jobicy | `https://jobicy.com/api/v2/remote-jobs?count=50&industry=dev` | `jobGeo` → restrições; salário anual; o link da vaga é também o de candidatura (termos da fonte) |
+| HN Who's Hiring | Algolia: `search_by_date?tags=story,author_whoishiring` → `items/{id}` | só o thread "Who is hiring" mais recente; só comentários de 1º nível que mencionam `remote`; 1ª linha `Empresa \| Cargo \| Local \| …` (se o 2º trecho não parece cargo: título "Vaga (HN)"); URL `news.ycombinator.com/item?id=<comentário>` |
+
+Rede: `getJson`/`getText` com timeout de 20 s, `User-Agent` de uso pessoal e as fontes **em sequência**. Cada fetcher recebe `fetchImpl` (testes sem rede). Remotive ficou de fora (feed público com ~16 vagas).
+
+Por fonte (`runMonitoringForSource`):
+
+1. Baixa o feed; falha grava `last_error` e propaga (o run mostra o erro da etapa e segue).
+2. URLs já em `job_leads` (qualquer empresa) → `link-skipped` + `last_viewed`.
+3. **Dedup**: `dedup_key` = hash de (empresa normalizada + título normalizado). Vaga com a mesma chave nos últimos **60 dias** (ou repetida no mesmo feed) → `link-skipped`. Vindo do ATS depois (pipeline da empresa), uma vaga que um agregador já trouxe **não duplica**: o lead existente passa a apontar para o link do ATS (`source_url`, `apply_url`, `source_kind = company`). Só leads de agregador são mesclados; duas vagas de mesmo título no board da própria empresa continuam separadas. Leads antigos (antes da migration `0018`) não têm `dedup_key` e ficam de fora.
+4. Novas vagas em `pLimit(5)`: descrição HTML → markdown, salário → texto (`USD 5,000-7,000 / month`), `workModel = remote`, senioridade normalizada → filtro duro opcional (`screenFn`) → classificação → upsert.
+5. **Empresa automática**: só quando o lead **não** é descartado. O `CompanyIndex` acha a empresa por domínio do site (ignorando plataformas compartilhadas como LinkedIn/Lever) e depois por nome normalizado (minúsculas, sem acento/pontuação, sem `inc|llc|ltd|gmbh|s.a.|corp|co`, sem espaços); não achando, cria com `origin = aggregator`, `status = monitoring`, `radar_enabled = false` (sem ATS conhecido).
+6. **Descartados vão para uma empresa "sink"** (`Vagas descartadas (agregadores)`, `status = discarded`, escondida da lista): gravar um lead descartado exige `company_id`, e uma empresa por vaga lixo inundaria a lista. A chave de dedup guarda o nome real, então a mesma vaga não volta.
+7. O cursor da fonte só avança se o run terminou **sem falhas e sem cancelamento** (senão as vagas perdidas voltariam a ser puladas).
+
+No `bulk-run`, as fontes habilitadas rodam **depois das empresas**, uma etapa cada. Reusam `company-start`/`company-done` com `company: "Fonte: <nome>"` (sem tipos de evento novos); `total` do `start` e o `index` contam empresas + fontes. Falha de fonte = `error` (`fatal: false`, mensagem `Falha ao processar fonte "Fonte: X": …`). Fora do SSE: `runSourcesMonitoring()` e `runSourceMonitoring(id)` (Server Actions; como `/companies`, não passam pelo tracker).
+
+### Importação YC e descoberta de ATS
+
+`npm run companies:import-yc` (`scripts/import-yc-companies.ts`): baixa `https://yc-oss.github.io/api/companies/all.json`, filtra `isHiring && status === "Active"` e (`regions` inclui `Remote` ou `all_locations` cita remote) (~744 empresas em 2026-09-28), faz upsert por domínio/nome (`origin = yc_import`) e roda a descoberta com `pLimit(5)`. Achou ATS → `jobs_board_url` + `ats_provider` + `radar_enabled = true`; senão `radar_enabled = false`. Empresa que já tem board não é tocada; a que não tem recebe o achado. Idempotente. `--dry-run` lista tudo sem gravar; `--limit N` para teste. Faça `npm run db:backup` antes de rodar de verdade.
+
+`src/lib/companies/ats-discovery.ts` (também usada pelo botão **Descobrir ATS** no detalhe da empresa, só quando ela não tem job board): busca a home, `/careers` e `/jobs` e procura links `jobs.ashbyhq.com/<x>`, `jobs.lever.co/<x>` (e `jobs.eu.`), `boards.greenhouse.io/<x>` e `job-boards.greenhouse.io/<x>` (inclusive embeds); cada candidato é confirmado na API pública (link achado no site é aceito mesmo com 0 vagas). Sem link, testa slugs derivados do domínio e do nome direto nas três APIs (aceita só com ≥ 1 vaga; `via: "slug"` pode ser um homônimo). As páginas passam por `src/lib/net/public-fetch.ts` (bloqueio de IP privado/loopback/tailnet, DNS rebinding e redirects manuais, extraído de `company-logos.ts`).
 
 ## Quais empresas entram
 
@@ -203,8 +238,8 @@ Eventos (`MonitoringStreamEvent`, em [`types.ts`](../src/lib/job-monitoring/type
 
 | `type` | Payload | Quando |
 |---|---|---|
-| `start` | `total` | início, com o número de empresas |
-| `company-start` | `company`, `index`, `total` | antes de cada empresa |
+| `start` | `total` | início, com o número de etapas (empresas + fontes agregadas habilitadas) |
+| `company-start` | `company`, `index`, `total` | antes de cada empresa ou fonte (`company: "Fonte: <nome>"`) |
 | `link-skipped` | `url`, `companyId` | URL já conhecida |
 | `link-processing` | `company`, `title`, `processed`, `total` | ao terminar cada link novo (sucesso ou falha) |
 | `link-done` | `company`, `title`, `decision`, `processed`, `total`, `lead?` | após gravar; `lead` só vem quando não é `discarded` |

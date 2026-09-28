@@ -14,6 +14,8 @@ import { companies, jobLeads } from "@/lib/db/schema";
 import { runBulkMonitoring } from "@/lib/job-monitoring/bulk-run";
 import { getRecentLeadFeedbackSummary } from "@/lib/job-monitoring/feedback";
 import { runMonitoringForCompany } from "@/lib/job-monitoring";
+import { runMonitoringForSource } from "@/lib/job-monitoring/source-run";
+import { getEnabledSources } from "@/lib/job-monitoring/sources/store";
 import { isSeniority, isSourceName, isWorkModel } from "@/lib/jobs";
 import { getProfileSnapshot } from "@/lib/profile/queries";
 import type { ApplicationCreateResult } from "@/server/actions/applications";
@@ -149,9 +151,17 @@ export async function runAllCompaniesMonitoringStream(
   options: { signal?: AbortSignal } = {},
 ): Promise<void> {
   const monitorableCompanies = getBulkMonitorableCompanies();
+  const sources = getEnabledSources().map((source) => ({
+    id: source.id,
+    kind: source.kind,
+    name: source.name,
+    config: source.config,
+    cursor: source.lastCursor,
+  }));
 
   console.log("[job-monitoring] [action] run-all-stream-start", {
     companiesFound: monitorableCompanies.length,
+    sourcesFound: sources.length,
   });
 
   await runBulkMonitoring(
@@ -170,6 +180,9 @@ export async function runAllCompaniesMonitoringStream(
     onEvent,
     {
       signal: options.signal,
+      sources,
+      runSource: (source, context, dependencies) =>
+        runMonitoringForSource(source, context, dependencies),
       loadContext: async () => ({
         profile: await getProfileSnapshot(),
         feedbackSummary: getRecentLeadFeedbackSummary(),

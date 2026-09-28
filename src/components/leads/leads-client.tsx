@@ -248,13 +248,18 @@ export function LeadsClient({ companies, items }: LeadsClientProps) {
             </>
           }
           actions={
-            <MonitoringRunButton
-              label="Rodar radar"
-              shortLabel="Radar"
-              pendingLabel="Rodando…"
-              showCancel={false}
-              useStream
-            />
+            <>
+              <Link href="/leads/sources" className={buttonVariants({ variant: "outline" })}>
+                Fontes
+              </Link>
+              <MonitoringRunButton
+                label="Rodar radar"
+                shortLabel="Radar"
+                pendingLabel="Rodando…"
+                showCancel={false}
+                useStream
+              />
+            </>
           }
         />
 

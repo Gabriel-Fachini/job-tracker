@@ -66,6 +66,7 @@ O hook de início de sessão dos agentes avisa se faltar `OLLAMA_RUNTIME_MODE`, 
 | `db:migrate` | `drizzle-kit migrate` | ok em banco já migrado; falha em banco vazio |
 | `db:backup` / `db:restore` | scripts em `scripts/` | ok |
 | `resume:sample` | renderiza o currículo fictício com `tectonic` | ok (precisa de `tectonic`) |
+| `companies:import-yc` | importa empresas YC remotas e descobre o ATS (`--dry-run`, `--limit N`) | ok; grava no `DATABASE_URL`, faça `db:backup` antes |
 | `test:profile-extraction`, `analyze:profile-extractions` | apontam para `tmp/*.ts` | **mortos**: os arquivos não existem mais |
 
 Typecheck: `npm run typecheck` (`tsc --noEmit`). Testes e lint em [testes-e-qualidade.md](testes-e-qualidade.md).

@@ -5,11 +5,14 @@ import { notFound } from "next/navigation";
 
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { CompanyLogo } from "@/components/companies/company-logo";
+import { DiscoverAtsButton } from "@/components/companies/discover-ats-button";
 import { CompanyRadarToggle } from "@/components/companies/company-radar-toggle";
 import { CompanyStatusBadge } from "@/components/companies/company-status-badge";
 import { EditCompanySheet } from "@/components/companies/edit-company-sheet";
 import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
 import { PageHeader } from "@/components/page-header";
+import { Tag } from "@/components/ui/tag";
+import { getCompanyOriginLabel } from "@/lib/companies/company-origin";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Empty,
@@ -155,6 +158,14 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
                 <MetaDot />
               </>
             ) : null}
+            {company.origin !== "manual" ? (
+              <>
+                <Tag color={company.origin === "yc_import" ? "orange" : "blue"}>
+                  {getCompanyOriginLabel(company.origin)}
+                </Tag>
+                <MetaDot />
+              </>
+            ) : null}
             <span>
               Atualizada{" "}
               <time dateTime={company.updatedAt.toISOString()} className="font-data">
@@ -172,6 +183,9 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
               <Radar data-icon="inline-start" />
               Ver leads
             </Link>
+            {company.jobsBoardUrl ? null : (
+              <DiscoverAtsButton companyId={company.id} companyName={company.name} />
+            )}
             <MonitoringRunButton
               action={boundRunMonitoringAction}
               label="Rodar varredura"

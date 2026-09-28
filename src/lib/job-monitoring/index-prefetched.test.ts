@@ -10,6 +10,8 @@ function snapshot(lead: { sourceUrl: string; title: string }): LeadListItem {
     title: lead.title,
     sourceUrl: lead.sourceUrl,
     sourceName: "ashby",
+    sourceKind: null,
+    applyUrl: null,
     description: null,
     workModel: "remote",
     seniority: null,

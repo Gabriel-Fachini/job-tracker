@@ -21,7 +21,7 @@ Rota `/leads`. Caixa de entrada das vagas que o radar gravou. O usuário aprova,
 
 `page.tsx` e `getLeads()` fazem a mesma query: `job_leads` ⨝ `companies`, `classification_status ≠ discarded`, ordem `updated_at DESC`. O mapper converte status desconhecido em `review` e decisão desconhecida em `none`.
 
-`LeadListItem`: `id`, `title`, `sourceUrl`, `sourceName`, `description`, `workModel`, `seniority`, `locationText`, `salaryText`, `classificationStatus`, `classificationScore`, `classificationReason`, `userDecision`, `promotedToApplicationId`, `discoveredAt`, `updatedAt`, `companyId`, `companyName`.
+`LeadListItem`: `id`, `title`, `sourceUrl`, `sourceName`, `sourceKind`, `applyUrl`, `description`, `workModel`, `seniority`, `locationText`, `salaryText`, `classificationStatus`, `classificationScore`, `classificationReason`, `userDecision`, `promotedToApplicationId`, `discoveredAt`, `updatedAt`, `companyId`, `companyName`.
 
 ### TanStack Query
 
@@ -103,6 +103,12 @@ Sheet em tela cheia (`sheetSize="full"`), mantém o último lead renderizado dur
 - "Por que o radar marcou assim" (`classification_reason`).
 - Descrição com `JobMarkdown`.
 - Rodapé: "Abrir vaga"; com `userDecision = none`, **Descartar** e **Aprovar lead**; senão **Criar candidatura** (fecha o sheet e abre o modal de criação).
+
+## Fontes (`/leads/sources`)
+
+Botão "Fontes" no cabeçalho de `/leads` leva a `/leads/sources` (página `force-dynamic`; a leitura semeia as fontes padrão). Lista as cinco fontes com tag Ativa/Desativada, último run, último erro (`Notice`), botão "Rodar" (uma fonte) e o switch de habilitar. O botão principal "Rodar fontes" roda todas as habilitadas fora do SSE. As habilitadas também rodam dentro de "Rodar radar", depois das empresas. Código: [`sources-client.tsx`](../../src/components/leads/sources-client.tsx), [`src/server/actions/sources.ts`](../../src/server/actions/sources.ts).
+
+Leads de agregador mostram no detalhe "Vaga encontrada via <fonte>" com link para a página da fonte (atribuição exigida por Remote OK e Jobicy). A lista de leads usa `leadListColumns` ([`src/lib/job-leads/select.ts`](../../src/lib/job-leads/select.ts)) na página, em `getLeads()` e no snapshot dos eventos SSE.
 
 ## Radar a partir de `/leads`
 

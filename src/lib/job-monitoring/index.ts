@@ -5,7 +5,15 @@ import { classifyJobLead } from "./classification";
 import { discoverJobLinks } from "./discovery";
 import { extractJobDetail, htmlToMarkdown, detectSourceName } from "./extraction";
 import { logMonitoringStep } from "./logger";
-import { getExistingJobLeadUrls, touchLastViewed, upsertJobLead } from "./persistence";
+import { buildDedupKey } from "@/lib/companies/normalize";
+import {
+  adoptAtsLink,
+  findLeadByDedupKey,
+  getExistingJobLeadUrls,
+  touchLastViewed,
+  upsertJobLead,
+} from "./persistence";
+import { isSourceKind } from "./sources/types";
 import type {
   ClassificationContext,
   MonitoringCompany,
@@ -23,6 +31,8 @@ export async function runMonitoringForCompany(
     extractJobDetailFn?: typeof extractJobDetail;
     classifyJobLeadFn?: typeof classifyJobLead;
     upsertJobLeadFn?: typeof upsertJobLead;
+    findLeadByDedupKeyFn?: typeof findLeadByDedupKey;
+    adoptAtsLinkFn?: typeof adoptAtsLink;
     onEvent?: (event: MonitoringStreamEvent) => void;
     /** Aborted when the run is cancelled; links not started yet are left for the next run. */
     signal?: AbortSignal;
@@ -35,6 +45,8 @@ export async function runMonitoringForCompany(
   const classifyJobLeadFn =
     dependencies.classifyJobLeadFn ?? classifyJobLead;
   const upsertJobLeadFn = dependencies.upsertJobLeadFn ?? upsertJobLead;
+  const findLeadByDedupKeyFn = dependencies.findLeadByDedupKeyFn ?? findLeadByDedupKey;
+  const adoptAtsLinkFn = dependencies.adoptAtsLinkFn ?? adoptAtsLink;
   const onEvent = dependencies.onEvent;
   const signal = dependencies.signal;
 
@@ -64,8 +76,8 @@ export async function runMonitoringForCompany(
     company.id,
     links.map((l) => l.url),
   );
-  const newLinks = links.filter((l) => !existingUrls.has(l.url));
-  const skippedCount = links.length - newLinks.length;
+  let newLinks = links.filter((l) => !existingUrls.has(l.url));
+  let skippedCount = links.length - newLinks.length;
 
   const skippedUrls: string[] = [];
   for (const link of links) {
@@ -75,6 +87,32 @@ export async function runMonitoringForCompany(
     }
   }
   touchLastViewed(company.id, skippedUrls);
+
+  // A vacancy an aggregator already reported: the lead moves to the ATS link
+  // instead of becoming a duplicate. Only aggregator leads are merged; two
+  // postings with the same title on the company's own board stay separate.
+  const stillNew: typeof newLinks = [];
+
+  for (const link of newLinks) {
+    const title = link.prefetched?.title ?? link.text;
+    const match = title ? findLeadByDedupKeyFn(buildDedupKey(company.name, title)) : null;
+
+    if (match && match.sourceKind && isSourceKind(match.sourceKind)) {
+      adoptAtsLinkFn(match.id, {
+        sourceUrl: link.url,
+        sourceName: detectSourceName(link.url),
+        applyUrl: link.prefetched?.applyUrl ?? null,
+        externalId: link.prefetched?.externalId ?? null,
+      });
+      onEvent?.({ type: "link-skipped", url: link.url, companyId: company.id });
+      skippedCount += 1;
+      continue;
+    }
+
+    stillNew.push(link);
+  }
+
+  newLinks = stillNew;
 
   logMonitoringStep(company.name, "skip-filter-applied", {
     total: links.length,
@@ -237,6 +275,10 @@ export async function runMonitoringForCompany(
           title: job.title ?? link.text ?? "Vaga monitorada",
           sourceUrl: job.sourceUrl,
           sourceName: job.sourceName,
+          sourceKind: "company",
+          externalId: link.prefetched?.externalId ?? null,
+          applyUrl: link.prefetched?.applyUrl ?? null,
+          dedupKey: buildDedupKey(company.name, job.title ?? link.text ?? "Vaga monitorada"),
           description: job.description,
           workModel: job.workModel,
           seniority: job.seniority,

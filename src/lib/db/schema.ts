@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  index,
   integer,
   sqliteTable,
   text,
@@ -100,6 +101,8 @@ export const companies = sqliteTable("companies", {
   atsBoardToken: text("ats_board_token"),
   glassdoorUrl: text("glassdoor_url"),
   status: text("status").notNull().default("monitoring"),
+  /** `manual` (typed by the user), `aggregator` (created by a job source) or `yc_import`. */
+  origin: text("origin").notNull().default("manual"),
   notes: text("notes"),
   /** Off skips the company on the next bulk radar run without changing status. */
   radarEnabled: integer("radar_enabled", { mode: "boolean" }).notNull().default(true),
@@ -166,6 +169,14 @@ export const jobLeads = sqliteTable(
     seniority: text("seniority"),
     locationText: text("location_text"),
     salaryText: text("salary_text"),
+    /** Aggregator kind (himalayas, remoteok...) or `company` for leads found on the company's own board. */
+    sourceKind: text("source_kind"),
+    /** Id of the vacancy in its source (ATS id, aggregator guid). */
+    externalId: text("external_id"),
+    /** Direct application URL when it differs from `source_url`. */
+    applyUrl: text("apply_url"),
+    /** Hash of normalized company + title: the same vacancy from two sources shares it. */
+    dedupKey: text("dedup_key"),
     classificationStatus: text("classification_status")
       .notNull()
       .default("review"),
@@ -185,8 +196,25 @@ export const jobLeads = sqliteTable(
       table.companyId,
       table.sourceUrl,
     ),
+    index("job_leads_dedup_key_idx").on(table.dedupKey),
   ],
 );
+
+/** Aggregated job feeds (one feed -> many companies). Seeded in code on first read. */
+export const jobSources = sqliteTable("job_sources", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  /** himalayas, remoteok, weworkremotely, jobicy or hn_whoishiring. */
+  kind: text("kind").notNull(),
+  name: text("name").notNull(),
+  /** JSON: categories/tags for the fetcher. */
+  config: text("config"),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  lastRunAt: integer("last_run_at", { mode: "timestamp" }),
+  /** Opaque marker of the newest vacancy seen (Himalayas: last pubDate). */
+  lastCursor: text("last_cursor"),
+  lastError: text("last_error"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
 
 export const applicationStages = sqliteTable("application_stages", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -375,6 +403,7 @@ export type Job = typeof jobs.$inferSelect;
 export type NewJob = typeof jobs.$inferInsert;
 export type Application = typeof applications.$inferSelect;
 export type NewApplication = typeof applications.$inferInsert;
+export type JobSource = typeof jobSources.$inferSelect;
 export type JobLead = typeof jobLeads.$inferSelect;
 export type NewJobLead = typeof jobLeads.$inferInsert;
 export type SearchPreferencesRow = typeof searchPreferences.$inferSelect;

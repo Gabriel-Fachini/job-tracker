@@ -9,6 +9,10 @@ Levantamento feito em 2026-09-27 lendo o código (e, quando indicado, testando).
 - **Runs de `/companies` e `/companies/[id]` ficam fora do tracker**: não aparecem no snapshot, não são barrados pela trava e o deploy não espera por eles. O resultado da action também é descartado pelo botão (nenhum toast, nem o erro "Empresa fora do radar monitoravel.").
 - **Fechar, recarregar ou suspender a aba cancela o run** (no celular, o sistema suspende abas em segundo plano). Links já em andamento terminam e gravam; a lista só mostra esses leads no próximo refetch.
 - **Aba que só acompanhou pelo snapshot** mostra no resumo final os números da última leitura, não o total.
+- **Fontes agregadas rodando duas vezes ao mesmo tempo** (o botão "Rodar fontes" de `/leads/sources` ou `runSourcesMonitoring` durante um run SSE): não passam pelo tracker; a segunda corrida pode bater no índice único `(company_id, source_url)` e contar a vaga como falha. Evite rodar as duas coisas juntas.
+- **Fontes agregadas dependem de feeds públicos sem contrato**: formato, limites e termos podem mudar; Himalayas só entrega 20 vagas por página (a primeira corrida lê até `maxPages` = 15, ~300 vagas); o feed do Remote OK tem ~100 vagas; HN não filtra por localização além de "remote".
+- **`dedup_key` não existe em leads anteriores à migration `0018`**: uma vaga que já estava no banco pode reaparecer via agregador uma vez (URL diferente, sem chave para comparar).
+- **Sink de descartados**: leads descartados de fontes agregadas ficam sob a empresa `Vagas descartadas (agregadores)`; se ela for excluída manualmente (está escondida da lista, só via banco), o próximo run a recria, mas os leads antigos somem junto (FK) e as vagas voltam a ser processadas.
 - **Varredura individual ignora status**: desde `cb455cc` a varredura em lote pula `discarded`/`blacklist`, mas `runCompanyMonitoring` (detalhe da empresa) varre qualquer status. Intencional segundo o código; vale lembrar ao ler leads de empresas descartadas.
 - **`ats_board_token` sem uso**: sem campo na UI, só repassado; nenhum provider lê.
 - **Leads nunca são reclassificados**: URL já conhecida é pulada, mesmo após mudar o perfil ou o prompt.
@@ -56,6 +60,8 @@ Levantamento feito em 2026-09-27 lendo o código (e, quando indicado, testando).
 
 ## Empresas
 
+- **Importação YC** (`companies:import-yc`) cria centenas de empresas de uma vez; a descoberta de ATS por slug pode aceitar um homônimo (`via: "slug"`). Confira `jobs_board_url` das empresas importadas antes de confiar nos leads. Sem ATS, a empresa fica com radar desligado e só aparece pelas fontes agregadas.
+- Logos automáticos só rodam para empresas `manual`; importadas/agregadas ficam com iniciais.
 - `GET /api/companies/[id]/logo` tem efeito colateral: busca o site, grava arquivo em `<UPLOADS_PATH>/logos` e atualiza a empresa.
 - Rejeição de ícone < 16 px só vale para PNG, GIF e ICO.
 - Erro `linked-applications` bloqueia por qualquer `jobs` ligado, não só candidaturas.

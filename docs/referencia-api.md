@@ -77,6 +77,16 @@ Mutações retornam `{ success: true } \| { success: false, error: "not_found" \
 
 Todas revalidam `/profile` quando gravam.
 
+### Fontes agregadas — [`sources.ts`](../src/server/actions/sources.ts)
+
+| Action | Assinatura | Efeito |
+|---|---|---|
+| `setSourceEnabledAction` | `(sourceId, enabled) => { ok }` | liga/desliga uma fonte |
+| `runSourcesMonitoring` | `() => MonitoringActionResult` | roda as fontes habilitadas em sequência (sem SSE nem tracker) |
+| `runSourceMonitoring` | `(sourceId) => MonitoringActionResult` | roda uma fonte, habilitada ou não |
+
+`discoverCompanyAts(companyId)` (em `companies.ts`) devolve `{ ok: true, provider, boardUrl, jobsCount, via } \| { ok: false, error: "not-found" \| "has-board" \| "not-discovered" }`.
+
 ### Busca internacional — [`search-preferences.ts`](../src/server/actions/search-preferences.ts)
 
 | Action | Assinatura | Efeito |

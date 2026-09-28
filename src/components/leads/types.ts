@@ -7,6 +7,9 @@ export type LeadListItem = {
   title: string;
   sourceUrl: string;
   sourceName: string;
+  /** Aggregator kind (himalayas, remoteok...) or `company`; null on older leads. */
+  sourceKind: string | null;
+  applyUrl: string | null;
   description: string | null;
   workModel: string | null;
   seniority: string | null;

@@ -13,6 +13,14 @@ Runner nativo do Node (`node:test`) com `tsx` para TypeScript e aliases `@/`. Se
 | `src/lib/job-monitoring/index.test.ts` | orquestração com dependências injetadas; contadores do `MonitoringSummary` |
 | `src/lib/job-monitoring/index-prefetched.test.ts` | `salaryText`/`workModel` do provider chegam ao lead gravado |
 | `src/lib/job-monitoring/providers/providers.test.ts` | detecção Ashby/Lever, mapeamento de vagas (salário, local, modelo, `applyUrl`), erros HTTP, despacho com `fetchImpl` injetado |
+| `src/lib/job-monitoring/sources/sources.test.ts` | fetchers Himalayas (cursor/paginação), Remote OK, We Work Remotely (RSS), Jobicy e HN (thread + cabeçalho `Empresa \| Cargo \| Local`) com `fetchImpl` falso |
+| `src/lib/job-monitoring/source-run.test.ts` | pipeline de fonte: URL conhecida, dedup no banco e no feed, sink de descartados, empresa só para lead útil, cursor só em run completo |
+| `src/lib/job-monitoring/bulk-run-sources.test.ts` | fontes como etapas do run (`total`, `index`, erro por fonte, cancelamento) |
+| `src/lib/job-monitoring/index-dedup.test.ts` | ATS "adota" o lead que um agregador já trouxe |
+| `src/lib/job-monitoring/persistence.test.ts` | campos de fonte no upsert, janela de 60 dias, `adoptAtsLink`, resolvedor de empresas, semeadura de `job_sources` (banco de teste) |
+| `src/lib/companies/normalize.test.ts` | nome/domínio/título normalizados, `dedup_key`, `CompanyIndex` |
+| `src/lib/companies/ats-discovery.test.ts` | extração de links Ashby/Lever/Greenhouse, slugs, descoberta por link e por slug |
+| `src/lib/companies/yc-import.test.ts` | filtro YC, upsert idempotente, `--dry-run` sem gravar |
 | `src/lib/job-monitoring/bulk-run.test.ts` | varredura em lote |
 | `src/lib/job-monitoring/progress-state.test.ts` | estado de progresso do radar |
 | `src/lib/job-monitoring/run-state.test.ts` | run-state em memória |

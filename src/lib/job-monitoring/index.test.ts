@@ -10,6 +10,8 @@ function createMockLeadSnapshot(lead: { sourceUrl: string; title: string }): Lea
     title: lead.title,
     sourceUrl: lead.sourceUrl,
     sourceName: "company_site",
+    sourceKind: null,
+    applyUrl: null,
     description: null,
     workModel: "remote",
     seniority: "senior",

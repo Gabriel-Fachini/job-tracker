@@ -59,7 +59,7 @@ Três gatilhos:
 - `/companies` → Server Action `runAllCompaniesMonitoring()` (sem SSE, sem run-state).
 - `/companies/[id]` → `runCompanyMonitoring(id)` (uma empresa, ignora status).
 
-Varredura em lote cobre empresas com `jobs_board_url` válido e status fora de `radarSkippedCompanyStatuses` (`discarded`, `blacklist`).
+Varredura em lote cobre empresas com `jobs_board_url` válido e status fora de `radarSkippedCompanyStatuses` (`discarded`, `blacklist`). No run SSE, **depois das empresas** rodam as **fontes agregadas** habilitadas (`job_sources`: Himalayas, Remote OK, We Work Remotely, Jobicy, HN Who's Hiring; UI em `/leads/sources`), cada uma como uma etapa (`company-start`/`company-done` com `company: "Fonte: <nome>"`). Vaga de fonte cria a empresa (`origin=aggregator`, radar off) só se não for descartada; descartadas ficam numa empresa "sink". `dedup_key` (empresa+título normalizados, janela de 60 dias) evita a mesma vaga vinda de duas fontes; o ATS "adota" o lead do agregador. `npm run companies:import-yc` importa empresas YC remotas e descobre Ashby/Lever/Greenhouse (`--dry-run`). Docs: `docs/radar-manual-de-vagas-implementacao.md`.
 
 Por empresa (`runMonitoringForCompany`):
 1. Descoberta: provider ATS (`auto` detecta Greenhouse/Gupy/InHire/Ashby/Lever pela URL) com detalhes pré-carregados; fallback scraping `fetch` ou `browser` (Playwright). LinkedIn é ignorado.
@@ -76,7 +76,8 @@ Ciclo de vida (`src/lib/job-monitoring/bulk-run.ts` + `run-state.ts`, em memóri
 - `src/app/api/monitoring/current/route.ts` — GET snapshot do run atual (usado pelo `deploy.sh`)
 - `src/server/actions/job-monitoring.ts` — seleção de empresas, execução, aprovar/descartar/promover
 - `src/lib/job-monitoring/index.ts` — pipeline por empresa
-- `src/lib/job-monitoring/{discovery,extraction,signals,classification,persistence}.ts`, `providers/`
+- `src/lib/job-monitoring/{discovery,extraction,signals,classification,persistence,source-run}.ts`, `providers/`, `sources/`
+- `src/lib/companies/{normalize,company-index,resolve,ats-discovery,yc-import}.ts` — empresa automática, dedup, descoberta de ATS, importação YC
 - `src/lib/job-monitoring/run-state.ts` — estado in-memory do run
 
 ## Página de Leads (TanStack Query)

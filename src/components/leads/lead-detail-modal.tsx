@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getJobLeadUserDecisionLabel } from "@/lib/job-leads";
+import { getSourceAttribution } from "@/lib/job-monitoring/sources/catalog";
 import { getSeniorityLabel, getSourceNameLabel, getWorkModelLabel } from "@/lib/jobs";
 import { cn } from "@/lib/utils";
 
@@ -75,6 +76,7 @@ function LeadDetailBody({
   const decisionLabel = getJobLeadUserDecisionLabel(lead.userDecision);
   const isBusy = isApproving || isDiscarding;
 
+  const attribution = getSourceAttribution(lead.sourceKind);
   const facts = [
     { label: "Senioridade", value: getSeniorityLabel(lead.seniority) ?? lead.seniority },
     { label: "Modelo", value: getWorkModelLabel(lead.workModel) ?? lead.workModel },
@@ -127,6 +129,21 @@ function LeadDetailBody({
               </div>
             ))}
           </dl>
+
+          {attribution ? (
+            <p className="text-[13px] text-subtle-foreground">
+              Vaga encontrada via{" "}
+              <a
+                href={lead.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-link underline-offset-4 hover:underline"
+              >
+                {attribution}
+              </a>
+              .
+            </p>
+          ) : null}
 
           <section className="flex flex-col gap-2 border-t border-border pt-5">
             <h3 className="text-[13px] font-medium text-muted-foreground">

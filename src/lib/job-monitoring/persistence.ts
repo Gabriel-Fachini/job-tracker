@@ -1,11 +1,15 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray } from "drizzle-orm";
 
 import type { LeadListItem } from "@/components/leads/types";
 import { db } from "@/lib/db";
 import { companies, jobLeads } from "@/lib/db/schema";
 import { mapRawLeadToListItem } from "@/lib/job-leads/mapper";
+import { leadListColumns } from "@/lib/job-leads/select";
 
 import type { PersistableLead } from "./types";
+
+/** A vacancy seen in the last DEDUP_WINDOW_DAYS with the same dedup key is the same vacancy. */
+export const DEDUP_WINDOW_DAYS = 60;
 
 export function touchLastViewed(companyId: number, sourceUrls: string[]): void {
   if (sourceUrls.length === 0) return;
@@ -42,6 +46,105 @@ export function getExistingJobLeadUrls(
   return new Set(rows.map((r) => r.sourceUrl));
 }
 
+/** Same as above without a company: aggregated jobs are matched before their company is resolved. */
+export function getExistingLeadUrlsAnyCompany(sourceUrls: string[]): Set<string> {
+  const found = new Set<string>();
+
+  // SQLite caps bound parameters; feeds can bring a few hundred URLs.
+  for (let start = 0; start < sourceUrls.length; start += 200) {
+    const chunk = sourceUrls.slice(start, start + 200);
+    const rows = db
+      .select({ sourceUrl: jobLeads.sourceUrl })
+      .from(jobLeads)
+      .where(inArray(jobLeads.sourceUrl, chunk))
+      .all();
+
+    for (const row of rows) {
+      found.add(row.sourceUrl);
+    }
+  }
+
+  return found;
+}
+
+export function touchLastViewedByUrls(sourceUrls: string[]): void {
+  for (let start = 0; start < sourceUrls.length; start += 200) {
+    db.update(jobLeads)
+      .set({ lastViewed: new Date() })
+      .where(inArray(jobLeads.sourceUrl, sourceUrls.slice(start, start + 200)))
+      .run();
+  }
+}
+
+export type DedupMatch = {
+  id: number;
+  companyId: number;
+  sourceKind: string | null;
+  sourceUrl: string;
+};
+
+/** Lead with the same dedup key discovered in the last `DEDUP_WINDOW_DAYS`, newest first. */
+export function findLeadByDedupKey(
+  dedupKey: string,
+  now: Date = new Date(),
+): DedupMatch | null {
+  const since = new Date(now.getTime() - DEDUP_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+  return (
+    db
+      .select({
+        id: jobLeads.id,
+        companyId: jobLeads.companyId,
+        sourceKind: jobLeads.sourceKind,
+        sourceUrl: jobLeads.sourceUrl,
+      })
+      .from(jobLeads)
+      .where(and(eq(jobLeads.dedupKey, dedupKey), gte(jobLeads.discoveredAt, since)))
+      .orderBy(desc(jobLeads.discoveredAt))
+      .get() ?? null
+  );
+}
+
+/**
+ * The company's own board found a vacancy an aggregator had already reported:
+ * the lead now points at the ATS page (better source and apply link).
+ */
+export function adoptAtsLink(
+  leadId: number,
+  ats: { sourceUrl: string; sourceName: string; applyUrl: string | null; externalId: string | null },
+): boolean {
+  try {
+    db.update(jobLeads)
+      .set({
+        sourceUrl: ats.sourceUrl,
+        sourceName: ats.sourceName,
+        sourceKind: "company",
+        applyUrl: ats.applyUrl,
+        externalId: ats.externalId,
+        lastViewed: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(jobLeads.id, leadId))
+      .run();
+
+    return true;
+  } catch {
+    // The ATS URL already exists for that company (unique index): nothing to adopt.
+    return false;
+  }
+}
+
+function readLeadSnapshot(leadId: number): LeadListItem {
+  const leadRow = db
+    .select(leadListColumns)
+    .from(jobLeads)
+    .innerJoin(companies, eq(jobLeads.companyId, companies.id))
+    .where(eq(jobLeads.id, leadId))
+    .get();
+
+  return mapRawLeadToListItem(leadRow!);
+}
+
 export function upsertJobLead(
   lead: PersistableLead,
 ): {
@@ -66,6 +169,13 @@ export function upsertJobLead(
     )
     .get();
 
+  const sourceFields = {
+    sourceKind: lead.sourceKind ?? null,
+    externalId: lead.externalId ?? null,
+    applyUrl: lead.applyUrl ?? null,
+    dedupKey: lead.dedupKey ?? null,
+  };
+
   if (existing) {
     db.update(jobLeads)
       .set({
@@ -76,6 +186,7 @@ export function upsertJobLead(
         seniority: lead.seniority,
         locationText: lead.locationText,
         salaryText: lead.salaryText,
+        ...sourceFields,
         classificationStatus: lead.classificationStatus,
         classificationScore: lead.classificationScore,
         classificationReason: lead.classificationReason,
@@ -85,40 +196,11 @@ export function upsertJobLead(
       .where(eq(jobLeads.id, existing.id))
       .run();
 
-    // Query the updated lead with company info
-    const leadRow = db
-      .select({
-        id: jobLeads.id,
-        title: jobLeads.title,
-        sourceUrl: jobLeads.sourceUrl,
-        sourceName: jobLeads.sourceName,
-        description: jobLeads.description,
-        workModel: jobLeads.workModel,
-        seniority: jobLeads.seniority,
-        locationText: jobLeads.locationText,
-        salaryText: jobLeads.salaryText,
-        classificationStatus: jobLeads.classificationStatus,
-        classificationScore: jobLeads.classificationScore,
-        classificationReason: jobLeads.classificationReason,
-        userDecision: jobLeads.userDecision,
-        promotedToApplicationId: jobLeads.promotedToApplicationId,
-        discoveredAt: jobLeads.discoveredAt,
-        updatedAt: jobLeads.updatedAt,
-        companyId: companies.id,
-        companyName: companies.name,
-      })
-      .from(jobLeads)
-      .innerJoin(companies, eq(jobLeads.companyId, companies.id))
-      .where(eq(jobLeads.id, existing.id))
-      .get();
-
-    const leadSnapshot = mapRawLeadToListItem(leadRow!);
-
     return {
       id: existing.id,
       created: false,
       promotedToApplicationId: existing.promotedToApplicationId,
-      leadSnapshot,
+      leadSnapshot: readLeadSnapshot(existing.id),
     };
   }
 
@@ -134,6 +216,7 @@ export function upsertJobLead(
       seniority: lead.seniority,
       locationText: lead.locationText,
       salaryText: lead.salaryText,
+      ...sourceFields,
       classificationStatus: lead.classificationStatus,
       classificationScore: lead.classificationScore,
       classificationReason: lead.classificationReason,
@@ -147,39 +230,10 @@ export function upsertJobLead(
     .returning({ id: jobLeads.id })
     .get();
 
-  // Query the inserted lead with company info
-  const leadRow = db
-    .select({
-      id: jobLeads.id,
-      title: jobLeads.title,
-      sourceUrl: jobLeads.sourceUrl,
-      sourceName: jobLeads.sourceName,
-      description: jobLeads.description,
-      workModel: jobLeads.workModel,
-      seniority: jobLeads.seniority,
-      locationText: jobLeads.locationText,
-      salaryText: jobLeads.salaryText,
-      classificationStatus: jobLeads.classificationStatus,
-      classificationScore: jobLeads.classificationScore,
-      classificationReason: jobLeads.classificationReason,
-      userDecision: jobLeads.userDecision,
-      promotedToApplicationId: jobLeads.promotedToApplicationId,
-      discoveredAt: jobLeads.discoveredAt,
-      updatedAt: jobLeads.updatedAt,
-      companyId: companies.id,
-      companyName: companies.name,
-    })
-    .from(jobLeads)
-    .innerJoin(companies, eq(jobLeads.companyId, companies.id))
-    .where(eq(jobLeads.id, inserted.id))
-    .get();
-
-  const leadSnapshot = mapRawLeadToListItem(leadRow!);
-
   return {
     id: inserted.id,
     created: true,
     promotedToApplicationId: null,
-    leadSnapshot,
+    leadSnapshot: readLeadSnapshot(inserted.id),
   };
 }

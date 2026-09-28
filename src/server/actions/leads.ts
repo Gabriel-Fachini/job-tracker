@@ -6,29 +6,11 @@ import type { LeadListItem } from "@/components/leads/types";
 import { db } from "@/lib/db";
 import { companies, jobLeads } from "@/lib/db/schema";
 import { mapRawLeadToListItem } from "@/lib/job-leads/mapper";
+import { leadListColumns } from "@/lib/job-leads/select";
 
 export async function getLeads(): Promise<LeadListItem[]> {
   const items = db
-    .select({
-      id: jobLeads.id,
-      title: jobLeads.title,
-      sourceUrl: jobLeads.sourceUrl,
-      sourceName: jobLeads.sourceName,
-      description: jobLeads.description,
-      workModel: jobLeads.workModel,
-      seniority: jobLeads.seniority,
-      locationText: jobLeads.locationText,
-      salaryText: jobLeads.salaryText,
-      classificationStatus: jobLeads.classificationStatus,
-      classificationScore: jobLeads.classificationScore,
-      classificationReason: jobLeads.classificationReason,
-      userDecision: jobLeads.userDecision,
-      promotedToApplicationId: jobLeads.promotedToApplicationId,
-      discoveredAt: jobLeads.discoveredAt,
-      updatedAt: jobLeads.updatedAt,
-      companyId: companies.id,
-      companyName: companies.name,
-    })
+    .select(leadListColumns)
     .from(jobLeads)
     .innerJoin(companies, eq(jobLeads.companyId, companies.id))
     .where(ne(jobLeads.classificationStatus, "discarded"))

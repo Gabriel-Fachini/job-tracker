@@ -13,6 +13,8 @@ import {
   type CompanyStatus,
 } from "@/lib/companies";
 import { removeCompanyLogoFile } from "@/lib/company-logos";
+import { discoverAts } from "@/lib/companies/ats-discovery";
+import { applyDiscoveredAts } from "@/lib/companies/company-store";
 import {
   linkLegacyJobsToCompany,
   renameCompanyLinks,
@@ -217,6 +219,53 @@ export async function setCompanyRadarEnabled(
 
   revalidatePath("/companies");
   return { ok: true };
+}
+
+export type DiscoverAtsResult =
+  | { ok: true; provider: string; boardUrl: string; jobsCount: number; via: "link" | "slug" }
+  | { ok: false; error: "not-found" | "has-board" | "not-discovered" };
+
+/**
+ * Looks for the company's ATS board (links on its site, then guessed slugs) and,
+ * when found, sets it as the job board and turns the radar on. Companies that
+ * already have a board are left alone: the user chose it.
+ */
+export async function discoverCompanyAts(companyId: number): Promise<DiscoverAtsResult> {
+  const company = db
+    .select({
+      id: companies.id,
+      name: companies.name,
+      website: companies.website,
+      jobsBoardUrl: companies.jobsBoardUrl,
+    })
+    .from(companies)
+    .where(eq(companies.id, companyId))
+    .get();
+
+  if (!company) {
+    return { ok: false, error: "not-found" };
+  }
+
+  if (company.jobsBoardUrl) {
+    return { ok: false, error: "has-board" };
+  }
+
+  const found = await discoverAts({ name: company.name, website: company.website });
+
+  if (!found) {
+    return { ok: false, error: "not-discovered" };
+  }
+
+  applyDiscoveredAts(company.id, found);
+  revalidateCompanyViews(company.id);
+
+  return {
+    ok: true,
+    provider: found.provider,
+    boardUrl: found.boardUrl,
+    jobsCount: found.jobsCount,
+    via: found.via,
+  };
 }
 
 export type BulkRadarToggleResult = { updated: number };

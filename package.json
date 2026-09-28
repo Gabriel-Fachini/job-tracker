@@ -18,6 +18,7 @@
     "db:backup": "bash scripts/backup-db.sh",
     "db:restore": "bash scripts/restore-db.sh",
     "resume:sample": "tsx scripts/render-resume-sample.ts",
+    "companies:import-yc": "tsx scripts/import-yc-companies.ts",
     "test:escape": "node --import tsx --test src/lib/latex/escape.test.ts"
   },
   "dependencies": {

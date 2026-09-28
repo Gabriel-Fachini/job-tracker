@@ -77,6 +77,11 @@ export type JobLeadClassification = {
 export type PersistableLead = ExtractedJobDetail & {
   companyId: number;
   title: string;
+  /** Aggregator kind, or `company` for a vacancy found on the company's own board. */
+  sourceKind?: string | null;
+  externalId?: string | null;
+  applyUrl?: string | null;
+  dedupKey?: string | null;
   classificationStatus: JobLeadStatus;
   classificationScore: number;
   classificationReason: string;
