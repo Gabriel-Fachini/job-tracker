@@ -132,6 +132,7 @@ function getBulkMonitorableCompanies() {
       and(
         isNotNull(companies.jobsBoardUrl),
         notInArray(companies.status, radarSkippedCompanyStatuses),
+        eq(companies.radarEnabled, true),
       ),
     )
     .all()

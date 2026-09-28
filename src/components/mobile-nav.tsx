@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { animated } from "@react-spring/web";
 
 import { useMonitoringProgress } from "@/components/leads/monitoring-progress-context";
+import { useNavIndicator } from "@/hooks/use-nav-indicator";
 import { appNavigation } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -13,21 +15,46 @@ export function MobileNav() {
   const monitoring = useMonitoringProgress();
   const isRadarRunning = monitoring?.isRunning ?? false;
 
+  const activeItem =
+    appNavigation.find((item) => pathname === item.href) ??
+    appNavigation.find((item) => pathname.startsWith(`${item.href}/`));
+  const { containerRef, registerItem, style: indicatorStyle } = useNavIndicator(
+    activeItem?.href ?? "",
+  );
+
   return (
     <nav
       aria-label="Navegação principal"
       data-slot="mobile-nav"
-      className="fixed inset-x-0 bottom-0 z-(--z-nav) border-t border-border bg-canvas pb-[env(safe-area-inset-bottom)] transition-[translate] duration-200 ease-(--ease-out-quart) md:hidden"
+      className="fixed inset-x-0 bottom-0 z-(--z-nav) border-t border-border bg-background pb-[env(safe-area-inset-bottom)] transition-[translate] duration-200 ease-(--ease-out-quart) md:hidden"
     >
-      <ul className="mx-auto grid h-(--mobile-nav-height) max-w-lg grid-cols-5">
+      <ul
+        ref={containerRef}
+        className="relative mx-auto grid h-(--mobile-nav-height) max-w-lg grid-cols-5"
+      >
+        {/* One shared hairline that slides under the active tab, instead of
+            each tab drawing its own and popping between them. */}
+        <animated.span
+          aria-hidden
+          className="pointer-events-none absolute top-[-1px] h-px bg-foreground"
+          style={{
+            opacity: indicatorStyle.opacity,
+            width: indicatorStyle.width.to((w) => Math.max(w - 40, 0)),
+            transform: indicatorStyle.x.to((x) => `translateX(${x + 20}px)`),
+          }}
+        />
+
         {appNavigation.map((item) => {
           const Icon = item.icon;
-          const isActive =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const isActive = item.href === activeItem?.href;
           const showRadarSignal = item.href === "/leads" && isRadarRunning;
 
           return (
-            <li key={item.href} className="min-w-0">
+            <li
+              key={item.href}
+              ref={registerItem(item.href)}
+              className="min-w-0"
+            >
               <Link
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
@@ -38,14 +65,6 @@ export function MobileNav() {
                     : "text-subtle-foreground active:text-foreground",
                 )}
               >
-                {/* Active tab: hairline on the bar's top edge. */}
-                <span
-                  aria-hidden
-                  className={cn(
-                    "absolute inset-x-5 top-[-1px] h-px transition-colors duration-150",
-                    isActive ? "bg-foreground" : "bg-transparent",
-                  )}
-                />
                 <span className="relative flex size-7 items-center justify-center rounded-md group-focus-visible/tab:ring-2 group-focus-visible/tab:ring-ring">
                   <Icon
                     aria-hidden
@@ -55,7 +74,7 @@ export function MobileNav() {
                   {showRadarSignal ? (
                     <span
                       aria-hidden
-                      className="absolute top-0.5 right-0 size-1.5 rounded-full bg-info ring-2 ring-canvas motion-safe:animate-pulse"
+                      className="absolute top-0.5 right-0 size-1.5 rounded-full bg-info ring-2 ring-background motion-safe:animate-pulse"
                     />
                   ) : null}
                 </span>

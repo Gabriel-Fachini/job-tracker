@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { ApplicationStatusBadge } from "@/components/applications/application-status-badge";
 import { CompanyLogo } from "@/components/companies/company-logo";
+import { CompanyRadarToggle } from "@/components/companies/company-radar-toggle";
 import { CompanyStatusBadge } from "@/components/companies/company-status-badge";
 import { EditCompanySheet } from "@/components/companies/edit-company-sheet";
 import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
@@ -39,6 +40,8 @@ import {
   getCompanySizeLabel,
   getCompanyStatusLabel,
   isCompanyStatus,
+  isMonitorableJobsBoardUrl,
+  radarSkippedCompanyStatuses,
 } from "@/lib/companies";
 import { getCompanyLogoView } from "@/lib/company-logos";
 import { db } from "@/lib/db";
@@ -178,6 +181,16 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
           </div>
         }
         actionsPlacement="stacked"
+      />
+
+      <CompanyRadarToggle
+        companyId={company.id}
+        companyName={company.name}
+        radarEnabled={company.radarEnabled}
+        hasJobsBoardUrl={isMonitorableJobsBoardUrl(company.jobsBoardUrl)}
+        isStatusSkipped={
+          isCompanyStatus(company.status) && radarSkippedCompanyStatuses.includes(company.status)
+        }
       />
 
       {company.notes ? (

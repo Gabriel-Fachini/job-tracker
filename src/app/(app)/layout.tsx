@@ -1,6 +1,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { MonitoringProgressProvider } from "@/components/leads/monitoring-progress-context";
 import { MobileNav } from "@/components/mobile-nav";
+import { MotionPreferences } from "@/components/motion-preferences";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 export default function AppLayout({
@@ -10,6 +11,7 @@ export default function AppLayout({
 }>) {
   return (
     <MonitoringProgressProvider>
+      <MotionPreferences />
       <SidebarProvider defaultOpen>
         <AppSidebar />
         <SidebarInset>

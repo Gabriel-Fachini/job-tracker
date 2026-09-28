@@ -101,6 +101,8 @@ export const companies = sqliteTable("companies", {
   glassdoorUrl: text("glassdoor_url"),
   status: text("status").notNull().default("monitoring"),
   notes: text("notes"),
+  /** Off skips the company on the next bulk radar run without changing status. */
+  radarEnabled: integer("radar_enabled", { mode: "boolean" }).notNull().default(true),
   /** Optional override; without it the logo comes from the website's icons. */
   logoUrl: text("logo_url"),
   /** Cached logo file name under `<UPLOADS_PATH>/logos`. */
