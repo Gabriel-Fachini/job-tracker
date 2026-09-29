@@ -41,7 +41,8 @@ Triagem e geração usam **OpenAI por padrão**; o Ollama (`OLLAMA_RUNTIME_MODE=
 |-----|-----------|
 | `TRIAGE_ENGINE` | motor da triagem: `openai` (default) \| `jev` \| `ollama`. Sem a chave do motor escolhido a triagem falha na largada (fail closed) |
 | `OPENAI_TRIAGE_MODEL` | modelo da triagem com `openai` (default `gpt-5.4-nano`) |
-| `TYPESAFE_API_KEY` / `TYPESAFE_MODEL` | Jev (`TRIAGE_ENGINE=jev`); modelo default `jev-1.13.0` (versão fixa) |
+| `TYPESAFE_API_KEY` / `TYPESAFE_MODEL` / `TYPESAFE_BASE_URL` | Jev (`TRIAGE_ENGINE=jev`); modelo default `jev-1.13.0` (versão fixa); base URL default `https://api.typesafe.ai` (aceita servidor compatível autohospedado, como `laya-serve`; a chave só é obrigatória no host oficial) |
+| `TRIAGE_MAX_STATE_TOKENS` | orçamento do state enviado aos modelos da triagem, em tokens estimados (chars/4; default `6000`) |
 | `GENERATION_ENGINE` | tarefas generativas: `openai` (default) \| `ollama` |
 | `OPENAI_GENERATION_MODEL` | modelo generativo com `openai` (default `gpt-5.4-mini`) |
 | `OLLAMA_RUNTIME_MODE` | `cloud` ou `local` (obrigatória só se o Ollama for usado: `TRIAGE_ENGINE=ollama` ou `GENERATION_ENGINE=ollama`) |

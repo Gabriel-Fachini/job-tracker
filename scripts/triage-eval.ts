@@ -4,6 +4,10 @@
  *   npm run triage:eval                      # stage 0 (offline) + every configured engine (openai, jev)
  *   npm run triage:eval -- --engines jev     # only Jev (needs TYPESAFE_API_KEY)
  *   npm run triage:eval -- --engines ollama  # opt in to Ollama (never automatic)
+ *   npm run triage:eval -- --engines jev --jev-base-url http://127.0.0.1:8000   # a self-hosted Jev-compatible server
+ *
+ * Engine-agnostic: every engine gets the same fixtures and the same scoring, so
+ * `openai` and `jev` (official API or any TYPESAFE_BASE_URL) compare directly.
  *
  * Stage 0 needs no key and no network. Engines without their key are skipped.
  * Use the per-question accuracy to calibrate the thresholds in triage/rules.ts.
@@ -24,6 +28,14 @@ function readEngines(): string[] {
   return (process.argv[index + 1] ?? "").split(",").map((name) => name.trim()).filter(Boolean);
 }
 
+function applyBaseUrlFlag() {
+  const index = process.argv.indexOf("--jev-base-url");
+
+  if (index !== -1 && process.argv[index + 1]) {
+    process.env.TYPESAFE_BASE_URL = process.argv[index + 1];
+  }
+}
+
 function build(name: string): TriageEngine | null {
   try {
     if (name === "openai") return createOpenAiEngine();
@@ -39,6 +51,8 @@ function build(name: string): TriageEngine | null {
 }
 
 async function main() {
+  applyBaseUrlFlag();
+
   const stage0 = evaluateStageZero();
 
   console.log(`Estágio 0 (filtros duros, sem modelo): ${stage0.correct}/${stage0.total} (${formatPercent(stage0.correct, stage0.total)})`);

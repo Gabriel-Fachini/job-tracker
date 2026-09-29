@@ -14,7 +14,9 @@ Código em [`src/lib/ai/`](../src/lib/ai/) e [`src/lib/job-monitoring/triage/`](
 |---|---|---|
 | `TRIAGE_ENGINE` | `openai` | `openai` \| `jev` \| `ollama`. Valor inválido, ou motor sem a chave dele, falha a triagem na largada do run (mensagem clara; nada é gravado) |
 | `OPENAI_TRIAGE_MODEL` | `gpt-5.4-nano` | modelo da triagem com `openai` |
-| `TYPESAFE_API_KEY` | — | obrigatória com `jev`; sem ela: `TRIAGE_ENGINE=jev exige TYPESAFE_API_KEY…` |
+| `TYPESAFE_BASE_URL` | `https://api.typesafe.ai` | endpoint = `<base>/v1/systemone`; aceita qualquer servidor com o mesmo contrato (ver "Jev autohospedado") |
+| `TYPESAFE_API_KEY` | — | obrigatória com `jev` **só no host oficial** (`api.typesafe.ai`; sem ela a triagem falha na largada). Em outro host, o header `Authorization: Bearer` só vai se houver chave |
+| `TRIAGE_MAX_STATE_TOKENS` | `6000` | orçamento do state dos estágios 1 e 2 (estimativa chars/4). Ver "Estados enxutos" |
 | `TYPESAFE_MODEL` | `jev-1.13.0` | versão **fixa** (não o alias `jev-latest`), para que os limiares calibrados não mudem sozinhos |
 | `TYPESAFE_TIMEOUT_MS` | `30000` | por chamada |
 | `GENERATION_ENGINE` | `openai` | `openai` \| `ollama` |
@@ -95,13 +97,26 @@ Regra de ouro: **`review` em vez de descartar/promover na dúvida**. Resposta de
 ### Motores
 
 - **openai** (padrão): [`engines/json-engine.ts`](../src/lib/job-monitoring/triage/engines/json-engine.ts) → [`openai-runtime.ts`](../src/lib/ai/openai-runtime.ts). Cada pergunta vira um objeto do `json_schema` estrito: escolha = `{ value: enum, confidence: low|medium|high }`, sim/não = `{ answer: yes|no|unclear, confidence }`, nível = `{ level: 1..5, confidence }`. A confiança rotulada vira 0,4 / 0,7 / 0,9 em código (auto-relato, **não calibrado** como o da Jev: `high` é o único que descarta por elegibilidade).
-- **jev**: [`src/lib/ai/typesafe.ts`](../src/lib/ai/typesafe.ts), `POST https://api.typesafe.ai/v1/systemone` com `Authorization: Bearer`, `{ state, model, questions }` (tipos `noul`/`choice`/`score`), `fetch` puro com `fetchImpl` injetável, timeout, retry em 429 e 529 honrando `retry-after` (máx. 3; sem o header, backoff 1/2/4 s), log do `model` e do `usage` por chamada. Confiança e probabilidades calibradas. Notas do fabricante ([jaggedness do 1.13](https://docs.typesafe.ai/model-jaggedness/jev-1.13.md)): leitura literal, sem aritmética, sem datas, estado grande atrapalha — por isso a conta do salário e as regras ficam em código e o state é enxuto. Contexto máximo 64k tokens (32k para state + a maior pergunta). Nunca testado contra a API real (sem chave); a suíte usa `fetch` falso.
+- **jev**: [`src/lib/ai/typesafe.ts`](../src/lib/ai/typesafe.ts), `POST {TYPESAFE_BASE_URL}/v1/systemone` (default `https://api.typesafe.ai`) com `Authorization: Bearer` (quando há chave), `{ state, model, questions }` (tipos `noul`/`choice`/`score`), `fetch` puro com `fetchImpl` injetável, timeout, retry em 429 e 529 honrando `retry-after` (máx. 3; sem o header, backoff 1/2/4 s), log do `model` e do `usage` por chamada. Confiança e probabilidades calibradas. Notas do fabricante ([jaggedness do 1.13](https://docs.typesafe.ai/model-jaggedness/jev-1.13.md)): leitura literal, sem aritmética, sem datas, estado grande atrapalha — por isso a conta do salário e as regras ficam em código e o state é enxuto. Contexto máximo 64k tokens (32k para state + a maior pergunta). Nunca testado contra a API real (sem chave); a suíte usa `fetch` falso.
 - **ollama**: o mesmo schema e prompt como `format` no `/api/generate`. Fallback.
 - Sem a chave do motor escolhido, o run **falha antes de começar** (`assertTriageConfigured`, chamado por `loadRunContext`).
 
+### Jev autohospedado (Laya)
+
+Como o cliente só depende do contrato `POST /v1/systemone`, dá para apontar `TYPESAFE_BASE_URL` para um servidor compatível autohospedado, por exemplo o `laya-serve` (open source, mesmo contrato; ex.: `TYPESAFE_BASE_URL=http://127.0.0.1:8000`), em vez de pagar a TypeSafe. Nesse caso a chave é opcional, o `model` que o servidor devolve (o nome do checkpoint dele) é o que vai para o log `[triage] [jev] … model=…` e para `triage_model`, e vale ajustar:
+
+- `TYPESAFE_MODEL` para o nome que o servidor espera;
+- `TRIAGE_MAX_STATE_TOKENS`: os checkpoints do Laya leem de forma confiável ~768–4000 tokens, então reduza (ex.: `2000`). O servidor limita também os tokens gastos nas opções de cada pergunta, por isso os rótulos e critérios das perguntas são curtos (≤ 130 caracteres, teste em `triage.test.ts`).
+
+Nunca testado contra um servidor real (sem acesso); a suíte usa `fetch` falso.
+
+### Estados enxutos
+
+Os estados dos estágios 1 e 2 respeitam `TRIAGE_MAX_STATE_TOKENS` (chars/4): título, local, salário, introdução da descrição (no máximo metade do orçamento) e só as frases sobre local/contrato/salário; o estado é encolhido (frases, depois introdução, depois candidatos de salário) até caber. No estágio 2 a descrição ocupa o que o perfil do candidato deixa livre do mesmo orçamento (a Jev lê vaga e candidato como um estado só).
+
 ### Calibração
 
-`npm run triage:eval` roda o estágio 0 (offline) e cada motor configurado sobre ~20 vagas fictícias ([`__fixtures__/eval-jobs.ts`](../src/lib/job-monitoring/triage/__fixtures__/eval-jobs.ts)) e imprime a acurácia por pergunta (`--engines jev,openai,ollama`). Use os números para ajustar `TRIAGE_THRESHOLDS`, principalmente com a chave da Jev.
+`npm run triage:eval` (agnóstico ao motor: mesmas vagas e mesma pontuação para `openai`, `jev` oficial ou `jev` em qualquer `TYPESAFE_BASE_URL`, via `--jev-base-url`) roda o estágio 0 (offline) e cada motor configurado sobre ~20 vagas fictícias ([`__fixtures__/eval-jobs.ts`](../src/lib/job-monitoring/triage/__fixtures__/eval-jobs.ts)) e imprime a acurácia por pergunta (`--engines jev,openai,ollama`). Use os números para ajustar `TRIAGE_THRESHOLDS`, principalmente com a chave da Jev.
 
 ## Prompts do classificador legado (resumo)
 

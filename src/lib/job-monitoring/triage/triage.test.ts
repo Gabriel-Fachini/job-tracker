@@ -19,11 +19,15 @@ import { computeFit, evaluateStageOne, TRIAGE_THRESHOLDS } from "./rules";
 import {
   buildCandidateProfile,
   buildEligibilityState,
+  buildFitState,
+  DEFAULT_STATE_TOKENS,
+  estimateTokens,
   estimateYearsOfExperience,
-  MAX_STATE_CHARS,
+  getStateTokenBudget,
   relevantSentences,
   seniorityFromYears,
 } from "./state";
+import { buildEligibilityQuestions, buildFitQuestions, MAX_OPTION_TEXT_CHARS } from "./questions";
 import type {
   EligibilityAnswers,
   FitAnswers,
@@ -208,11 +212,68 @@ test("buildEligibilityState stays under the size cap and keeps the decisive text
   );
   const serialized = JSON.stringify(state);
 
-  assert.ok(serialized.length <= MAX_STATE_CHARS + 500, `state has ${serialized.length} chars`);
+  assert.ok(estimateTokens(serialized) <= DEFAULT_STATE_TOKENS, `state has ~${estimateTokens(serialized)} tokens`);
   assert.equal(state.title, "Senior Backend Engineer");
   assert.deepEqual(state.salary_candidates, [{ id: "c1", text: "$120k", context: "base salary $120k" }]);
   assert.ok(Array.isArray(state.relevant_sentences));
   assert.ok((state.description_intro as string).length <= 1500);
+});
+
+test("TRIAGE_MAX_STATE_TOKENS shrinks the states to the configured budget (chars / 4)", () => {
+  assert.equal(getStateTokenBudget({}), 6000);
+  assert.equal(getStateTokenBudget({ TRIAGE_MAX_STATE_TOKENS: "1024" }), 1024);
+  assert.equal(getStateTokenBudget({ TRIAGE_MAX_STATE_TOKENS: "abc" }), 6000);
+  assert.equal(getStateTokenBudget({ TRIAGE_MAX_STATE_TOKENS: "-5" }), 6000);
+
+  const filler = "We hire remote engineers and cover benefits, equipment and remote culture in detail. ".repeat(400);
+  const description = `Intro paragraph about the team. ${filler}\nWe cannot sponsor visas for candidates outside the US.\n${filler}`;
+  const candidates = [
+    { id: "c1", text: "$120k", context: "base salary $120k per year" },
+    { id: "c2", text: "$20k", context: "annual bonus $20k" },
+  ];
+
+  for (const maxTokens of [768, 1500, 4000]) {
+    const eligibility = buildEligibilityState(job({ description }), candidates, { maxTokens });
+
+    assert.ok(estimateTokens(JSON.stringify(eligibility)) <= maxTokens, `eligibility ${maxTokens}: ${estimateTokens(JSON.stringify(eligibility))}`);
+    assert.equal(eligibility.title, "Senior Backend Engineer");
+
+    const candidate = buildCandidateProfile(profile, preferences);
+    const fit = buildFitState(job({ description }), "senior", "backend", {
+      maxTokens,
+      candidateChars: JSON.stringify(candidate).length,
+    });
+
+    // Jev reads job and candidate as one state.
+    assert.ok(estimateTokens(JSON.stringify({ job: fit, candidate })) <= maxTokens, `fit ${maxTokens}`);
+  }
+
+  // A big budget keeps more of the description than a small one.
+  const small = buildFitState(job({ description }), null, null, { maxTokens: 800 });
+  const large = buildFitState(job({ description }), null, null, { maxTokens: 6000 });
+  assert.ok((large.description as string).length > (small.description as string).length);
+});
+
+test("question options stay short so servers that cap option tokens keep them whole", () => {
+  const eligibility = buildEligibilityQuestions({
+    state: {},
+    families: [],
+    salaryCandidates: [{ id: "c1", text: "USD 120,000-150,000 / year", context: "x".repeat(300) }],
+  });
+  const fit = buildFitQuestions({ state: {}, candidate: {}, hasDomainPreference: true });
+  const texts: string[] = [];
+
+  for (const def of [...eligibility, ...fit]) {
+    if (def.kind === "choice") texts.push(...Object.values(def.options));
+    else if (def.kind === "noul") texts.push(def.criteria.true, def.criteria.false);
+    else texts.push(...def.levels);
+  }
+
+  assert.ok(texts.length > 30);
+
+  for (const text of texts) {
+    assert.ok(text.length <= MAX_OPTION_TEXT_CHARS, `${text.length} chars: ${text.slice(0, 60)}`);
+  }
 });
 
 test("the candidate profile sent to a model carries skills and levels, never personal data", () => {

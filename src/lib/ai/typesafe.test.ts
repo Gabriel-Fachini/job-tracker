@@ -50,6 +50,39 @@ function json(body: unknown, status = 200, headers: Record<string, string> = {})
   });
 }
 
+test("TYPESAFE_BASE_URL points the client at any compatible server; the key is optional off the official host", async () => {
+  const local = getTypeSafeConfig({ TYPESAFE_BASE_URL: "http://127.0.0.1:8000/" });
+
+  assert.equal(local.endpoint, "http://127.0.0.1:8000/v1/systemone");
+  assert.equal(local.apiKey, null);
+  assert.equal(getTypeSafeConfig({ TYPESAFE_BASE_URL: "https://laya.example/api" }).endpoint, "https://laya.example/api/v1/systemone");
+
+  // No key: no Authorization header at all.
+  const headersSeen: Array<Record<string, string>> = [];
+  await evaluateSystemOne({
+    state: "x",
+    questions,
+    config: local,
+    fetchImpl: (async (_url: RequestInfo | URL, init?: RequestInit) => {
+      headersSeen.push(init?.headers as Record<string, string>);
+      return json({ ...okBody, model: "laya-checkpoint-7" });
+    }) as typeof fetch,
+    onUsage: (info) => assert.equal(info.model, "laya-checkpoint-7"),
+  });
+  assert.equal(headersSeen[0].authorization, undefined);
+
+  // With a key on a non-official host, the Bearer header is sent.
+  const keyed = getTypeSafeConfig({ TYPESAFE_BASE_URL: "http://127.0.0.1:8000", TYPESAFE_API_KEY: "local-key" });
+  assert.equal(keyed.apiKey, "local-key");
+
+  // The official host stays fail-closed, spelled explicitly or by default.
+  assert.throws(() => getTypeSafeConfig({ TYPESAFE_BASE_URL: "https://api.typesafe.ai" }), TypeSafeConfigurationError);
+  assert.equal(getTypeSafeConfig({ TYPESAFE_BASE_URL: "https://api.typesafe.ai/", TYPESAFE_API_KEY: "k" }).endpoint, TYPESAFE_ENDPOINT);
+
+  assert.throws(() => getTypeSafeConfig({ TYPESAFE_BASE_URL: "not a url" }), /inválida/);
+  assert.throws(() => getTypeSafeConfig({ TYPESAFE_BASE_URL: "ftp://x.example" }), /http\(s\)/);
+});
+
 test("getTypeSafeConfig fails closed without a key and pins the model version by default", () => {
   assert.throws(() => getTypeSafeConfig({}), TypeSafeConfigurationError);
   assert.throws(() => getTypeSafeConfig({ TYPESAFE_API_KEY: "  " }), /TYPESAFE_API_KEY/);

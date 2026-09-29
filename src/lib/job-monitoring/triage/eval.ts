@@ -97,7 +97,9 @@ export async function runTriageEval(
       }
 
       const fit = await engine.answerFit({
-        state: buildFitState(job, answers.seniority.value, answers.jobFamily.value),
+        state: buildFitState(job, answers.seniority.value, answers.jobFamily.value, {
+          candidateChars: JSON.stringify(evalCandidate).length,
+        }),
         candidate: evalCandidate,
         hasDomainPreference: false,
       });

@@ -7,13 +7,32 @@ import type { SalaryCandidate, SeniorityValue, TriageJob } from "./types";
  * Lean states for the models. Jev (and small models in general) get worse when
  * the state carries text unrelated to the question, so only the title, the
  * location fields, the sentences that mention location/contract/salary and the
- * intro of the description go in. ~6k tokens at most (about 20k characters).
+ * intro of the description go in. The budget is `TRIAGE_MAX_STATE_TOKENS`
+ * (default 6000, estimated as characters / 4): self-hosted Jev-compatible
+ * checkpoints (Laya) read roughly 768-4000 tokens reliably, so lower it there.
  */
 
-export const MAX_STATE_CHARS = 20_000;
+export const DEFAULT_STATE_TOKENS = 6_000;
+const CHARS_PER_TOKEN = 4;
+/** The state may not use more than this share of the budget on the description intro. */
+const INTRO_SHARE = 0.5;
 const INTRO_CHARS = 1_500;
 const MAX_SENTENCE_CHARS = 400;
 const FIT_DESCRIPTION_CHARS = 6_000;
+
+/** Cheap token estimate (characters / 4), enough to respect a budget. */
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / CHARS_PER_TOKEN);
+}
+
+/** `TRIAGE_MAX_STATE_TOKENS` (positive integer), default 6000. */
+export function getStateTokenBudget(env: Record<string, string | undefined> = process.env): number {
+  const value = Number(env.TRIAGE_MAX_STATE_TOKENS);
+
+  return Number.isInteger(value) && value > 0 ? value : DEFAULT_STATE_TOKENS;
+}
+
+export type StateBudgetOptions = { maxTokens?: number };
 
 const RELEVANT_SENTENCE =
   /\b(?:locat(?:ed|ion)|remote|remotely|anywhere|worldwide|global|time\s?zones?|hours?\s+overlap|overlap|visa|sponsor(?:ship)?|contract(?:or|ors)?|freelanc\w*|employees?|employer\s+of\s+record|\bEOR\b|deel|payroll|w-?2|1099|salary|compensation|pay\b|base\s+pay|reloc\w*|based\s+in|reside|residen\w*|citizen\w*|work\s+authori[sz]ation|authori[sz]ed\s+to\s+work|eligible|countries|country|americas|latam|latin\s+america|brazil|europe|\bEU\b|\bUK\b|\bUS\b|\bUSA\b|apac|emea)\b/i;
@@ -61,8 +80,13 @@ export function relevantSentences(description: string | null | undefined, maxCha
 export function buildEligibilityState(
   job: TriageJob,
   salaryCandidates: SalaryCandidate[],
+  options: StateBudgetOptions = {},
 ): Record<string, unknown> {
-  const intro = (job.description ?? "").replace(/\s+/g, " ").trim().slice(0, INTRO_CHARS);
+  const maxChars = (options.maxTokens ?? getStateTokenBudget()) * CHARS_PER_TOKEN;
+  const intro = (job.description ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, Math.min(INTRO_CHARS, Math.floor(maxChars * INTRO_SHARE)));
   const state: Record<string, unknown> = {
     title: job.title,
     location: job.locationText ?? null,
@@ -84,11 +108,30 @@ export function buildEligibilityState(
   }
 
   const baseSize = JSON.stringify(state).length;
-  const budget = Math.max(0, MAX_STATE_CHARS - baseSize - 500);
+  const budget = Math.max(0, maxChars - baseSize - 60);
 
   state.relevant_sentences = relevantSentences(job.description, budget).filter(
     (sentence) => !intro.includes(sentence),
   );
+
+  return fitToBudget(state, maxChars);
+}
+
+/** Last guard: drops sentences, then halves the intro, until the state fits `maxChars`. */
+function fitToBudget(state: Record<string, unknown>, maxChars: number): Record<string, unknown> {
+  const sentences = Array.isArray(state.relevant_sentences) ? (state.relevant_sentences as string[]) : [];
+
+  while (JSON.stringify(state).length > maxChars && sentences.length > 0) {
+    sentences.pop();
+  }
+
+  while (JSON.stringify(state).length > maxChars && typeof state.description_intro === "string" && state.description_intro.length > 40) {
+    state.description_intro = state.description_intro.slice(0, Math.floor(state.description_intro.length / 2));
+  }
+
+  while (JSON.stringify(state).length > maxChars && Array.isArray(state.salary_candidates) && state.salary_candidates.length > 1) {
+    state.salary_candidates = state.salary_candidates.slice(0, -1);
+  }
 
   return state;
 }
@@ -98,13 +141,24 @@ export function buildFitState(
   job: TriageJob,
   seniority: SeniorityValue | null,
   jobFamily: string | null,
+  options: StateBudgetOptions & {
+    /** Size of the candidate JSON that travels in the same state (Jev). */
+    candidateChars?: number;
+  } = {},
 ): Record<string, unknown> {
-  return {
+  const maxChars = (options.maxTokens ?? getStateTokenBudget()) * CHARS_PER_TOKEN;
+  const state: Record<string, unknown> = {
     title: job.title,
     seniority_estimate: seniority && seniority !== "not_stated" ? seniority : null,
     job_family_estimate: jobFamily && jobFamily !== "other" ? jobFamily : null,
-    description: (job.description ?? "").replace(/\n{3,}/g, "\n\n").trim().slice(0, FIT_DESCRIPTION_CHARS),
+    description: "",
   };
+  const overhead = JSON.stringify(state).length + (options.candidateChars ?? 0) + 60;
+  const allowed = Math.max(0, Math.min(FIT_DESCRIPTION_CHARS, maxChars - overhead));
+
+  state.description = (job.description ?? "").replace(/\n{3,}/g, "\n\n").trim().slice(0, allowed);
+
+  return state;
 }
 
 // ---- Candidate (no personal data) --------------------------------------

@@ -15,15 +15,21 @@ export type QuestionDef =
   | { id: string; kind: "noul"; instructions: string; criteria: { true: string; false: string } }
   | { id: string; kind: "score"; instructions: string; levels: string[] };
 
+/**
+ * Option and criteria texts stay short (about 120 characters at most): some
+ * Jev-compatible servers cap the tokens spent on a question's options.
+ */
+export const MAX_OPTION_TEXT_CHARS = 130;
+
 const FAMILY_DESCRIPTIONS: Record<string, string> = {
-  backend: "Server-side engineering: APIs, services, databases, queues. Titles like Backend Engineer, Software Engineer (backend), Platform Engineer building services.",
-  fullstack: "Both front-end and back-end work in the same role (Full-Stack Engineer).",
-  frontend: "Browser/UI engineering: React, Vue, design systems, web performance.",
-  data: "Data engineering, analytics engineering, data science, BI, ETL pipelines.",
-  devops: "Infrastructure, SRE, DevOps, cloud, Kubernetes, CI/CD, platform tooling.",
+  backend: "Server-side work: APIs, services, databases, queues.",
+  fullstack: "Front-end and back-end work in the same role.",
+  frontend: "Browser/UI work: React, Vue, design systems.",
+  data: "Data engineering, analytics engineering, data science, BI.",
+  devops: "Infrastructure, SRE, DevOps, cloud, CI/CD, platform tooling.",
   mobile: "iOS, Android, React Native or Flutter apps.",
-  ai_ml: "Machine learning, LLM applications, research or applied AI engineering.",
-  other: "None of the listed families (sales, marketing, design, support, management-only, non-engineering, ...).",
+  ai_ml: "Machine learning, LLM applications, applied AI.",
+  other: "None of these: sales, marketing, design, support, non-engineering.",
 };
 
 export function buildEligibilityQuestions(input: EligibilityInput): QuestionDef[] {
@@ -43,49 +49,49 @@ export function buildEligibilityQuestions(input: EligibilityInput): QuestionDef[
       instructions:
         "Read `title`, `location`, `work_model`, `location_restrictions` and `relevant_sentences`. In which countries may a person live and work this job from? Judge only what the text says.",
       options: {
-        worldwide: "The text says candidates can work from anywhere in the world, or lists no country limit and says 'worldwide', 'global' or 'work from anywhere'.",
-        americas_or_latam_incl_brazil: "Open to the Americas, Latin America, South America or LATAM, with Brazil not excluded. Example: 'Remote, Americas', 'LATAM only'.",
-        brazil_explicit: "Brazil is named as an eligible country, or the job is for Brazil.",
-        us_only: "Limited to the United States. 'Remote (US)', 'US-based', 'must reside in the US' and 'US work authorization required' all mean us_only.",
-        us_canada_only: "Limited to the United States and Canada, with no other country eligible. 'North America only' also means us_canada_only.",
-        europe_uk_only: "Limited to Europe, the EU/EEA or the UK (for example 'EMEA' with only European countries, 'EU only', 'UK only').",
-        other_country_restricted: "Limited to a specific country or region not listed above (India, Australia, APAC only, ...).",
-        not_stated: "The text only says 'remote' or says nothing about which countries are allowed.",
+        worldwide: "Anywhere in the world: 'worldwide', 'global', 'work from anywhere'.",
+        americas_or_latam_incl_brazil: "Americas, Latin America or South America, Brazil not excluded ('Remote, Americas').",
+        brazil_explicit: "Brazil is named as an eligible country.",
+        us_only: "Limited to the US: 'Remote (US)', 'US-based', 'must reside in the US'.",
+        us_canada_only: "Limited to the US and Canada ('North America only').",
+        europe_uk_only: "Limited to Europe, the EU/EEA or the UK.",
+        other_country_restricted: "Limited to another country or region (India, Australia, APAC...).",
+        not_stated: "Only says 'remote'; no country limit is stated.",
       },
     },
     {
       id: "us_work_authorization_required",
       kind: "noul",
       instructions:
-        "Does the posting require the candidate to already be authorized to work in the United States, or say that it cannot sponsor visas?",
+        "Does the posting require US work authorization already, or say it cannot sponsor visas?",
       criteria: {
-        true: "It explicitly requires US work authorization, or explicitly says no visa sponsorship for the United States.",
-        false: "It does not mention US work authorization, or it says candidates outside the US are welcome.",
+        true: "It requires US work authorization or says no visa sponsorship.",
+        false: "It does not mention it, or welcomes candidates outside the US.",
       },
     },
     {
       id: "contract",
       kind: "choice",
       instructions:
-        "Read `relevant_sentences` and `description_intro`. What kind of engagement does the employer accept for someone outside its country of incorporation?",
+        "Read `relevant_sentences` and `description_intro`. What engagement does the employer accept for someone outside its country?",
       options: {
-        employee_only: "Only direct employees on the company's payroll; contractors, freelancers or EOR are explicitly not accepted, or hiring is only through a local legal entity.",
-        contractor_or_eor_ok: "Contractors, independent contractors, freelancers, invoicing, 1099, or an Employer of Record such as Deel or Remote are explicitly mentioned as accepted or used.",
-        not_stated: "The text does not say how people outside the company's country are engaged.",
+        employee_only: "Direct payroll employees only; contractors or EOR are not accepted.",
+        contractor_or_eor_ok: "Contractors, freelancers, 1099 or an EOR (Deel, Remote) are accepted.",
+        not_stated: "The text does not say how people abroad are engaged.",
       },
     },
     {
       id: "timezone",
       kind: "choice",
       instructions:
-        "Does the posting require working hours in, or overlap with, a specific time zone region? Use `relevant_sentences` and `timezone_offsets_accepted` if present.",
+        "Does the posting require working hours in, or overlap with, a time zone region? Use `relevant_sentences` and `timezone_offsets_accepted`.",
       options: {
-        no_requirement: "Explicitly asynchronous, or says any time zone is fine.",
-        americas_overlap: "Requires overlap with Americas hours (for example 'ET overlap', 'Americas time zones', 'UTC-3 to UTC-8').",
-        us_pacific_hours: "Requires working US Pacific time hours (PT / PST).",
-        europe_hours: "Requires working European hours (CET / GMT overlap).",
+        no_requirement: "Asynchronous, or any time zone is fine.",
+        americas_overlap: "Requires overlap with Americas hours (ET, Americas time zones).",
+        us_pacific_hours: "Requires US Pacific time (PT) working hours.",
+        europe_hours: "Requires European hours (CET / GMT overlap).",
         apac_hours: "Requires Asia-Pacific hours.",
-        not_stated: "No time zone or hours requirement is mentioned.",
+        not_stated: "No time zone requirement is mentioned.",
       },
     },
     {
@@ -95,11 +101,11 @@ export function buildEligibilityQuestions(input: EligibilityInput): QuestionDef[
         "What level is this job? Use the title first, then years of experience and scope in `description_intro` and `relevant_sentences`.",
       options: {
         intern: "Internship or apprenticeship.",
-        junior: "Junior, entry level, graduate, 0-2 years, or 'Engineer I'.",
-        mid: "Mid level, 'Engineer II', about 2-5 years, no seniority word in the title.",
-        senior: "Senior, 'Engineer III', 5+ years of experience.",
-        staff_plus: "Staff, Principal, Distinguished, Architect, or Lead Engineer without people management.",
-        manager: "Engineering Manager, Director, Head of, VP: primarily people management.",
+        junior: "Junior, entry level, 0-2 years, 'Engineer I'.",
+        mid: "Mid level, 'Engineer II', about 2-5 years, no level word in the title.",
+        senior: "Senior, 'Engineer III', 5+ years.",
+        staff_plus: "Staff, Principal, Architect, or Lead without people management.",
+        manager: "Engineering Manager, Director, Head of: mainly people management.",
         not_stated: "The level cannot be told from the text.",
       },
     },
@@ -115,10 +121,12 @@ export function buildEligibilityQuestions(input: EligibilityInput): QuestionDef[
     const options: Record<string, string> = {};
 
     for (const candidate of input.salaryCandidates) {
-      options[candidate.id] = `${candidate.text} (context: "${candidate.context}")`;
+      const room = Math.max(20, MAX_OPTION_TEXT_CHARS - candidate.text.length - 4);
+
+      options[candidate.id] = `${candidate.text} (${candidate.context.slice(0, room)})`;
     }
 
-    options.none = "None of the candidates is the base pay range of this job (for example a bonus, equity, revenue, funding or unrelated numbers).";
+    options.none = "None is the job's base pay (a bonus, equity, revenue, unrelated numbers).";
 
     questions.push({
       id: "salary_span",
@@ -138,23 +146,23 @@ export function buildFitQuestions(input: FitInput): QuestionDef[] {
       id: "stack_match",
       kind: "score",
       instructions:
-        "Compare the technologies and skills the job requires (in `description`) with the candidate's `skills` and `projects_stack`. How well do they match?",
+        "Compare the technologies the job requires (in `description`) with the candidate's `skills` and `projects_stack`. How well do they match?",
       levels: [
-        "No overlap: the required core technologies are absent from the candidate's skills.",
-        "Weak overlap: one or two minor technologies match.",
-        "Partial overlap: some required technologies match, the main one does not.",
-        "Good overlap: the main required technologies match.",
-        "Strong overlap: the required stack is the candidate's core stack.",
+        "No overlap with the required core technologies.",
+        "Weak: one or two minor technologies match.",
+        "Partial: some match, the main one does not.",
+        "Good: the main required technologies match.",
+        "Strong: the required stack is the candidate's core stack.",
       ],
     },
     {
       id: "seniority_match",
       kind: "score",
       instructions:
-        "Compare the job's level (`seniority_estimate`, the title and the experience it asks for) with the candidate's `seniority` and `years_of_experience`. How close are they?",
+        "Compare the job's level (`seniority_estimate`, the title, the experience asked) with the candidate's `seniority` and `years_of_experience`.",
       levels: [
-        "Far apart: the job is several levels above or below the candidate.",
-        "A level too high or too low, clearly.",
+        "Far apart: several levels above or below.",
+        "Clearly a level too high or too low.",
         "Slightly off, but plausible.",
         "Close to the candidate's level.",
         "Exactly the candidate's level.",
@@ -167,9 +175,9 @@ export function buildFitQuestions(input: FitInput): QuestionDef[] {
       id: "domain_interest",
       kind: "score",
       instructions:
-        "Compare the company and product described in the job with the candidate's `company_type_preference` and `values_preference`. How well aligned are they?",
+        "Compare the company and product in the job with the candidate's `company_type_preference` and `values_preference`.",
       levels: [
-        "Conflicts with the candidate's stated preferences.",
+        "Conflicts with the stated preferences.",
         "Weakly aligned.",
         "Neutral or not enough information.",
         "Aligned.",
@@ -182,10 +190,10 @@ export function buildFitQuestions(input: FitInput): QuestionDef[] {
     id: "red_flags",
     kind: "noul",
     instructions:
-      "Does the posting show clear red flags: commission-only pay, unpaid work or an unpaid trial period, pay-to-apply, multi-level marketing, or a dubious cryptocurrency scheme?",
+      "Does the posting show clear red flags: commission-only pay, unpaid work or trial, pay-to-apply, multi-level marketing, dubious crypto?",
     criteria: {
       true: "At least one of those red flags is stated explicitly.",
-      false: "None of those red flags appears in the text.",
+      false: "None of those red flags appears.",
     },
   });
 

@@ -1,5 +1,8 @@
 /**
- * TypeSafe (Jev) client: `POST /v1/systemone`, plain `fetch`, no SDK.
+ * TypeSafe (Jev) client: `POST {TYPESAFE_BASE_URL}/v1/systemone`, plain `fetch`, no SDK.
+ * The base URL defaults to the official API; any server that exposes the same
+ * `/v1/systemone` contract works (for example a self-hosted, Jev-compatible
+ * `laya-serve`), and then the API key is optional.
  * Docs: https://docs.typesafe.ai/api.md (limits: /models.md, cautions:
  * /model-jaggedness/jev-1.13.md). Jev evaluates one `state` against a map of
  * typed questions (noul = yes/no probability, choice = one option + distribution,
@@ -7,7 +10,11 @@
  * question of a stage goes in a single call.
  */
 
-export const TYPESAFE_ENDPOINT = "https://api.typesafe.ai/v1/systemone";
+export const OFFICIAL_TYPESAFE_BASE_URL = "https://api.typesafe.ai";
+export const OFFICIAL_TYPESAFE_HOST = "api.typesafe.ai";
+export const SYSTEMONE_PATH = "/v1/systemone";
+/** Kept for the official endpoint (tests and docs). */
+export const TYPESAFE_ENDPOINT = `${OFFICIAL_TYPESAFE_BASE_URL}${SYSTEMONE_PATH}`;
 export const DEFAULT_TYPESAFE_MODEL = "jev-1.13.0";
 export const DEFAULT_TYPESAFE_TIMEOUT_MS = 30_000;
 export const DEFAULT_TYPESAFE_MAX_RETRIES = 3;
@@ -59,7 +66,8 @@ export type TypeSafeResponse = {
 };
 
 export type TypeSafeConfig = {
-  apiKey: string;
+  /** Null only for non-official servers that need no key. */
+  apiKey: string | null;
   model: string;
   endpoint: string;
   timeoutMs: number;
@@ -82,24 +90,43 @@ export class TypeSafeRequestError extends Error {
   }
 }
 
-/** Reads `TYPESAFE_API_KEY` (required), `TYPESAFE_MODEL` (default: pinned version) and `TYPESAFE_TIMEOUT_MS`. */
+/**
+ * Reads `TYPESAFE_BASE_URL` (default: the official API), `TYPESAFE_API_KEY`,
+ * `TYPESAFE_MODEL` (default: pinned version) and `TYPESAFE_TIMEOUT_MS`.
+ * The key is required only for the official host; other hosts get the Bearer
+ * header only when a key is set. Fails closed on the official host without a key.
+ */
 export function getTypeSafeConfig(
   env: Record<string, string | undefined> = process.env,
 ): TypeSafeConfig {
-  const apiKey = env.TYPESAFE_API_KEY?.trim();
+  const rawBase = env.TYPESAFE_BASE_URL?.trim() || OFFICIAL_TYPESAFE_BASE_URL;
+  let base: URL;
 
-  if (!apiKey) {
+  try {
+    base = new URL(rawBase);
+  } catch {
+    throw new TypeSafeConfigurationError(`TYPESAFE_BASE_URL inválida: "${rawBase}".`);
+  }
+
+  if (base.protocol !== "http:" && base.protocol !== "https:") {
+    throw new TypeSafeConfigurationError(`TYPESAFE_BASE_URL precisa ser http(s): "${rawBase}".`);
+  }
+
+  const apiKey = env.TYPESAFE_API_KEY?.trim() || null;
+
+  if (!apiKey && base.hostname.toLowerCase() === OFFICIAL_TYPESAFE_HOST) {
     throw new TypeSafeConfigurationError(
-      "TRIAGE_ENGINE=jev exige TYPESAFE_API_KEY. Defina a chave ou use TRIAGE_ENGINE=openai (padrão).",
+      "TRIAGE_ENGINE=jev exige TYPESAFE_API_KEY na API oficial (api.typesafe.ai). Defina a chave, aponte TYPESAFE_BASE_URL para um servidor compatível ou use TRIAGE_ENGINE=openai (padrão).",
     );
   }
 
   const timeout = Number(env.TYPESAFE_TIMEOUT_MS);
+  const origin = `${base.origin}${base.pathname.replace(/\/+$/, "")}`;
 
   return {
     apiKey,
     model: env.TYPESAFE_MODEL?.trim() || DEFAULT_TYPESAFE_MODEL,
-    endpoint: TYPESAFE_ENDPOINT,
+    endpoint: `${origin}${SYSTEMONE_PATH}`,
     timeoutMs: Number.isFinite(timeout) && timeout > 0 ? timeout : DEFAULT_TYPESAFE_TIMEOUT_MS,
   };
 }
@@ -159,7 +186,7 @@ export async function evaluateSystemOne(options: EvaluateOptions): Promise<TypeS
       response = await fetchImpl(config.endpoint, {
         method: "POST",
         headers: {
-          authorization: `Bearer ${config.apiKey}`,
+          ...(config.apiKey ? { authorization: `Bearer ${config.apiKey}` } : {}),
           "content-type": "application/json",
         },
         body,

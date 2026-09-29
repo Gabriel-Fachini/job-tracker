@@ -280,9 +280,14 @@ export async function triageJob(
   let fit: FitAnswers;
 
   try {
+    const candidate = buildCandidateProfile(profile, preferences);
+
     fit = await engine.answerFit({
-      state: buildFitState(job, answers.seniority.value, answers.jobFamily.value),
-      candidate: buildCandidateProfile(profile, preferences),
+      // Jev reads job and candidate as one state: the description gets what the candidate leaves of the budget.
+      state: buildFitState(job, answers.seniority.value, answers.jobFamily.value, {
+        candidateChars: JSON.stringify(candidate).length,
+      }),
+      candidate,
       hasDomainPreference: domain,
     });
   } catch (error) {

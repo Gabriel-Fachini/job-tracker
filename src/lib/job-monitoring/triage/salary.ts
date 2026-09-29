@@ -211,8 +211,8 @@ export function extractSalaryCandidates(
 
     seen.add(key);
 
-    const start = Math.max(0, match.index - 70);
-    const end = Math.min(description.length, match.index + match.text.length + 70);
+    const start = Math.max(0, match.index - 45);
+    const end = Math.min(description.length, match.index + match.text.length + 45);
 
     candidates.push({
       id: `c${candidates.length + 1}`,
