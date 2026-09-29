@@ -152,7 +152,7 @@ tmp/                            scratch, logs de extração, DBs de preview (git
 
 ## Segurança
 
-- **Sem autenticação.** Quem alcança a porta tem acesso total, inclusive às Server Actions. A proteção é de rede: em produção o Next escuta só em `127.0.0.1` e é exposto apenas dentro do tailnet via `tailscale serve` (nunca `funnel`). Ver [deploy-e-operacao.md](deploy-e-operacao.md).
+- **Sem autenticação.** Quem alcança a porta tem acesso total, inclusive às Server Actions. A proteção é de rede: em produção o Next escuta só em `127.0.0.1` e é exposto apenas dentro do tailnet via `tailscale serve` (nunca `funnel`). Única exceção: `/api/glassdoor/*` exige token Bearer (`GLASSDOOR_IMPORT_TOKEN`, fail closed), porque a skill de coleta chama do computador do usuário. Ver [deploy-e-operacao.md](deploy-e-operacao.md) e [modulos/glassdoor.md](modulos/glassdoor.md).
 - Segredos só em `.env.local` (dev) e `/etc/job-tracker/env` (VPS). O repositório GitHub é **público**: nunca commitar env, banco, uploads, nome do tailnet ou URL de produção.
 - Busca de logos com proteção SSRF (bloqueio de IPs internos, redirects manuais) e resposta com CSP `sandbox`.
 - LaTeX: todo texto do perfil/IA é escapado; URLs validadas antes de entrar em `\href`.

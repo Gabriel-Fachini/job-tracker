@@ -42,7 +42,7 @@ curl -fsS -H "Authorization: Bearer $GLASSDOOR_IMPORT_TOKEN" \
   "$JOB_TRACKER_URL/api/glassdoor/targets?glassdoorId=<ID>&name=<NOME>"   # sem params = todas
 ```
 
-Resposta por alvo: `{ companyId | null, name, glassdoorId, lastCollectedAt, latestReviewDate, latestInterviewDate }`.
+Resposta: `{ ok, targets: [...] }`; por alvo `{ companyId \| null, name, glassdoorId, glassdoorUrl, lastCollectedAt, latestReviewDate, latestInterviewDate }`.
 
 | Situação | Ação |
 |---|---|
@@ -85,7 +85,9 @@ curl -fsS -X POST -H "Authorization: Bearer $GLASSDOOR_IMPORT_TOKEN" -H "content
   --data-binary @tmp/glassdoor/<arquivo> "$JOB_TRACKER_URL/api/glassdoor/import"
 ```
 
-O import casa cada empresa por `glassdoor_id` (extraído de `companies.glassdoor_url`) → nome normalizado → senão **cria** (`name`, `website`, `size`, `sector`, `glassdoor_url`). Grava um snapshot e insere avaliações/entrevistas novas sem duplicar. Resposta: por empresa, `created` ou `updated`, com contagem de itens novos.
+O import casa cada empresa por `glassdoor_id` (extraído de `companies.glassdoor_url` ou de snapshots anteriores) → nome normalizado → senão **cria** (`name`, `website`, `size`, `sector`, `glassdoor_url`). Numa empresa existente **nunca** troca o nome e só preenche `website`, `size`, `sector` e `glassdoor_url` quando vazios. Grava um snapshot (mesma coleta reimportada é ignorada) e insere avaliações/entrevistas novas sem duplicar.
+
+Resposta: `{ ok, companies: [{ companyId, companyName, action: "created" | "updated", glassdoorId, snapshotId, newReviews, newInterviews, skippedDuplicateSnapshot }], errors }` (`errors` = falhas por empresa que o extrator reportou). HTTP 401 token errado, 503 token não configurado no servidor, 413 arquivo > 10 MB, 422 payload inválido.
 
 Alternativa sem rede: upload do arquivo na tela da empresa.
 

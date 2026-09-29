@@ -46,6 +46,7 @@ App pessoal (single-user, **sem autenticação**) para busca de emprego: perfil 
 | `OPENAI_API_KEY` | extração de perfil; formatação opcional |
 | `OPENAI_COMPARISON_MODEL` | modelo da extração de perfil (default `gpt-5.4`; não deixar definida e vazia) |
 | `OPENAI_FORMAT_JOB_DESCRIPTIONS` | `true` formata descrições do radar com `gpt-4o-mini` (default `false`) |
+| `GLASSDOOR_IMPORT_TOKEN` | token Bearer de `/api/glassdoor/*` (`openssl rand -hex 32`); vazio/ausente = 503. Na VPS em `/etc/job-tracker/env` |
 | `DATABASE_URL` / `UPLOADS_PATH` | default `./job-tracker.db` / `./uploads`; em produção `DATABASE_URL` absoluto e existente (fail closed) |
 
 Ambos `extractJobDetail` (HTTP fetch ao job board) e `classifyJobLead` (HTTP ao Ollama cloud) são I/O bound: links de uma empresa rodam em paralelo com `pLimit(5)` (`LINK_PROCESSING_CONCURRENCY` em `src/lib/job-monitoring/index.ts`); empresas rodam em sequência. Ganho medido: ~2s/link → ~100s sequencial para 50 links → ~20s paralelo.
@@ -110,6 +111,14 @@ Ciclo de vida (`src/lib/job-monitoring/bulk-run.ts` + `run-state.ts`, em memóri
 - Status: o valor escolhido no form é salvo como está. Só `syncCompanyStatusForApplication` (candidatura criada ou status alterado) recalcula; `updateCompany` não chama `syncCompanyStatus`.
 - Logos (`src/lib/company-logos.ts` + `GET /api/companies/[id]/logo`): buscados no próprio site da empresa (apple-touch-icon > ícones `<link>` > `/favicon.ico`) na 1ª vez que a linha pede, cacheados em `<UPLOADS_PATH>/logos` (`companies.logo_path`). `logo_url` é override manual. Sem ícone: nova tentativa em 3 dias; falha transitória: 30 min. Fetch bloqueia IPs privados/loopback/tailnet e segue redirects manualmente.
 
+## Glassdoor
+
+Skill `.claude/skills/glassdoor-collect` coleta do Chrome logado do usuário e importa via `POST /api/glassdoor/import` (token Bearer); `GET /api/glassdoor/targets` diz o que já existe (primeira coleta ou atualização). Upload manual do JSON na lista e na página da empresa. Docs: `docs/modulos/glassdoor.md`.
+
+- Tabelas `glassdoor_snapshots`/`_reviews`/`_interviews`/`_salaries`; `deleteCompany` apaga essas linhas antes da empresa.
+- O import **nunca sobrescreve** o cadastro: `companies.name` intocado; `website`, `size`, `sector`, `glassdoor_url` só quando vazios; empresa desconhecida é criada. Casa por `glassdoor_id` (da URL ou de snapshots), depois por nome normalizado.
+- O JSON coletado tem texto de avaliações: só em `tmp/` (gitignored).
+
 ## Candidaturas, Perfil, Currículo
 
 - Candidaturas (`/applications`): abas por status (não é kanban), troca de status otimista + `application_status_history` + status da empresa derivado. Docs: `docs/modulos/candidaturas.md`.
@@ -163,12 +172,12 @@ npm run db:backup
 - Estado em memória assume um processo: `run-state` do radar, buscas de logo em andamento, conexão do banco.
 - SSE suficiente para real-time UX sem separação de processos
 - Uploads path configurável via `UPLOADS_PATH` (default: `./uploads`); caminhos de uploads gravados relativos ao `cwd`, currículo gerado absoluto.
-- Sem autenticação: proteção é de rede (Tailscale). `/api/monitoring/stream` responde `Access-Control-Allow-Origin: *`.
+- Sem autenticação: proteção é de rede (Tailscale). `/api/monitoring/stream` responde `Access-Control-Allow-Origin: *`. Exceção: `/api/glassdoor/*` exige token Bearer.
 
 ## Testes
 
 - Suíte inteira: `npm test` (`pretest` recria `tmp/test.db` só com o schema do `./job-tracker.db`; o script força `DATABASE_URL=./tmp/test.db` e zera as chaves de IA). `npm run test:job-monitoring` e `npm run test:escape` usam o `DATABASE_URL` do ambiente — sem ele, o radar consulta o banco real. Detalhes em `docs/testes-e-qualidade.md`.
-- Estado em 2026-09-27: 61/61 passam.
+- Estado em 2026-09-28: 81/81 passam.
 - Typecheck: `npm run typecheck` (`tsc --noEmit`). Lint: `npm run lint`.
 
 ## Claude Code Harness

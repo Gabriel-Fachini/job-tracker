@@ -42,6 +42,10 @@ erDiagram
 
     companies ||--o{ jobs : "vagas assumidas"
     companies ||--o{ job_leads : "descobertas pelo radar"
+    companies ||--o{ glassdoor_snapshots : "coletas do Glassdoor"
+    companies ||--o{ glassdoor_reviews : "avaliações"
+    companies ||--o{ glassdoor_interviews : "entrevistas"
+    glassdoor_snapshots ||--o{ glassdoor_salaries : "faixas salariais"
     jobs ||--o{ applications : sustenta
     applications ||--o{ application_stages : etapas
     applications ||--o{ application_status_history : historico
@@ -135,6 +139,17 @@ Vagas encontradas pelo radar, antes de virarem candidatura.
 
 Descartes automáticos **são persistidos** (`classification_status = discarded`): é isso que permite pular a URL nas próximas varreduras. As telas filtram `discarded`. Detalhes em [radar-manual-de-vagas-implementacao.md](radar-manual-de-vagas-implementacao.md).
 
+### Glassdoor
+
+Dados coletados do Glassdoor (migration `0017`). Fluxo, casamento de empresas e decisões de campo em [modulos/glassdoor.md](modulos/glassdoor.md).
+
+| Tabela | Colunas relevantes |
+|---|---|
+| `glassdoor_snapshots` | `company_id`, `glassdoor_id` (índice, só para casamento), `collected_at`, `since`, notas 1–5 (`overall` + 6 subnotas), `recommend_to_friend`/`business_outlook`/`ceo_approval` (0–1), `review_count`, `interview_*`, `data_json`. **Único** `company_id + collected_at` |
+| `glassdoor_reviews` | `company_id`, `glassdoor_review_id` (**único**), `date` (texto ISO), `job_title`, `rating`, `summary`, `pros`, `cons`, `advice`, `is_current`, `years_employed`, `extra_json`, `first_seen_at` |
+| `glassdoor_interviews` | `company_id`, `glassdoor_interview_id` (**único**), `date`, `job_title`, `difficulty`, `experience`, `outcome`, `duration_days`, `process`, `questions_json`, `first_seen_at` |
+| `glassdoor_salaries` | `snapshot_id`, `job_title`, `salary_count`, `base_p10…p90`, `total_p10…p90`, `extra_json` |
+
 ### `resumes` (legado)
 
 `application_id`, `job_id`, `pdf_path`, `tex_path`, `generation_prompt`, `generated_at`. Nenhum código grava nessa tabela. A geração atual de currículo usa `applications.generated_resume_path`. O dashboard ainda lê a tabela.
@@ -143,7 +158,7 @@ Descartes automáticos **são persistidos** (`classification_status = discarded`
 
 Não há cascade. O que existe hoje:
 
-- `deleteCompany` ([`src/server/actions/companies.ts`](../src/server/actions/companies.ts)): recusa (`linked-applications`) se houver `jobs` ligados; senão apaga os `job_leads` e a empresa numa transação e remove o arquivo de logo.
+- `deleteCompany` e `bulkDeleteCompanies` ([`src/server/actions/companies.ts`](../src/server/actions/companies.ts)): recusam (`linked-applications`) se houver `jobs` ligados; senão apagam, numa transação, os dados do Glassdoor (`deleteGlassdoorDataForCompanies`), os `job_leads` e a empresa, e removem o arquivo de logo.
 - Etapas: `deleteApplicationStage`.
 - Não há exclusão de candidatura, job ou perfil pela UI.
 
@@ -195,6 +210,8 @@ Consequências práticas:
 | 13 | `0013_outgoing_princess_powerful` | `applications.generated_resume_path` **e repete** as colunas ATS de `0012` |
 | 14 | `0014_add_is_referral` | `applications.is_referral` |
 | 15 | `0015_company_logos` | `companies.logo_url`, `logo_path`, `logo_checked_at` |
+| 16 | `0016_redundant_millenium_guard` | `companies.radar_enabled` |
+| 17 | `0017_glassdoor_data` | tabelas `glassdoor_snapshots`, `glassdoor_reviews`, `glassdoor_interviews`, `glassdoor_salaries` |
 
 A numeração dos arquivos não é a ordem do journal (dois `0013`, sem `0011`). Vale o `idx`/`when` do `_journal.json`.
 

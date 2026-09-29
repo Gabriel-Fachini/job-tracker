@@ -46,6 +46,7 @@ Arquivo `.env.local` (gitignored). Modelo em [`.env.example`](../.env.example).
 | `OPENAI_API_KEY` | — | `src/lib/ai/openai.ts` | extração de perfil; formatação opcional |
 | `OPENAI_COMPARISON_MODEL` | `gpt-5.4` | idem | modelo da extração de perfil. Não deixe definida e vazia. |
 | `OPENAI_FORMAT_JOB_DESCRIPTIONS` | `false` | `src/lib/job-monitoring/index.ts` | `true` formata descrições do radar com `gpt-4o-mini` |
+| `GLASSDOOR_IMPORT_TOKEN` | — (vazio = 503) | `src/lib/glassdoor/auth.ts` | token Bearer de `/api/glassdoor/*`; gere com `openssl rand -hex 32`. Ver [modulos/glassdoor.md](modulos/glassdoor.md) |
 | `SAMPLE_PROFILE_*` | nome/contatos fictícios | `src/lib/latex/__fixtures__/sample-profile.ts` | só `npm run resume:sample` e testes |
 | `NODE_ENV` | definido pelo Next | `src/lib/db/index.ts` | `production` liga o fail-closed do banco |
 
