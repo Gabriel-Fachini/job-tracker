@@ -41,10 +41,10 @@ test("GENERATION_ENGINE defaults to openai and rejects unknown values", () => {
 });
 
 test("model env vars have the documented defaults", () => {
-  assert.equal(DEFAULT_OPENAI_TRIAGE_MODEL, "gpt-5.4-nano");
-  assert.equal(DEFAULT_OPENAI_GENERATION_MODEL, "gpt-5.4-mini");
-  assert.equal(getOpenAiTriageModel({}), "gpt-5.4-nano");
-  assert.equal(getOpenAiGenerationModel({}), "gpt-5.4-mini");
+  assert.equal(DEFAULT_OPENAI_TRIAGE_MODEL, "gpt-6-luna");
+  assert.equal(DEFAULT_OPENAI_GENERATION_MODEL, "gpt-6-sol");
+  assert.equal(getOpenAiTriageModel({}), "gpt-6-luna");
+  assert.equal(getOpenAiGenerationModel({}), "gpt-6-sol");
   assert.equal(getOpenAiTriageModel({ OPENAI_TRIAGE_MODEL: "custom-triage" }), "custom-triage");
   assert.equal(getOpenAiGenerationModel({ OPENAI_GENERATION_MODEL: " custom-gen " }), "custom-gen");
 });
@@ -69,6 +69,8 @@ test("generateText with the openai engine sends system + user to the generation 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].model, getOpenAiGenerationModel());
   assert.equal(calls[0].max_output_tokens, 500);
+  // Generation runs with low reasoning effort.
+  assert.deepEqual(calls[0].reasoning, { effort: "low" });
   assert.deepEqual(calls[0].input, [
     { role: "system", content: "You write cover letters." },
     { role: "user", content: "Write one." },
@@ -111,7 +113,7 @@ test("callOpenAiStructured sends a strict json_schema", async () => {
   const schema = { type: "object", additionalProperties: false, required: ["x"], properties: { x: { type: "string" } } };
 
   const result = await callOpenAiStructured({
-    model: "gpt-5.4-nano",
+    model: "gpt-6-luna",
     system: "s",
     user: "u",
     schemaName: "demo",
@@ -124,6 +126,8 @@ test("callOpenAiStructured sends a strict json_schema", async () => {
   assert.deepEqual(calls[0].text, {
     format: { type: "json_schema", name: "demo", schema, strict: true },
   });
+  // Triage runs with no reasoning.
+  assert.deepEqual(calls[0].reasoning, { effort: "none" });
 });
 
 test("formatJobDescription uses the generation engine and rejects empty text", async () => {

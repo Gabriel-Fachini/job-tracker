@@ -109,8 +109,15 @@ export function evaluateStageOne(input: {
   preferences: SearchPreferencesInput | null;
   salaryFromSource: AnnualUsdRange | null;
   salaryCandidates: ExtractedSalaryCandidate[];
+  /**
+   * True only for engines whose confidence is calibrated (Jev). Self-reported confidence
+   * (OpenAI, Ollama) is logged but never used to discard: there, an auto-discard needs an
+   * explicit answer, and doubtful mismatches go to review.
+   */
+  calibrated?: boolean;
 }): StageOneOutcome {
   const { answers, preferences } = input;
+  const calibrated = input.calibrated ?? true;
   const t = TRIAGE_THRESHOLDS;
   const forceReview: string[] = [];
   let discard: StageOneOutcome["discard"] = null;
@@ -133,14 +140,15 @@ export function evaluateStageOne(input: {
   const eligibility = answers.eligibility;
 
   if (restrictedEligibilityValues.has(eligibility.value)) {
-    if (eligibility.confidence >= t.eligibilityDiscardConfidence) {
+    // Uncalibrated engines: the explicit restricted answer is enough (their confidence label is not).
+    if (!calibrated || eligibility.confidence >= t.eligibilityDiscardConfidence) {
       discard = { reason: "location_ineligible", detail: eligibility.value };
     } else {
       forceReview.push("elegibilidade restrita com pouca confiança");
     }
   } else if (eligibility.value === "not_stated") {
     forceReview.push("elegibilidade não informada");
-  } else if (eligibility.confidence < t.lowConfidence) {
+  } else if (calibrated && eligibility.confidence < t.lowConfidence) {
     forceReview.push("elegibilidade incerta");
   }
 
@@ -152,7 +160,11 @@ export function evaluateStageOne(input: {
     const usAuth = answers.usWorkAuthorizationRequired > t.usAuthorizationProbability;
 
     if (contract.value === "employee_only" && (usAuth || wantsNoEmployee)) {
-      if (contract.confidence >= t.mismatchDiscardConfidence || (usAuth && contract.confidence >= t.lowConfidence)) {
+      const explicit = calibrated
+        ? contract.confidence >= t.mismatchDiscardConfidence || (usAuth && contract.confidence >= t.lowConfidence)
+        : usAuth;
+
+      if (explicit) {
         discard = {
           reason: "contract_mismatch",
           detail: usAuth ? "só empregado com autorização de trabalho nos EUA" : "só empregado direto",
@@ -175,7 +187,7 @@ export function evaluateStageOne(input: {
     const seniority = answers.seniority;
 
     if (!seniorityCompatible(seniority.value, preferences.targetSeniorities)) {
-      if (seniority.confidence >= t.mismatchDiscardConfidence) {
+      if (calibrated && seniority.confidence >= t.mismatchDiscardConfidence) {
         discard = { reason: "seniority_mismatch", detail: seniority.value };
       } else {
         forceReview.push("senioridade fora do alvo com pouca confiança");
@@ -187,7 +199,7 @@ export function evaluateStageOne(input: {
     const family = answers.jobFamily;
 
     if (!familyCompatible(family.value, preferences.targetJobFamilies)) {
-      if (family.confidence >= t.mismatchDiscardConfidence) {
+      if (calibrated && family.confidence >= t.mismatchDiscardConfidence) {
         discard = { reason: "job_family_mismatch", detail: family.value };
       } else {
         forceReview.push("área da vaga fora do alvo com pouca confiança");
@@ -214,8 +226,19 @@ function normalizeLevel(level: LevelResult): number {
 }
 
 /** Composite score (0-100) from the 1-5 fit ratings and the red-flag probability. */
-export function computeFit(fit: FitAnswers, stageOneForceReview: string[] = []): FitOutcome {
+export function computeFit(
+  fit: FitAnswers,
+  stageOneForceReview: string[] = [],
+  options: {
+    /** See `evaluateStageOne`: uncalibrated confidence never forces a review here. */
+    calibrated?: boolean;
+    /** False when stage 1 found no level in the posting: the seniority match is then neutral. */
+    seniorityStated?: boolean;
+  } = {},
+): FitOutcome {
   const t = TRIAGE_THRESHOLDS;
+  const calibrated = options.calibrated ?? true;
+  const seniorityStated = options.seniorityStated ?? true;
   const hasDomain = fit.domainInterest !== null;
   const weights = hasDomain
     ? { ...FIT_WEIGHTS }
@@ -224,10 +247,12 @@ export function computeFit(fit: FitAnswers, stageOneForceReview: string[] = []):
         seniority: FIT_WEIGHTS.seniority / (FIT_WEIGHTS.stack + FIT_WEIGHTS.seniority),
         domain: 0,
       };
+  // Models often say "not stated" for titles like "Backend Engineer": that is neutral, not a mismatch.
+  const seniorityLevel: LevelResult = seniorityStated ? fit.seniorityMatch : { value: 3, confidence: 1 };
 
   let composite =
     normalizeLevel(fit.stackMatch) * weights.stack +
-    normalizeLevel(fit.seniorityMatch) * weights.seniority +
+    normalizeLevel(seniorityLevel) * weights.seniority +
     (fit.domainInterest ? normalizeLevel(fit.domainInterest) * weights.domain : 0);
   let score = Math.round(composite * 100);
   const forceReview = [...stageOneForceReview];
@@ -240,7 +265,7 @@ export function computeFit(fit: FitAnswers, stageOneForceReview: string[] = []):
 
   composite = score / 100;
 
-  const confidences = [fit.stackMatch.confidence, fit.seniorityMatch.confidence];
+  const confidences = [fit.stackMatch.confidence, seniorityLevel.confidence];
 
   if (fit.domainInterest) {
     confidences.push(fit.domainInterest.confidence);
@@ -266,7 +291,7 @@ export function computeFit(fit: FitAnswers, stageOneForceReview: string[] = []):
   // The project prefers review to a wrong discard or a wrong promotion: a decisive answer the model is unsure of,
   // or an open question from stage 1, keeps the lead in the human's hands.
   if (decision !== "review" && discardReason !== "other") {
-    if (confidence < t.lowConfidence) {
+    if (calibrated && confidence < t.lowConfidence) {
       forceReview.push("resposta decisiva com pouca confiança");
     }
 

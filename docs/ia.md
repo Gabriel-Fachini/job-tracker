@@ -13,14 +13,16 @@ Código em [`src/lib/ai/`](../src/lib/ai/) e [`src/lib/job-monitoring/triage/`](
 | Variável | Default | Uso |
 |---|---|---|
 | `TRIAGE_ENGINE` | `openai` | `openai` \| `jev` \| `ollama`. Valor inválido, ou motor sem a chave dele, falha a triagem na largada do run (mensagem clara; nada é gravado) |
-| `OPENAI_TRIAGE_MODEL` | `gpt-5.4-nano` | modelo da triagem com `openai` |
+| `OPENAI_TRIAGE_MODEL` | `gpt-6-luna` | modelo da triagem com `openai`: `reasoning: { effort: "none" }` e saída estruturada estrita. Referência de preço (2026-09-28): US$ 0,10 / 0,50 por 1M tokens (entrada/saída) |
 | `TYPESAFE_BASE_URL` | `https://api.typesafe.ai` | endpoint = `<base>/v1/systemone`; aceita qualquer servidor com o mesmo contrato (ver "Jev autohospedado") |
 | `TYPESAFE_API_KEY` | — | obrigatória com `jev` **só no host oficial** (`api.typesafe.ai`; sem ela a triagem falha na largada). Em outro host, o header `Authorization: Bearer` só vai se houver chave |
 | `TRIAGE_MAX_STATE_TOKENS` | `6000` | orçamento do state dos estágios 1 e 2 (estimativa chars/4). Ver "Estados enxutos" |
 | `TYPESAFE_MODEL` | `jev-1.13.0` | versão **fixa** (não o alias `jev-latest`), para que os limiares calibrados não mudem sozinhos |
 | `TYPESAFE_TIMEOUT_MS` | `30000` | por chamada |
 | `GENERATION_ENGINE` | `openai` | `openai` \| `ollama` |
-| `OPENAI_GENERATION_MODEL` | `gpt-5.4-mini` | modelo generativo com `openai` |
+| `OPENAI_GENERATION_MODEL` | `gpt-6-sol` | modelo generativo com `openai`: `reasoning: { effort: "low" }`. Referência: US$ 2 / 10 por 1M tokens |
+| `OPENAI_COMPARISON_MODEL` | `gpt-6-sol` | extração do perfil a partir do PDF (era `gpt-5.4`; não deixe definida e vazia) |
+| `OPENAI_FORMAT_MODEL` | `gpt-6-luna` | formatação opcional de descrições do radar (`OPENAI_FORMAT_JOB_DESCRIPTIONS=true`), `reasoning: none` (era `gpt-4o-mini` fixo) |
 | `OPENAI_API_KEY` | — | obrigatória com `openai` (triagem/geração) e na extração de perfil |
 
 Privacidade: qualquer provedor recebe só o texto da vaga e, do perfil, habilidades, anos de experiência, senioridade, famílias-alvo e as preferências de tipo de empresa/valores; **nunca nome, e-mail, telefone, links ou localização** (teste em `triage.test.ts`). A geração de currículo e de cover letter envia conteúdo do perfil por natureza (comportamento que já existia para o currículo).
@@ -33,8 +35,8 @@ Privacidade: qualquer provedor recebe só o texto da vaga e, do perfil, habilida
 | Selecionar bullets/skills do currículo | `GENERATION_ENGINE`: OpenAI (padrão) / Ollama | `generateResumeSelection` → `generateText` | `OPENAI_GENERATION_MODEL` / `OLLAMA_MODEL` | OpenAI: `json_object`; Ollama: `format: "json"`, `temperature 0` |
 | Botão "Formatar" na candidatura | `GENERATION_ENGINE` | `formatJobDescription` | idem | OpenAI: texto livre até 4000 tokens; Ollama: `temperature 0.1`, `think: false` |
 | Classificar lead (legado) | Ollama | `classifyJobLead` | `OLLAMA_MODEL` | **não é mais chamado pelo pipeline**; fica como classificador injetável nos testes |
-| Extrair perfil do currículo | OpenAI | `extractProfileWithOpenAi` | `OPENAI_COMPARISON_MODEL` (default `gpt-5.4`) | Responses API, `json_schema` estrito, `max_output_tokens 16000` |
-| Formatar descrição no radar (opt-in) | OpenAI | `formatJobDescriptionAsMarkdown` | `gpt-4o-mini` (fixo) | `max_output_tokens 4000`; só com `OPENAI_FORMAT_JOB_DESCRIPTIONS=true` |
+| Extrair perfil do currículo | OpenAI | `extractProfileWithOpenAi` | `OPENAI_COMPARISON_MODEL` (default `gpt-6-sol`) | Responses API, `json_schema` estrito, `max_output_tokens 16000` |
+| Formatar descrição no radar (opt-in) | OpenAI | `formatJobDescriptionAsMarkdown` | `OPENAI_FORMAT_MODEL` (default `gpt-6-luna`, `reasoning: none`) | `max_output_tokens 4000`; só com `OPENAI_FORMAT_JOB_DESCRIPTIONS=true` |
 | Extrair perfil via Ollama | Ollama | `extractProfileFromText` | `OLLAMA_MODEL` | **sem chamador** hoje |
 | Comparar extrações Ollama × OpenAI | ambos | `compareProfileExtraction` | ambos | **sem chamador** hoje |
 
@@ -78,7 +80,7 @@ Só em `local`: manda `prompt: ""` com `keep_alive: 0` e confere `done_reason ==
 
 [`src/lib/ai/openai.ts`](../src/lib/ai/openai.ts). SDK oficial (`openai` v6), **Responses API** (`client.responses.create`).
 
-- `getOpenAiComparisonConfig()` exige `OPENAI_API_KEY` (senão `OpenAiComparisonConfigurationError`) e lê `OPENAI_COMPARISON_MODEL` (default `gpt-5.4`). Atenção: variável definida porém vazia vira modelo `""`.
+- `getOpenAiComparisonConfig()` exige `OPENAI_API_KEY` (senão `OpenAiComparisonConfigurationError`) e lê `OPENAI_COMPARISON_MODEL` (default `gpt-6-sol`). Atenção: variável definida porém vazia vira modelo `""`.
 - `extractProfileWithOpenAi(rawText)`: prompt de sistema em pt-BR ("seja exaustivo, não invente, preserve bullets, trate educação com a mesma atenção"), schema `profile_extraction` estrito. `incomplete_details` (ex.: limite de tokens) vira erro explicativo.
 - `formatJobDescriptionAsMarkdown(text)`: pede `##` por seção, listas com `-`, **negrito** em tecnologias, sem inventar nem parafrasear, no idioma original.
 
@@ -96,7 +98,7 @@ Regra de ouro: **`review` em vez de descartar/promover na dúvida**. Resposta de
 
 ### Motores
 
-- **openai** (padrão): [`engines/json-engine.ts`](../src/lib/job-monitoring/triage/engines/json-engine.ts) → [`openai-runtime.ts`](../src/lib/ai/openai-runtime.ts). Cada pergunta vira um objeto do `json_schema` estrito: escolha = `{ value: enum, confidence: low|medium|high }`, sim/não = `{ answer: yes|no|unclear, confidence }`, nível = `{ level: 1..5, confidence }`. A confiança rotulada vira 0,4 / 0,7 / 0,9 em código (auto-relato, **não calibrado** como o da Jev: `high` é o único que descarta por elegibilidade).
+- **openai** (padrão): limites do tier 1 (500 RPM, 500k TPM) cabem no `pLimit(5)` do radar (até 2 chamadas por vaga). [`engines/json-engine.ts`](../src/lib/job-monitoring/triage/engines/json-engine.ts) → [`openai-runtime.ts`](../src/lib/ai/openai-runtime.ts). Cada pergunta vira um objeto do `json_schema` estrito: escolha = `{ value: enum, confidence: low|medium|high }`, sim/não = `{ answer: yes|no|unclear, confidence }`, nível = `{ level: 1..5, confidence }`. A confiança rotulada vira 0,4 / 0,7 / 0,9 em código (auto-relato, **não calibrado** como o da Jev: `high` é o único que descarta por elegibilidade).
 - **jev**: [`src/lib/ai/typesafe.ts`](../src/lib/ai/typesafe.ts), `POST {TYPESAFE_BASE_URL}/v1/systemone` (default `https://api.typesafe.ai`) com `Authorization: Bearer` (quando há chave), `{ state, model, questions }` (tipos `noul`/`choice`/`score`), `fetch` puro com `fetchImpl` injetável, timeout, retry em 429 e 529 honrando `retry-after` (máx. 3; sem o header, backoff 1/2/4 s), log do `model` e do `usage` por chamada. Confiança e probabilidades calibradas. Notas do fabricante ([jaggedness do 1.13](https://docs.typesafe.ai/model-jaggedness/jev-1.13.md)): leitura literal, sem aritmética, sem datas, estado grande atrapalha — por isso a conta do salário e as regras ficam em código e o state é enxuto. Contexto máximo 64k tokens (32k para state + a maior pergunta). Nunca testado contra a API real (sem chave); a suíte usa `fetch` falso.
 - **ollama**: o mesmo schema e prompt como `format` no `/api/generate`. Fallback.
 - Sem a chave do motor escolhido, o run **falha antes de começar** (`assertTriageConfigured`, chamado por `loadRunContext`).

@@ -40,19 +40,19 @@ Triagem e geração usam **OpenAI por padrão**; o Ollama (`OLLAMA_RUNTIME_MODE=
 | Var | Descrição |
 |-----|-----------|
 | `TRIAGE_ENGINE` | motor da triagem: `openai` (default) \| `jev` \| `ollama`. Sem a chave do motor escolhido a triagem falha na largada (fail closed) |
-| `OPENAI_TRIAGE_MODEL` | modelo da triagem com `openai` (default `gpt-5.4-nano`) |
+| `OPENAI_TRIAGE_MODEL` | modelo da triagem com `openai` (default `gpt-6-luna`, `reasoning: none`, saída estruturada estrita) |
 | `TYPESAFE_API_KEY` / `TYPESAFE_MODEL` / `TYPESAFE_BASE_URL` | Jev (`TRIAGE_ENGINE=jev`); modelo default `jev-1.13.0` (versão fixa); base URL default `https://api.typesafe.ai` (aceita servidor compatível autohospedado, como `laya-serve`; a chave só é obrigatória no host oficial) |
 | `TRIAGE_MAX_STATE_TOKENS` | orçamento do state enviado aos modelos da triagem, em tokens estimados (chars/4; default `6000`) |
 | `GENERATION_ENGINE` | tarefas generativas: `openai` (default) \| `ollama` |
-| `OPENAI_GENERATION_MODEL` | modelo generativo com `openai` (default `gpt-5.4-mini`) |
+| `OPENAI_GENERATION_MODEL` | modelo generativo com `openai` (default `gpt-6-sol`, `reasoning: low`) |
 | `OLLAMA_RUNTIME_MODE` | `cloud` ou `local` (obrigatória só se o Ollama for usado: `TRIAGE_ENGINE=ollama` ou `GENERATION_ENGINE=ollama`) |
 | `OLLAMA_BASE_URL` | URL base da API Ollama |
 | `OLLAMA_MODEL` | Nome do modelo (ex: `gemma3:4b`) |
 | `OLLAMA_API_KEY` | API key (obrigatória em `cloud`, enviada como Bearer) |
 | `OLLAMA_TIMEOUT_MS` | Timeout por request (default: `240000`) |
 | `OPENAI_API_KEY` | extração de perfil; formatação opcional |
-| `OPENAI_COMPARISON_MODEL` | modelo da extração de perfil (default `gpt-5.4`; não deixar definida e vazia) |
-| `OPENAI_FORMAT_JOB_DESCRIPTIONS` | `true` formata descrições do radar com `gpt-4o-mini` (default `false`) |
+| `OPENAI_COMPARISON_MODEL` | modelo da extração de perfil (default `gpt-6-sol`; não deixar definida e vazia) |
+| `OPENAI_FORMAT_JOB_DESCRIPTIONS` | `true` formata descrições do radar (default `false`); modelo em `OPENAI_FORMAT_MODEL` (default `gpt-6-luna`, `reasoning: none`) |
 | `DATABASE_URL` / `UPLOADS_PATH` | default `./job-tracker.db` / `./uploads`; em produção `DATABASE_URL` absoluto e existente (fail closed) |
 
 Ambos `extractJobDetail` (HTTP fetch ao job board) e a triagem (`triageJob`, HTTP ao motor de IA) são I/O bound: links de uma empresa rodam em paralelo com `pLimit(5)` (`LINK_PROCESSING_CONCURRENCY` em `src/lib/job-monitoring/index.ts`); empresas rodam em sequência. Ganho medido: ~2s/link → ~100s sequencial para 50 links → ~20s paralelo.
@@ -128,7 +128,7 @@ Ciclo de vida (`src/lib/job-monitoring/bulk-run.ts` + `run-state.ts`, em memóri
 
 ## Job Description Formatting
 
-- Radar: `OPENAI_FORMAT_JOB_DESCRIPTIONS=true|false` (default `false`); descriptions sem estrutura markdown são reformatadas via `gpt-4o-mini` antes da classificação. Non-blocking: erro loga e mantém a description original.
+- Radar: `OPENAI_FORMAT_JOB_DESCRIPTIONS=true|false` (default `false`); descriptions sem estrutura markdown são reformatadas via `gpt-6-luna` antes da classificação. Non-blocking: erro loga e mantém a description original.
 - Candidatura: botão "Formatar" usa o motor de geração (`formatJobDescription`: OpenAI por padrão, Ollama com `GENERATION_ENGINE=ollama`).
 
 ## Database

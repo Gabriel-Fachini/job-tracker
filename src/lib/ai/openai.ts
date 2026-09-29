@@ -12,7 +12,9 @@ import {
   PROFILE_EXTRACTION_SYSTEM_PROMPT,
 } from "@/lib/ai/ollama";
 
-const DEFAULT_OPENAI_COMPARISON_MODEL = "gpt-5.4";
+const DEFAULT_OPENAI_COMPARISON_MODEL = "gpt-6-sol";
+/** Radar description formatting (opt-in): `OPENAI_FORMAT_MODEL`, default `gpt-6-luna` with no reasoning. */
+export const DEFAULT_OPENAI_FORMAT_MODEL = "gpt-6-luna";
 
 export const OPENAI_PROFILE_EXTRACTION_SYSTEM_PROMPT = `
 Você extrai um perfil profissional a partir do texto de um currículo.
@@ -286,7 +288,7 @@ export async function formatJobDescriptionAsMarkdown(
 
   const { apiKey } = getOpenAiComparisonConfig();
   const client = new OpenAI({ apiKey });
-  const model = "gpt-4o-mini";
+  const model = process.env.OPENAI_FORMAT_MODEL?.trim() || DEFAULT_OPENAI_FORMAT_MODEL;
 
   const systemPrompt = `Você reformata descrições de vaga em markdown limpo. Use ## para seções (Responsabilidades, Requisitos, Benefícios, Sobre a empresa, etc), listas com \`-\`, **negrito** para tecnologias e termos-chave. NÃO invente, remova ou parafraseie conteúdo. Mantenha o idioma original. Retorne apenas o markdown sem cercas \`\`\`.`;
 
@@ -296,6 +298,7 @@ export async function formatJobDescriptionAsMarkdown(
     response = await client.responses.create({
       model,
       max_output_tokens: 4000,
+      reasoning: { effort: "none" },
       input: [
         { role: "system", content: systemPrompt },
         { role: "user", content: cleanedText },

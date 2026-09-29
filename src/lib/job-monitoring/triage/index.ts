@@ -237,7 +237,9 @@ export async function triageJob(
     throw new TriageError(errorMessage(error, `Falha na triagem (${engine.name}, extração).`));
   }
 
+  const calibrated = engine.calibratedConfidence ?? engine.name === "jev";
   const stageOne = evaluateStageOne({
+    calibrated,
     answers,
     preferences,
     salaryFromSource: hard.salary,
@@ -250,6 +252,8 @@ export async function triageJob(
     stage: 1,
     engine: engine.name,
     model: engine.model,
+    // Uncalibrated (self-reported) confidence is logged here but never used to auto-discard.
+    confidenceCalibrated: calibrated,
     thresholds: TRIAGE_THRESHOLDS,
     stageOne: {
       answers: serializeAnswers(answers),
@@ -294,7 +298,10 @@ export async function triageJob(
     throw new TriageError(errorMessage(error, `Falha na triagem (${engine.name}, encaixe).`));
   }
 
-  const outcome = computeFit(fit, stageOne.forceReview);
+  const outcome = computeFit(fit, stageOne.forceReview, {
+    calibrated,
+    seniorityStated: answers.seniority.value !== "not_stated",
+  });
 
   fields.discardReason = outcome.decision === "discarded" ? outcome.discardReason : null;
   fields.triageConfidence = overallConfidence(answers.eligibility, outcome);

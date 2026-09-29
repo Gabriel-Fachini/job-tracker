@@ -2,11 +2,37 @@ import Mustache from 'mustache';
 import fs from 'node:fs';
 import path from 'node:path';
 import { escapeLatex, isSafeUrl } from './escape';
-import type { ResumeTemplateData } from './types';
+import type { ResumeLanguage, ResumeTemplateData } from './types';
 
 Mustache.escape = (s) => s;
 
 const TEMPLATE_PATH = path.join(process.cwd(), 'src/lib/latex/template.tex');
+
+/** Raw LaTeX (not escaped): section headings and the few labels the template prints itself. */
+export const RESUME_LABELS: Record<ResumeLanguage, Record<string, string>> = {
+  pt: {
+    summary: 'RESUMO',
+    experience: 'EXPERIÊNCIA',
+    skills: 'HABILIDADES',
+    projects: 'PROJETOS',
+    languages: 'IDIOMAS',
+    education: 'EDUCA\\c{C}\\~AO',
+    link: 'link',
+    impact: 'Impacto:',
+    inField: 'em',
+  },
+  en: {
+    summary: 'SUMMARY',
+    experience: 'EXPERIENCE',
+    skills: 'SKILLS',
+    projects: 'PROJECTS',
+    languages: 'LANGUAGES',
+    education: 'EDUCATION',
+    link: 'link',
+    impact: 'Impact:',
+    inField: 'in',
+  },
+};
 
 export function renderResumeTex(data: ResumeTemplateData): string {
   const safe = escapeData(data);
@@ -16,7 +42,8 @@ export function renderResumeTex(data: ResumeTemplateData): string {
         .join(' \\textbf{|} ')
     : undefined;
   const tpl = fs.readFileSync(TEMPLATE_PATH, 'utf8');
-  return Mustache.render(tpl, { ...safe, languagesLine }, {}, ['<<', '>>']);
+  const labels = RESUME_LABELS[data.language ?? 'pt'];
+  return Mustache.render(tpl, { ...safe, languagesLine, labels }, {}, ['<<', '>>']);
 }
 
 function safeUrl(url: string | undefined): string | undefined {

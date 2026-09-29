@@ -39,19 +39,20 @@ Arquivo `.env.local` (gitignored). Modelo em [`.env.example`](../.env.example).
 | `DATABASE_URL` | `./job-tracker.db` | `src/lib/db/index.ts`, `drizzle.config.ts`, scripts de backup | Em produção precisa ser caminho absoluto de um arquivo existente |
 | `UPLOADS_PATH` | `./uploads` | uploads de currículo, PDFs gerados, logos | resolvido a partir do `cwd` |
 | `TRIAGE_ENGINE` | `openai` | `src/lib/job-monitoring/triage/index.ts` | `openai` \| `jev` \| `ollama`; motor sem chave falha o run na largada |
-| `OPENAI_TRIAGE_MODEL` | `gpt-5.4-nano` | `src/lib/ai/openai-runtime.ts` | modelo da triagem com `openai` |
+| `OPENAI_TRIAGE_MODEL` | `gpt-6-luna` | `src/lib/ai/openai-runtime.ts` | modelo da triagem com `openai` (`reasoning: none`) |
 | `TYPESAFE_BASE_URL`, `TYPESAFE_API_KEY`, `TYPESAFE_MODEL`, `TYPESAFE_TIMEOUT_MS` | `https://api.typesafe.ai`, —, `jev-1.13.0`, `30000` | `src/lib/ai/typesafe.ts` | só com `TRIAGE_ENGINE=jev`; a chave só é obrigatória no host oficial |
 | `TRIAGE_MAX_STATE_TOKENS` | `6000` | `src/lib/job-monitoring/triage/state.ts` | orçamento do state (chars/4) |
 | `GENERATION_ENGINE` | `openai` | `src/lib/ai/generation.ts` | `openai` \| `ollama` (seleção do currículo, "Formatar", cover letter) |
-| `OPENAI_GENERATION_MODEL` | `gpt-5.4-mini` | idem | modelo generativo com `openai` |
+| `OPENAI_GENERATION_MODEL` | `gpt-6-sol` | idem | modelo generativo com `openai` (`reasoning: low`) |
 | `OLLAMA_RUNTIME_MODE` | — (obrigatória só com Ollama) | `src/lib/ai/ollama.ts` | `local` ou `cloud` |
 | `OLLAMA_BASE_URL` | — (obrigatória) | idem | local: `http://127.0.0.1:11434` |
 | `OLLAMA_MODEL` | — (obrigatória) | idem | ex.: `gemma3:4b` |
 | `OLLAMA_API_KEY` | — | idem | obrigatória em `cloud` |
 | `OLLAMA_TIMEOUT_MS` | `240000` | idem | por chamada |
 | `OPENAI_API_KEY` | — | `src/lib/ai/openai.ts` | extração de perfil; formatação opcional |
-| `OPENAI_COMPARISON_MODEL` | `gpt-5.4` | idem | modelo da extração de perfil. Não deixe definida e vazia. |
-| `OPENAI_FORMAT_JOB_DESCRIPTIONS` | `false` | `src/lib/job-monitoring/index.ts` | `true` formata descrições do radar com `gpt-4o-mini` |
+| `OPENAI_COMPARISON_MODEL` | `gpt-6-sol` | idem | modelo da extração de perfil. Não deixe definida e vazia. |
+| `OPENAI_FORMAT_JOB_DESCRIPTIONS` | `false` | `src/lib/job-monitoring/index.ts` | `true` formata descrições do radar |
+| `OPENAI_FORMAT_MODEL` | `gpt-6-luna` | `src/lib/ai/openai.ts` | modelo da formatação opcional (`reasoning: none`) |
 | `SAMPLE_PROFILE_*` | nome/contatos fictícios | `src/lib/latex/__fixtures__/sample-profile.ts` | só `npm run resume:sample` e testes |
 | `NODE_ENV` | definido pelo Next | `src/lib/db/index.ts` | `production` liga o fail-closed do banco |
 

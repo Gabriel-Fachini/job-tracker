@@ -655,6 +655,8 @@ function buildInitialValues(lead: LeadListItem): ApplicationCreateInitialValues 
     seniority: lead.seniority || "",
     status: "applied",
     notes: buildPromotionNote(lead),
+    // Triaged by the international radar (or found by a feed): offer the assisted-application kit.
+    international: Boolean(lead.eligibility) || (lead.sourceKind !== null && lead.sourceKind !== "company"),
   };
 }
 

@@ -67,6 +67,8 @@ export type ApplicationCreateInitialValues = {
   seniority: string;
   status: string;
   notes: string;
+  /** Promoted from the international radar: offer the assisted-application kit. */
+  international?: boolean;
 };
 
 /**
@@ -428,6 +430,24 @@ export function ApplicationCreateModal({
                 ) : resumePhase === "error" && resumeError ? (
                   <Notice tone="negative">{resumeError}</Notice>
                 ) : null}
+              </section>
+            ) : null}
+
+            {created && initialValues?.international ? (
+              <section className="flex flex-col gap-3 border-t border-border pt-5">
+                <h3 className="text-sm font-medium text-foreground">Candidatura assistida</h3>
+                <p className="text-[13px] leading-5 text-pretty text-muted-foreground">
+                  Vaga internacional: prepare o currículo em inglês, a cover letter e as respostas do formulário,
+                  prontos para copiar. Nada é enviado por você.
+                </p>
+                <div>
+                  <Link
+                    href={`/applications/${applicationId}/kit`}
+                    className={buttonVariants({ variant: "outline", size: "sm" })}
+                  >
+                    Preparar candidatura
+                  </Link>
+                </div>
               </section>
             ) : null}
           </div>

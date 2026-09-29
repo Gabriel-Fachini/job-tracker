@@ -184,7 +184,7 @@ test("engines fail closed when their key is missing", () => {
 
   const openai = createTriageEngine({ OPENAI_API_KEY: "k" });
   assert.equal(openai.name, "openai");
-  assert.equal(openai.model, "gpt-5.4-nano");
+  assert.equal(openai.model, "gpt-6-luna");
   assert.equal(createTriageEngine({ OPENAI_API_KEY: "k", OPENAI_TRIAGE_MODEL: "custom" }).model, "custom");
 });
 
@@ -618,7 +618,7 @@ test("the OpenAI engine sends a strict schema with the triage model and maps con
     salaryCandidates: candidates,
   });
 
-  assert.equal(requests[0].model, "gpt-5.4-nano");
+  assert.equal(requests[0].model, "gpt-6-luna");
   const format = (requests[0].text as { format: { type: string; strict: boolean; schema: { required: string[]; additionalProperties: boolean; properties: Record<string, { properties: { value?: { enum: string[] } } }> } } }).format;
   assert.equal(format.type, "json_schema");
   assert.equal(format.strict, true);

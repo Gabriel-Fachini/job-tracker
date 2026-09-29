@@ -8,12 +8,18 @@ import {
 /**
  * OpenAI calls for the triage (structured, strict `json_schema`) and for
  * generation (text or JSON). Shares the SDK and `OPENAI_API_KEY` with
- * `openai.ts`; models come from `OPENAI_TRIAGE_MODEL` (default `gpt-5.4-nano`)
- * and `OPENAI_GENERATION_MODEL` (default `gpt-5.4-mini`).
+ * `openai.ts`; models come from `OPENAI_TRIAGE_MODEL` (default `gpt-6-luna`, no
+ * reasoning) and `OPENAI_GENERATION_MODEL` (default `gpt-6-sol`, low reasoning).
+ * Every id is overridable through the environment. Tier-1 limits are 500 RPM
+ * and 500k TPM, so the radar keeps its `pLimit(5)` concurrency.
  */
 
-export const DEFAULT_OPENAI_TRIAGE_MODEL = "gpt-5.4-nano";
-export const DEFAULT_OPENAI_GENERATION_MODEL = "gpt-5.4-mini";
+/** Reasoning effort sent with each kind of call (`reasoning: { effort }` on the Responses API). */
+export const TRIAGE_REASONING_EFFORT = "none";
+export const GENERATION_REASONING_EFFORT = "low";
+
+export const DEFAULT_OPENAI_TRIAGE_MODEL = "gpt-6-luna";
+export const DEFAULT_OPENAI_GENERATION_MODEL = "gpt-6-sol";
 
 /** The slice of the SDK the runtime uses, so tests inject a fake and never touch the network. */
 export type OpenAiResponsesClient = {
@@ -65,6 +71,8 @@ export type OpenAiCallResult = {
 };
 
 type CommonCallOptions = {
+  /** `none|low|medium|high|xhigh|max`; omit to use the model's default. */
+  reasoningEffort?: string;
   model: string;
   system: string;
   user: string;
@@ -86,6 +94,7 @@ async function callResponses(
     response = await client.responses.create({
       model: options.model,
       max_output_tokens: options.maxOutputTokens ?? 4000,
+      ...(options.reasoningEffort ? { reasoning: { effort: options.reasoningEffort } } : {}),
       input: [
         { role: "system", content: options.system },
         { role: "user", content: options.user },
@@ -126,19 +135,25 @@ async function callResponses(
 export async function callOpenAiStructured(
   options: CommonCallOptions & { schemaName: string; schema: Record<string, unknown> },
 ): Promise<OpenAiCallResult> {
-  return callResponses(options, {
-    format: {
-      type: "json_schema",
-      name: options.schemaName,
-      schema: options.schema,
-      strict: true,
+  return callResponses(
+    { reasoningEffort: TRIAGE_REASONING_EFFORT, ...options },
+    {
+      format: {
+        type: "json_schema",
+        name: options.schemaName,
+        schema: options.schema,
+        strict: true,
+      },
     },
-  });
+  );
 }
 
 /** Free text (or JSON when `json` is set: the prompt must ask for JSON). */
 export async function callOpenAiText(
   options: CommonCallOptions & { json?: boolean },
 ): Promise<OpenAiCallResult> {
-  return callResponses(options, options.json ? { format: { type: "json_object" } } : undefined);
+  return callResponses(
+    { reasoningEffort: GENERATION_REASONING_EFFORT, ...options },
+    options.json ? { format: { type: "json_object" } } : undefined,
+  );
 }

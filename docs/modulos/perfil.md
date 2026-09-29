@@ -41,7 +41,7 @@ sequenceDiagram
 ```
 
 1. **Upload** (`POST /api/profile/upload`, `runtime = "nodejs"`): exige campo `file`; aceita arquivo não vazio, ≤ 10 MB, (a checagem de extensão/MIME não barra nada: `getPdfExtension` sempre devolve `.pdf`; o arquivo é salvo e só o pdfjs rejeita o que não é PDF). Salva **antes** de extrair em `<UPLOADS_PATH>/resumes/master/master-resume-<timestamp>.pdf`. Texto via `pdfjs-dist/legacy/build/pdf.mjs` (eval desligado, sem worker fetch); PDF sem texto (escaneado) → erro 400.
-2. **Extração** (`extractProfileDraft`): **OpenAI** (`extractProfileWithOpenAi`), modelo `OPENAI_COMPARISON_MODEL` (default `gpt-5.4`), `max_output_tokens: 16000`, `json_schema` estrito. `incomplete_details` vira erro. O JSON passa por `parseExtractedProfileResponse` (do módulo Ollama), que tira cercas, valida e normaliza aliases pt/en de enums e datas. Exige `OPENAI_API_KEY`.
+2. **Extração** (`extractProfileDraft`): **OpenAI** (`extractProfileWithOpenAi`), modelo `OPENAI_COMPARISON_MODEL` (default `gpt-6-sol`), `max_output_tokens: 16000`, `json_schema` estrito. `incomplete_details` vira erro. O JSON passa por `parseExtractedProfileResponse` (do módulo Ollama), que tira cercas, valida e normaliza aliases pt/en de enums e datas. Exige `OPENAI_API_KEY`.
 3. **Gravação** (`saveExtractedProfile`) com `preserveExistingPreferences: true`: mantém `company_type_preference` e `values_preference` (a extração não produz esses campos), mas sobrescreve contatos, `notes` e `work_model_preference`.
 
 O diálogo mostra três etapas temporizadas (texto → OpenAI → banco).

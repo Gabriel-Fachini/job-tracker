@@ -98,6 +98,11 @@ export type TriageEngineName = "openai" | "jev" | "ollama";
 export interface TriageEngine {
   readonly name: TriageEngineName;
   readonly model: string;
+  /**
+   * True when `confidence` is calibrated (Jev). Self-reported confidence (OpenAI, Ollama) is
+   * logged only: it never auto-discards. Defaults to `name === "jev"`.
+   */
+  readonly calibratedConfidence?: boolean;
   answerEligibility(input: EligibilityInput): Promise<EligibilityAnswers>;
   answerFit(input: FitInput): Promise<FitAnswers>;
 }

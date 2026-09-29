@@ -259,6 +259,32 @@ export const applicationStatusHistory = sqliteTable(
 );
 
 /**
+ * Assisted application kit (one per application): English resume, cover
+ * letter, the form's fields and the answers prepared for them. Nothing here is
+ * ever submitted for the user.
+ */
+export const applicationKits = sqliteTable("application_kits", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  applicationId: integer("application_id")
+    .notNull()
+    .unique()
+    .references(() => applications.id),
+  language: text("language").notNull().default("en"),
+  applyUrl: text("apply_url"),
+  /** Absolute path of the English PDF generated for this application. */
+  resumePath: text("resume_path"),
+  coverLetter: text("cover_letter"),
+  /** JSON FormField[]: label, type, required, options (see src/lib/apply/types.ts). */
+  formFields: text("form_fields"),
+  /** JSON map fieldId -> answer (value, key, source, aiDraft...). */
+  answers: text("answers"),
+  /** draft, ready or submitted_by_user. */
+  status: text("status").notNull().default("draft"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+/**
  * International search preferences. Single row (the app has one user); no row
  * means every preference-based filter is off. List columns hold JSON arrays.
  */
@@ -424,6 +450,7 @@ export type NewApplication = typeof applications.$inferInsert;
 export type JobSource = typeof jobSources.$inferSelect;
 export type JobLead = typeof jobLeads.$inferSelect;
 export type NewJobLead = typeof jobLeads.$inferInsert;
+export type ApplicationKit = typeof applicationKits.$inferSelect;
 export type SearchPreferencesRow = typeof searchPreferences.$inferSelect;
 export type Resume = typeof resumes.$inferSelect;
 export type NewResume = typeof resumes.$inferInsert;

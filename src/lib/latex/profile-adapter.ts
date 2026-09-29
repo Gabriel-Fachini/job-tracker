@@ -1,10 +1,22 @@
 import type { ProfileSnapshot } from "@/lib/profile/editor";
-import type { ResumeTemplateData } from "./types";
+import type { ResumeLanguage, ResumeTemplateData } from "./types";
 
 export type ResumeAISelection = {
-  experiences: Array<{ company: string; bullets: string[] }>;
+  /** Short professional title under the name (English resume). */
+  headline?: string;
+  /** 2-3 sentence summary (English resume). */
+  summary?: string;
+  /** `role`: the title translated by the model (English resume); the profile's own title is used when absent. */
+  experiences: Array<{ company: string; bullets: string[]; role?: string }>;
   skills: Array<{ category: string; items: string }>;
   projects: Array<{ name: string; reason?: string }>;
+  /** Degree/field translated by the model (English resume), matched by institution. */
+  education?: Array<{ institution: string; degree?: string; field?: string }>;
+};
+
+export type BuildResumeOptions = {
+  /** `pt` (default) keeps the original Brazilian flow untouched; `en` localizes labels and drops pt-only fixed text. */
+  language?: ResumeLanguage;
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -69,13 +81,23 @@ function selectProjects(
 export function buildResumeData(
   profile: ProfileSnapshot,
   aiSelection: ResumeAISelection,
+  options: BuildResumeOptions = {},
 ): ResumeTemplateData {
+  const language = options.language ?? "pt";
+  const isEnglish = language === "en";
   const bulletsByCompany = new Map<string, string[]>();
+  const rolesByCompany = new Map<string, string>();
   for (const exp of aiSelection.experiences) {
     bulletsByCompany.set(exp.company.toLowerCase(), exp.bullets);
+    if (isEnglish && exp.role?.trim()) {
+      rolesByCompany.set(exp.company.toLowerCase(), exp.role.trim());
+    }
   }
 
   return {
+    language,
+    headline: isEnglish ? aiSelection.headline?.trim() || undefined : undefined,
+    summary: isEnglish ? aiSelection.summary?.trim() || undefined : undefined,
     fullName: profile.fullName,
     email: profile.email ?? undefined,
     phone: profile.phone ?? undefined,
@@ -87,19 +109,24 @@ export function buildResumeData(
       const aiBullets = findBulletsForCompany(exp.company, bulletsByCompany);
       return {
         company: exp.company,
-        role: exp.role,
+        role: isEnglish ? (rolesByCompany.get(exp.company.toLowerCase()) ?? exp.role) : exp.role,
         startDate: formatDate(exp.startDate),
-        endDate: exp.isCurrent ? "Atual" : formatDate(exp.endDate),
+        endDate: exp.isCurrent ? (isEnglish ? "Present" : "Atual") : formatDate(exp.endDate),
         bullets: aiBullets.map((content) => ({ content })),
       };
     }),
 
     skills: aiSelection.skills,
 
-    languages: [
-      { name: "Português", level: "Nativo" },
-      { name: "Inglês", level: "Avançado" },
-    ],
+    // The profile has no spoken-language data: the Portuguese resume keeps its fixed
+    // lines (original behavior); the English one leaves the section out rather than
+    // claiming a level nobody entered.
+    languages: isEnglish
+      ? undefined
+      : [
+          { name: "Português", level: "Nativo" },
+          { name: "Inglês", level: "Avançado" },
+        ],
 
     projects: selectProjects(profile.projects, aiSelection.projects).map((p) => ({
       name: p.name,
@@ -109,16 +136,25 @@ export function buildResumeData(
       impact: p.impact ?? undefined,
     })),
 
-    education: profile.education.map((e) => ({
-      institution: e.institution,
-      degree: e.degree ?? undefined,
-      field: e.field ?? undefined,
-      period:
-        e.startDate && e.endDate
-          ? `${formatDate(e.startDate)} — ${formatDate(e.endDate)}`
-          : (e.endDate ?? undefined),
-      location: "Brasil",
-    })),
+    education: profile.education.map((e) => {
+      const translated = isEnglish
+        ? aiSelection.education?.find(
+            (item) => normalizeLookupKey(item.institution) === normalizeLookupKey(e.institution),
+          )
+        : undefined;
+
+      return {
+        institution: e.institution,
+        degree: translated?.degree?.trim() || e.degree || undefined,
+        field: translated?.field?.trim() || e.field || undefined,
+        period:
+          e.startDate && e.endDate
+            ? `${formatDate(e.startDate)} — ${formatDate(e.endDate)}`
+            : (e.endDate ?? undefined),
+        // Fixed "Brasil" only in the original pt flow; the profile has no per-school country.
+        location: isEnglish ? undefined : "Brasil",
+      };
+    }),
   };
 }
 

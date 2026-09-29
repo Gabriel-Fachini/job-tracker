@@ -33,7 +33,7 @@ test("triage fields are stored on the lead and come back mapped for the UI", () 
     contractTypes: ["contractor", "eor"],
     salaryMinUsdAnnual: 140000,
     salaryMaxUsdAnnual: 160000,
-    triageModel: "gpt-5.4-nano",
+    triageModel: "gpt-6-luna",
     triageConfidence: 0.8,
     triageDetails: { stage: 2, note: "ok" },
   };
@@ -61,7 +61,7 @@ test("triage fields are stored on the lead and come back mapped for the UI", () 
   assert.equal(result.leadSnapshot.discardReason, null);
 
   const row = db.select().from(jobLeads).all().find((lead) => lead.id === result.id)!;
-  assert.equal(row.triageModel, "gpt-5.4-nano");
+  assert.equal(row.triageModel, "gpt-6-luna");
   assert.equal(row.triageConfidence, 0.8);
   assert.deepEqual(JSON.parse(row.triageDetails ?? "{}"), { stage: 2, note: "ok" });
   assert.equal(row.userDiscardReason, null);

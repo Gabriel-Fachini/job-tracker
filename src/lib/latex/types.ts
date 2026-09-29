@@ -1,4 +1,8 @@
+export type ResumeLanguage = "pt" | "en";
+
 export type ResumeTemplateData = {
+  /** Section headings and small labels. Default `pt` (the original flow). */
+  language?: ResumeLanguage;
   fullName: string;
   headline?: string;
   email?: string;

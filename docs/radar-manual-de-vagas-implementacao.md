@@ -177,7 +177,7 @@ Vagas vindas de provider não passam pela detecção de `workModel`/`seniority` 
 
 ### 5. Formatação opcional da descrição
 
-Com `OPENAI_FORMAT_JOB_DESCRIPTIONS=true`, descrições **sem** estrutura markdown (sem parágrafo duplo, cabeçalho `#`, lista ou `**`) vão para `formatJobDescriptionAsMarkdown` (OpenAI `gpt-4o-mini`, até 4000 tokens de saída). Erro é logado (`description-format-failed`) e a descrição original segue.
+Com `OPENAI_FORMAT_JOB_DESCRIPTIONS=true`, descrições **sem** estrutura markdown (sem parágrafo duplo, cabeçalho `#`, lista ou `**`) vão para `formatJobDescriptionAsMarkdown` (OpenAI, modelo `OPENAI_FORMAT_MODEL`, default `gpt-6-luna` com `reasoning: none`, até 4000 tokens de saída). Erro é logado (`description-format-failed`) e a descrição original segue.
 
 ### 6. Sinais determinísticos
 

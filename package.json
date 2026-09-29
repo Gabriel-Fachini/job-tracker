@@ -20,6 +20,7 @@
     "resume:sample": "tsx scripts/render-resume-sample.ts",
     "companies:import-yc": "tsx scripts/import-yc-companies.ts",
     "triage:eval": "tsx scripts/triage-eval.ts",
+    "apply:fill": "tsx scripts/apply-fill.ts",
     "test:escape": "node --import tsx --test src/lib/latex/escape.test.ts"
   },
   "dependencies": {

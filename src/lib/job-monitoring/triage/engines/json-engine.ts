@@ -104,6 +104,8 @@ function createJsonEngine(name: TriageEngineName, model: string, transport: Tran
   return {
     name,
     model,
+    // The labels are the model's own claim ("high" came with every wrong answer in the eval).
+    calibratedConfidence: false,
     async answerEligibility(input: EligibilityInput) {
       const defs = buildEligibilityQuestions(input);
 

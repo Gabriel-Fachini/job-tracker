@@ -81,6 +81,7 @@ export function createJevEngine(options: JevEngineOptions = {}): TriageEngine {
 
   return {
     name: "jev",
+    calibratedConfidence: true,
     model: config.model,
     async answerEligibility(input: EligibilityInput) {
       const response = await call(
