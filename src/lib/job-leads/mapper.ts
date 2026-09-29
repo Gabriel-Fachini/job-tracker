@@ -16,6 +16,13 @@ export type RawLeadRow = {
   classificationStatus: string;
   classificationScore: number | null;
   classificationReason: string | null;
+  eligibility: string | null;
+  /** JSON string[] as stored. */
+  contractTypes: string | null;
+  salaryMinUsdAnnual: number | null;
+  salaryMaxUsdAnnual: number | null;
+  discardReason: string | null;
+  triageEngine: string | null;
   userDecision: string;
   promotedToApplicationId: number | null;
   discoveredAt: Date;
@@ -27,6 +34,7 @@ export type RawLeadRow = {
 export function mapRawLeadToListItem(row: RawLeadRow): LeadListItem {
   return {
     ...row,
+    contractTypes: parseStringArray(row.contractTypes),
     classificationStatus: isJobLeadStatus(row.classificationStatus)
       ? row.classificationStatus
       : "review",
@@ -34,4 +42,18 @@ export function mapRawLeadToListItem(row: RawLeadRow): LeadListItem {
       ? row.userDecision
       : "none",
   };
+}
+
+function parseStringArray(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
 }

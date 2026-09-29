@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ExternalLink } from "lucide-react";
 
 import { JobMarkdown } from "@/components/applications/job-markdown";
+import { DiscardReasonChips } from "@/components/leads/discard-reason-chips";
 import { scoreClasses, useLeadDecisions } from "@/components/leads/lead-decisions";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
 import type { LeadListItem } from "@/components/leads/types";
@@ -18,6 +19,11 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getJobLeadUserDecisionLabel } from "@/lib/job-leads";
 import { getSourceAttribution } from "@/lib/job-monitoring/sources/catalog";
+import {
+  formatContractTypes,
+  formatUsdAnnualBounds,
+  getEligibilityLabel,
+} from "@/lib/job-monitoring/triage/labels";
 import { getSeniorityLabel, getSourceNameLabel, getWorkModelLabel } from "@/lib/jobs";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +78,7 @@ function LeadDetailBody({
     lead.id,
     onClose,
   );
+  const [choosingReason, setChoosingReason] = useState(false);
   const isTriage = lead.userDecision === "none";
   const decisionLabel = getJobLeadUserDecisionLabel(lead.userDecision);
   const isBusy = isApproving || isDiscarding;
@@ -83,6 +90,17 @@ function LeadDetailBody({
     { label: "Local", value: lead.locationText },
     { label: "Faixa salarial", value: lead.salaryText },
     { label: "Fonte", value: getSourceNameLabel(lead.sourceName) ?? "Outra origem" },
+    // International radar: only shown when the triage extracted them.
+    ...(lead.eligibility
+      ? [
+          { label: "Elegibilidade", value: capitalize(getEligibilityLabel(lead.eligibility)) },
+          { label: "Contrato", value: capitalize(formatContractTypes(lead.contractTypes)) },
+          {
+            label: "Salário (US$/ano)",
+            value: formatUsdAnnualBounds(lead.salaryMinUsdAnnual, lead.salaryMaxUsdAnnual),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -164,6 +182,19 @@ function LeadDetailBody({
         </div>
       </ScrollArea>
 
+      {choosingReason && isTriage ? (
+        <div className="shrink-0 border-t border-border px-4 py-3 sm:px-6">
+          <DiscardReasonChips
+            disabled={isBusy}
+            onCancel={() => setChoosingReason(false)}
+            onPick={(reason) => {
+              setChoosingReason(false);
+              discard(reason);
+            }}
+          />
+        </div>
+      ) : null}
+
       <div className="flex shrink-0 items-center gap-2 border-t border-border px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-3.5">
         <a
           href={lead.sourceUrl}
@@ -186,7 +217,7 @@ function LeadDetailBody({
                 type="button"
                 variant="outline"
                 disabled={isBusy}
-                onClick={discard}
+                onClick={() => setChoosingReason(true)}
                 className="flex-1 sm:flex-none"
               >
                 {isDiscarding ? "Descartando…" : "Descartar"}
@@ -216,4 +247,8 @@ function LeadDetailBody({
       </div>
     </>
   );
+}
+
+function capitalize(value: string | null) {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : null;
 }

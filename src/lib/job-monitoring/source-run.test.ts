@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { LeadListItem } from "@/components/leads/types";
+import { emptyLeadTriage } from "@/lib/job-leads/defaults";
 import { buildDedupKey } from "@/lib/companies/normalize";
 import type { CompanyResolver } from "@/lib/companies/resolve";
 
 import { runMonitoringForSource } from "./source-run";
+import { classificationToTriageResult } from "./triage/adapter";
+import { emptyTriageFields } from "./triage/types";
 import type { MonitoringSource, SourceJob } from "./sources/types";
 import type { MonitoringStreamEvent, PersistableLead } from "./types";
 
@@ -44,6 +47,7 @@ function snapshot(lead: PersistableLead): LeadListItem {
     sourceName: lead.sourceName,
     sourceKind: lead.sourceKind ?? null,
     applyUrl: lead.applyUrl ?? null,
+    ...emptyLeadTriage,
     description: lead.description,
     workModel: lead.workModel,
     seniority: lead.seniority,
@@ -109,11 +113,21 @@ test("runMonitoringForSource skips known URLs and duplicates, sinks discards and
         : null,
     recordRunFn: (id, outcome) => runs.push([id, outcome]),
     resolver,
-    screenFn: (candidate) => (candidate.externalId === "job-5" ? { reason: "Título fora das famílias alvo" } : null),
-    classifyJobLeadFn: async (detail) =>
-      classification(
-        detail.title?.endsWith(" 6") ? "discarded" : detail.title?.endsWith(" 7") ? "review" : "interesting",
-      ),
+    triageJobFn: async (candidate) => {
+      // Stage 0 rejection: no model, score 0, engine "rules".
+      if (candidate.sourceUrl.endsWith("/5")) {
+        return {
+          classification: { ...classification("discarded"), score: 0, reason: "Título fora das famílias alvo" },
+          fields: { ...emptyTriageFields("rules"), discardReason: "job_family_mismatch" },
+        };
+      }
+
+      return classificationToTriageResult(
+        classification(
+          candidate.title?.endsWith(" 6") ? "discarded" : candidate.title?.endsWith(" 7") ? "review" : "interesting",
+        ),
+      );
+    },
     upsertJobLeadFn: (lead) => {
       persisted.push(lead);
       return { id: persisted.length, created: true, promotedToApplicationId: null, leadSnapshot: snapshot(lead) };
@@ -150,6 +164,8 @@ test("runMonitoringForSource skips known URLs and duplicates, sinks discards and
   assert.equal(byUrl.get("https://feed.example/jobs/5")!.companyId, 999);
   assert.equal(byUrl.get("https://feed.example/jobs/5")!.classificationScore, 0);
   assert.equal(byUrl.get("https://feed.example/jobs/5")!.classificationReason, "Título fora das famílias alvo");
+  assert.equal(byUrl.get("https://feed.example/jobs/5")!.discardReason, "job_family_mismatch");
+  assert.equal(byUrl.get("https://feed.example/jobs/5")!.triageEngine, "rules");
   assert.equal(byUrl.get("https://feed.example/jobs/6")!.companyId, 999);
   // Only vacancies worth a look created companies.
   assert.deepEqual(resolved.sort(), ["Company 1", "Company 7"]);

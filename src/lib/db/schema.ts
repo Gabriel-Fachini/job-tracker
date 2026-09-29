@@ -2,6 +2,7 @@ import { relations, sql } from "drizzle-orm";
 import {
   index,
   integer,
+  real,
   sqliteTable,
   text,
   uniqueIndex,
@@ -182,6 +183,23 @@ export const jobLeads = sqliteTable(
       .default("review"),
     classificationScore: integer("classification_score"),
     classificationReason: text("classification_reason"),
+    /** Triage stage 1: worldwide, americas_or_latam_incl_brazil, brazil_explicit, us_only, us_canada_only, europe_uk_only, other_country_restricted, not_stated. */
+    eligibility: text("eligibility"),
+    /** JSON string[]: employee, contractor, eor. */
+    contractTypes: text("contract_types"),
+    /** Base salary normalized to USD per year (from the source or extracted from the text). */
+    salaryMinUsdAnnual: integer("salary_min_usd_annual"),
+    salaryMaxUsdAnnual: integer("salary_max_usd_annual"),
+    /** Why the triage discarded it: location_ineligible, salary_below_min, job_family_mismatch, seniority_mismatch, contract_mismatch, low_fit, other. */
+    discardReason: text("discard_reason"),
+    /** Why the user discarded it by hand (the discard reasons plus not_interested). */
+    userDiscardReason: text("user_discard_reason"),
+    /** rules (hard filters / no profile), openai, jev or ollama. */
+    triageEngine: text("triage_engine"),
+    triageModel: text("triage_model"),
+    triageConfidence: real("triage_confidence"),
+    /** JSON with every answer, probability and threshold behind the decision. */
+    triageDetails: text("triage_details"),
     userDecision: text("user_decision").notNull().default("none"),
     userDecisionAt: integer("user_decision_at", { mode: "timestamp" }),
     promotedToApplicationId: integer("promoted_to_application_id").references(

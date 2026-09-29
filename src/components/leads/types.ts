@@ -18,6 +18,13 @@ export type LeadListItem = {
   classificationStatus: JobLeadStatus;
   classificationScore: number | null;
   classificationReason: string | null;
+  /** Triage stage 1 (international radar); null on leads triaged before it existed. */
+  eligibility: string | null;
+  contractTypes: string[];
+  salaryMinUsdAnnual: number | null;
+  salaryMaxUsdAnnual: number | null;
+  discardReason: string | null;
+  triageEngine: string | null;
   userDecision: JobLeadUserDecision;
   promotedToApplicationId: number | null;
   discoveredAt: Date;

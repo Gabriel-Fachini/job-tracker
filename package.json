@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "pretest": "bash scripts/create-test-db.sh",
-    "test": "env DATABASE_URL=./tmp/test.db OLLAMA_RUNTIME_MODE= OLLAMA_BASE_URL= OLLAMA_MODEL= OLLAMA_API_KEY= OPENAI_API_KEY= node --import tsx --test \"src/**/*.test.ts\"",
+    "test": "env DATABASE_URL=./tmp/test.db OLLAMA_RUNTIME_MODE= OLLAMA_BASE_URL= OLLAMA_MODEL= OLLAMA_API_KEY= OPENAI_API_KEY= TYPESAFE_API_KEY= TRIAGE_ENGINE= GENERATION_ENGINE= OPENAI_TRIAGE_MODEL= OPENAI_GENERATION_MODEL= node --import tsx --test \"src/**/*.test.ts\"",
     "test:job-monitoring": "node --import tsx --test \"src/lib/job-monitoring/**/*.test.ts\"",
     "test:profile-extraction": "tsx tmp/test-profile-extraction.ts",
     "analyze:profile-extractions": "tsx tmp/analyze-profile-extractions.ts",
@@ -19,6 +19,7 @@
     "db:restore": "bash scripts/restore-db.sh",
     "resume:sample": "tsx scripts/render-resume-sample.ts",
     "companies:import-yc": "tsx scripts/import-yc-companies.ts",
+    "triage:eval": "tsx scripts/triage-eval.ts",
     "test:escape": "node --import tsx --test src/lib/latex/escape.test.ts"
   },
   "dependencies": {

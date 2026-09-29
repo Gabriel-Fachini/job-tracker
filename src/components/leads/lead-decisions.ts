@@ -30,13 +30,13 @@ export function useLeadDecisions(leadId: number, onOptimisticUpdate?: () => void
     });
   }
 
-  function discard() {
+  function discard(reason?: string | null) {
     startDiscardTransition(async () => {
       queryClient.setQueryData(["leads"], (old: LeadListItem[] | undefined) =>
         old?.filter((item) => item.id !== leadId),
       );
       onOptimisticUpdate?.();
-      await discardLead(leadId);
+      await discardLead(leadId, reason ?? null);
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       toast.success("Lead descartado");
     });

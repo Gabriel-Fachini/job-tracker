@@ -1,4 +1,4 @@
-import { callOllamaLlm } from "@/lib/ai/ollama";
+import { generateText } from "@/lib/ai/generation";
 import type { ProfileSnapshot } from "@/lib/profile/editor";
 import type { ResumeAISelection } from "@/lib/latex/profile-adapter";
 
@@ -75,10 +75,13 @@ ${projectsText}
 ## INSTRUÇÃO
 Selecione e reescreva os bullet points mais relevantes para esta vaga específica (STAR format). Selecione as habilidades mais relevantes organizadas por categoria em português (ex: "Linguagens", "Frameworks", "Ferramentas", "Cloud & DevOps"). Verifique tecnologias explicitamente citadas na descrição que não aparecem nas habilidades profissionais do candidato. Se o candidato tem projeto pessoal com essa tecnologia, adicione categoria "Projetos & Experiência Prática" com entradas "Tecnologia — Projeto". Caso contrário, adicione categoria "Interesse Técnico". Proponha no maximo 2 projetos em "projects" e somente quando eles merecerem aparecer como conteudo proprio do curriculo para esta vaga.`;
 
-  const raw = await callOllamaLlm(prompt, {
+  const raw = await generateText({
     system: SYSTEM_PROMPT,
-    format: "json",
-    generationOptions: { temperature: 0 },
+    prompt,
+    json: true,
+    temperature: 0,
+    maxOutputTokens: 6000,
+    label: "resume-selection",
   });
 
   const jsonStr = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();

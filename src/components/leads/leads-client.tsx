@@ -12,6 +12,7 @@ import {
 } from "@/components/applications/application-create-modal";
 import { useLeadDecisions } from "@/components/leads/lead-decisions";
 import { LeadDetailModal } from "@/components/leads/lead-detail-modal";
+import { DiscardReasonChips } from "@/components/leads/discard-reason-chips";
 import { LeadStatusBadge } from "@/components/leads/lead-status-badge";
 import { ScoreMeter } from "@/components/leads/score-meter";
 import type { LeadListItem, LeadTab } from "@/components/leads/types";
@@ -495,6 +496,7 @@ function LeadRow({
   onCreateApplication: () => void;
 }) {
   const { approve, discard, isApproving, isDiscarding } = useLeadDecisions(lead.id);
+  const [choosingReason, setChoosingReason] = useState(false);
   const isBusy = isApproving || isDiscarding;
   const meta = [
     getSeniorityLabel(lead.seniority) ?? lead.seniority,
@@ -571,7 +573,7 @@ function LeadRow({
                     type="button"
                     variant="ghost"
                     disabled={isBusy}
-                    onClick={discard}
+                    onClick={() => setChoosingReason(true)}
                     className="flex-1 sm:flex-none"
                   >
                     {isDiscarding ? "Descartando…" : "Descartar"}
@@ -598,6 +600,18 @@ function LeadRow({
               )}
             </div>
           </div>
+          {choosingReason && tab === "triage" ? (
+            <div className="relative z-10 mt-3 border-t border-border pt-3">
+              <DiscardReasonChips
+                disabled={isBusy}
+                onCancel={() => setChoosingReason(false)}
+                onPick={(reason) => {
+                  setChoosingReason(false);
+                  discard(reason);
+                }}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
     </li>

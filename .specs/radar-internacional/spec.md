@@ -2,6 +2,8 @@
 
 Status: aprovada pelo usuário em 2026-09-28. Branch: `feat/radar-internacional`.
 
+> **Revisão (2026-09-28, aprovada pelo usuário): OpenAI no lugar do Ollama.** Os modelos mais fortes do Ollama Cloud exigem plano pago e o usuário tem créditos da OpenAI. Vale a partir da Fase 4: `TRIAGE_ENGINE` = `openai` (**novo padrão**) | `jev` | `ollama`; tarefas generativas (seleção do currículo, cover letter, rascunhos de resposta livre, botão "Formatar") passam a usar `GENERATION_ENGINE` = `openai` (padrão) | `ollama`. O código e as variáveis do Ollama **não** são removidos (removê-lo por completo é outra tarefa, futura). Onde este documento diz "Ollama" como motor padrão, leia "OpenAI" (detalhes nas seções Motores e Fase 5).
+
 ## Contexto
 
 O usuário mudou o foco para vagas remotas no exterior pagas em USD (contractor via Deel/EOR ou PJ é aceitável). O radar atual é orientado a empresa (`companies.jobs_board_url` → provider Greenhouse/Gupy/InHire → classificação Ollama). Esta spec adiciona:
@@ -135,8 +137,9 @@ Pesos em código (constante documentada) → score 0–100. `≥ 70` interesting
 ### Motores
 
 - `src/lib/ai/typesafe.ts`: `POST https://api.typesafe.ai/v1/systemone`, `Authorization: Bearer $TYPESAFE_API_KEY`, body `{ state, model, questions }`, tipos `noul`/`choice`/`score` (docs: https://docs.typesafe.ai/api.md, limites em https://docs.typesafe.ai/models.md, cuidados em https://docs.typesafe.ai/model-jaggedness/jev-1.13.md). `fetch` puro com `fetchImpl` injetável (sem SDK), timeout, retry em 429 honrando `retry-after` (máx. 3), log do `model` e do `usage`. Todas as perguntas de um estágio vão numa chamada só.
-- Env: `TRIAGE_ENGINE` = `ollama` (default, mantém o comportamento atual) | `jev`. `jev` sem `TYPESAFE_API_KEY` → erro de configuração (fail closed). `TYPESAFE_MODEL` default `jev-1.13.0` (versão fixa, não o alias). Documentar em `.env.example`, na tabela do `CLAUDE.md` e em `docs/ia.md`.
-- Fallback Ollama: implementar o mesmo contrato `TriageAnswers` (estágios 1 e 2) com uma chamada JSON-schema ao Ollama; o código a jusante é idêntico. O classificador atual (`classification.ts`) pode ser absorvido; manter o comportamento "sem perfil → review/40".
+- Env: `TRIAGE_ENGINE` = `openai` (**default**) | `jev` | `ollama`. `jev` sem `TYPESAFE_API_KEY` → erro de configuração (fail closed); `openai` sem `OPENAI_API_KEY` também. `TYPESAFE_MODEL` default `jev-1.13.0` (versão fixa, não o alias). `OPENAI_TRIAGE_MODEL` default `gpt-5.4-nano`. Documentar em `.env.example`, na tabela do `CLAUDE.md` e em `docs/ia.md`.
+- Motor `openai` (padrão): os estágios 1 e 2 vão **uma chamada por estágio** à Responses API com `json_schema` estrito (reusa o SDK/`OPENAI_API_KEY` de `src/lib/ai/openai.ts`). Mesmo contrato `TriageAnswers` da Jev: campos com enum e, para cada campo decisivo, um `confidence` enum (`low|medium|high`) mapeado em código para 0,4/0,7/0,9. Testes usam cliente falso, nunca a rede.
+- Motor `ollama`: o mesmo contrato e o mesmo schema, como `format` JSON schema no Ollama (fallback; não é mais o padrão). O código a jusante é idêntico. O classificador antigo (`classification.ts`) deixa de ser usado no pipeline (fica só para os testes/injeção); mantém-se o comportamento "sem perfil → review/40".
 - O conteúdo das vagas é não confiável (prompt injection): filtros em código têm a palavra final, e o modelo nunca promove algo que o estágio 0 descartou.
 
 ### Feedback e insights
@@ -150,13 +153,13 @@ Pesos em código (constante documentada) → score 0–100. `≥ 70` interesting
 Tabela `application_kits`: `id`, `application_id` (FK, único), `language` (`en`), `apply_url`, `resume_path`, `cover_letter`, `form_fields` (JSON), `answers` (JSON), `status` (`draft|ready|submitted_by_user`), `created_at`, `updated_at`.
 
 Fluxo "Preparar candidatura" (no detalhe da candidatura; também ao promover um lead internacional):
-1. **Currículo em inglês**: `generateResume(applicationId, { language: "en" })`. Prompt em inglês; `profile-adapter` sem textos fixos em pt ("Portuguese — Native", "English — Advanced", "Brazil"); cabeçalhos do template localizados; preencher `headline`/`summary` (o template já suporta). O fluxo pt-BR atual continua igual.
-2. **Cover letter** (Ollama, generativo): 120–180 palavras, inglês, sem inventar fatos, baseada no perfil e na vaga. Editável.
+1. **Currículo em inglês**: `generateResume(applicationId, { language: "en" })` (seleção via `GENERATION_ENGINE`, o mesmo do fluxo pt-BR). Prompt em inglês; `profile-adapter` sem textos fixos em pt ("Portuguese — Native", "English — Advanced", "Brazil"); cabeçalhos do template localizados; preencher `headline`/`summary` (o template já suporta). O fluxo pt-BR atual continua igual.
+2. **Cover letter** (motor de geração: OpenAI por padrão, `GENERATION_ENGINE`): 120–180 palavras, inglês, sem inventar fatos, baseada no perfil e na vaga. Editável.
 3. **Campos do formulário**:
    - Greenhouse: `GET https://boards-api.greenhouse.io/v1/boards/{token}/jobs/{id}?questions=true`;
    - Lever: HTML de `https://jobs.lever.co/{org}/{id}/apply` via cheerio (campos padrão + cards customizados);
    - Ashby e demais: Playwright headless (dependência existente) lê labels/tipos/obrigatoriedade/opções; não clica em nada que envie. Login/CAPTCHA detectado → campos desconhecidos, preenchimento manual.
-4. **Mapeamento campo → resposta**: heurística em código (name/type/label) primeiro; o resto via Jev Choice sobre as chaves `full_name, first_name, last_name, email, phone, linkedin, github, portfolio, location, resume_upload, cover_letter, us_work_authorization, requires_sponsorship, salary_expectation, notice_period, timezone, years_experience, how_did_you_hear, eeo_demographic, free_text, unknown` (Ollama no fallback). Confiança baixa → `unknown`. Respostas vêm do perfil e de `search_preferences.default_answers`. **Perguntas EEO/demográficas: nunca responder; deixar para o usuário.** `free_text` → rascunho do Ollama marcado "rascunho IA".
+4. **Mapeamento campo → resposta**: heurística em código (name/type/label) primeiro; o resto via Jev Choice (se `TRIAGE_ENGINE=jev`) sobre as chaves `full_name, first_name, last_name, email, phone, linkedin, github, portfolio, location, resume_upload, cover_letter, us_work_authorization, requires_sponsorship, salary_expectation, notice_period, timezone, years_experience, how_did_you_hear, eeo_demographic, free_text, unknown` (sem Jev: OpenAI com o modelo de triagem). Sem Jev (padrão hoje), o restante vai para o motor de triagem configurado (OpenAI com `OPENAI_TRIAGE_MODEL`; Ollama se `TRIAGE_ENGINE=ollama`). Confiança baixa → `unknown`. Respostas vêm do perfil e de `search_preferences.default_answers`. **Perguntas EEO/demográficas: nunca responder; deixar para o usuário.** `free_text` → rascunho do motor de geração marcado "rascunho IA".
 5. **UI** `/applications/[id]/kit`: campos com resposta, botão copiar por campo, edição inline, download do PDF, cover letter, link "Abrir formulário", botão "Marquei como enviada" (usa a troca de status existente → `applied` + `appliedAt`). Mobile-first.
 6. **Preenchimento local** (opcional): `GET /api/applications/[id]/kit` (JSON) + script `npm run apply:fill -- --app-url <url> --application <id>` que roda **na máquina do usuário** (a VPS não tem display): Playwright headed com perfil persistente em `tmp/`, abre o `apply_url`, preenche os campos mapeados, anexa o currículo, destaca os `unknown`, **não clica em enviar** e deixa a janela aberta. Em CAPTCHA/login, para de preencher e avisa no terminal.
 
@@ -170,6 +173,6 @@ Atualizar `docs/radar-manual-de-vagas-implementacao.md`, `docs/ia.md`, `docs/ban
 - As 5 fontes rodam dentro do "Rodar radar" com progresso SSE, criam empresas quando preciso e não duplicam a mesma vaga vinda de fontes diferentes.
 - `companies:import-yc --dry-run` lista as empresas e os ATS encontrados sem gravar.
 - Vaga "US only" é descartada no estágio 0 sem chamar modelo; vaga "Remote (Americas), contractor, US$ 140k" vira `interesting` com `reason` legível.
-- `TRIAGE_ENGINE=jev` sem chave falha na inicialização da triagem com mensagem clara; com `ollama`, tudo funciona como antes para as empresas atuais.
+- `TRIAGE_ENGINE=jev` sem `TYPESAFE_API_KEY` (e `openai`, o padrão, sem `OPENAI_API_KEY`) falha na inicialização da triagem com mensagem clara; com `ollama`, o mesmo contrato funciona (fallback).
 - O kit de candidatura mostra currículo em inglês, cover letter e respostas copiáveis; o script de preenchimento nunca envia.
 - Nenhum dado pessoal ou segredo nos commits.

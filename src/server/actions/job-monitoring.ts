@@ -12,12 +12,13 @@ import {
 import { db } from "@/lib/db";
 import { companies, jobLeads } from "@/lib/db/schema";
 import { runBulkMonitoring } from "@/lib/job-monitoring/bulk-run";
-import { getRecentLeadFeedbackSummary } from "@/lib/job-monitoring/feedback";
 import { runMonitoringForCompany } from "@/lib/job-monitoring";
 import { runMonitoringForSource } from "@/lib/job-monitoring/source-run";
 import { getEnabledSources } from "@/lib/job-monitoring/sources/store";
 import { isSeniority, isSourceName, isWorkModel } from "@/lib/jobs";
-import { getProfileSnapshot } from "@/lib/profile/queries";
+import { loadRunContext } from "@/lib/job-monitoring/run-context";
+import { isUserDiscardReason } from "@/lib/job-monitoring/triage/discard-reasons";
+import type { ClassificationContext } from "@/lib/job-monitoring/types";
 import type { ApplicationCreateResult } from "@/server/actions/applications";
 import type { MonitoringSummary, MonitoringStreamEvent } from "@/lib/job-monitoring/types";
 
@@ -68,8 +69,7 @@ export async function runCompanyMonitoring(
       jobsBoardUrl: company.jobsBoardUrl,
       navigationMode: company.jobBoardNavigationMode,
     });
-    const profile = await getProfileSnapshot();
-    const feedbackSummary = getRecentLeadFeedbackSummary();
+    const runContext = await loadRunContext();
     const summary = await runMonitoringForCompany(
       {
         id: company.id,
@@ -85,8 +85,7 @@ export async function runCompanyMonitoring(
       },
       {
         companyName: company.name,
-        profile,
-        feedbackSummary,
+        ...runContext,
       },
     );
 
@@ -183,10 +182,7 @@ export async function runAllCompaniesMonitoringStream(
       sources,
       runSource: (source, context, dependencies) =>
         runMonitoringForSource(source, context, dependencies),
-      loadContext: async () => ({
-        profile: await getProfileSnapshot(),
-        feedbackSummary: getRecentLeadFeedbackSummary(),
-      }),
+      loadContext: loadRunContext,
       runCompany: (company, context, dependencies) =>
         runMonitoringForCompany(company, context, dependencies),
     },
@@ -214,8 +210,19 @@ export async function runAllCompaniesMonitoring(): Promise<MonitoringActionResul
     };
   }
 
-  const profile = await getProfileSnapshot();
-  const feedbackSummary = getRecentLeadFeedbackSummary();
+  let runContext: Omit<ClassificationContext, "companyName">;
+
+  try {
+    runContext = await loadRunContext();
+  } catch (error) {
+    return {
+      success: false,
+      label: "radar completo",
+      ...emptySummary(),
+      error: error instanceof Error ? error.message : "Falha ao preparar a triagem.",
+    };
+  }
+
   const summary = emptySummary();
 
   for (const company of monitorableCompanies) {
@@ -239,8 +246,7 @@ export async function runAllCompaniesMonitoring(): Promise<MonitoringActionResul
         },
         {
           companyName: company.name,
-          profile,
-          feedbackSummary,
+          ...runContext,
         },
       );
 
@@ -270,7 +276,7 @@ export async function runAllCompaniesMonitoring(): Promise<MonitoringActionResul
   };
 }
 
-export async function discardLead(leadId: number) {
+export async function discardLead(leadId: number, reason?: string | null) {
   if (!Number.isInteger(leadId)) {
     return;
   }
@@ -280,6 +286,8 @@ export async function discardLead(leadId: number) {
       classificationStatus: "discarded",
       userDecision: "dismissed",
       userDecisionAt: new Date(),
+      // Optional "why", validated against the known reasons; anything else is dropped.
+      userDiscardReason: isUserDiscardReason(reason) ? reason : null,
       updatedAt: new Date(),
     })
     .where(eq(jobLeads.id, leadId))

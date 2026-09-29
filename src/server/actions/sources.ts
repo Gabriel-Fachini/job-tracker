@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getRecentLeadFeedbackSummary } from "@/lib/job-monitoring/feedback";
 import { runMonitoringForSource } from "@/lib/job-monitoring/source-run";
 import {
   getEnabledSources,
@@ -11,7 +10,7 @@ import {
   type JobSourceRecord,
 } from "@/lib/job-monitoring/sources/store";
 import type { MonitoringSummary } from "@/lib/job-monitoring/types";
-import { getProfileSnapshot } from "@/lib/profile/queries";
+import { loadRunContext } from "@/lib/job-monitoring/run-context";
 import type { MonitoringActionResult } from "@/server/actions/job-monitoring";
 
 function emptySummary(): MonitoringSummary {
@@ -60,10 +59,18 @@ export async function setSourceEnabledAction(
 async function runSources(sources: JobSourceRecord[], label: string): Promise<MonitoringActionResult> {
   const summary = emptySummary();
   const errors: string[] = [];
-  const context = {
-    profile: await getProfileSnapshot(),
-    feedbackSummary: getRecentLeadFeedbackSummary(),
-  };
+  let context: Awaited<ReturnType<typeof loadRunContext>>;
+
+  try {
+    context = await loadRunContext();
+  } catch (error) {
+    return {
+      success: false,
+      label,
+      ...emptySummary(),
+      error: error instanceof Error ? error.message : "Falha ao preparar a triagem.",
+    };
+  }
 
   // Sequential: the feeds are public and small; being polite matters more than speed.
   for (const source of sources) {

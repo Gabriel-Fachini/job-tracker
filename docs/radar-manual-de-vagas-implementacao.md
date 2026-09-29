@@ -20,7 +20,9 @@ Hoje o radar é **disparado manualmente**. Scans agendados (09h, 14h e 19h) est�
 | [`src/lib/job-monitoring/providers/`](../src/lib/job-monitoring/providers/) | adapters Greenhouse, Gupy, InHire, Ashby e Lever |
 | [`src/lib/job-monitoring/extraction.ts`](../src/lib/job-monitoring/extraction.ts) | leitura de uma página de vaga (JSON-LD, meta, HTML) → markdown |
 | [`src/lib/job-monitoring/signals.ts`](../src/lib/job-monitoring/signals.ts) | sinais determinísticos (stack, senioridade, modelo, local) |
-| [`src/lib/job-monitoring/classification.ts`](../src/lib/job-monitoring/classification.ts) | prompt, schema JSON e parse da classificação via Ollama |
+| [`src/lib/job-monitoring/triage/`](../src/lib/job-monitoring/triage/) | **triagem em 3 estágios** (filtros duros, extração, fit) com motores OpenAI/Jev/Ollama; ver [ia.md](ia.md#triagem-em-3-estágios) |
+| [`src/lib/job-monitoring/run-context.ts`](../src/lib/job-monitoring/run-context.ts) | contexto do run (perfil, feedback, preferências) e checagem do motor de triagem |
+| [`src/lib/job-monitoring/classification.ts`](../src/lib/job-monitoring/classification.ts) | classificador Ollama antigo: **não é mais chamado pelo pipeline** (só testes) |
 | [`src/lib/job-monitoring/feedback.ts`](../src/lib/job-monitoring/feedback.ts) | exemplos recentes de promoção/descarte injetados no prompt |
 | [`src/lib/job-monitoring/persistence.ts`](../src/lib/job-monitoring/persistence.ts) | skip de URLs conhecidas, `last_viewed`, upsert |
 | [`src/lib/job-monitoring/run-state.ts`](../src/lib/job-monitoring/run-state.ts) | tracker em memória do run SSE: trava contra run concorrente, progresso, erros por empresa, detecção de run travado |
@@ -103,7 +105,7 @@ flowchart TD
     K -- não --> M
     L --> M{vaga no LinkedIn?}
     M -- sim --> Z2[ignora]
-    M -- não --> N[classifyJobLead]
+    M -- não --> N[triageJob]
     N -- erro --> X[failed++ e nada gravado]
     N --> O[upsertJobLead]
     O --> P[evento link-done]
@@ -189,7 +191,17 @@ Com `OPENAI_FORMAT_JOB_DESCRIPTIONS=true`, descrições **sem** estrutura markdo
 
 `buildSignalAssessment` cruza com o perfil e gera `matchedSignals`, `riskSignals` e `missingSignals`: stack em comum com as skills, modelo de trabalho compatível com a preferência, senioridade da vaga abaixo da inferida pelos 4 cargos mais recentes, família de vendas sem stack em comum.
 
-### 7. Classificação (`classifyJobLead`)
+### 7. Triagem (`triageJob`)
+
+Substitui o classificador de uma chamada. Três estágios (detalhes, motores e limiares em [ia.md](ia.md#triagem-em-3-estágios)):
+
+1. **Filtros duros em código** (título, restrições de local, frases "US only", fuso, salário em USD abaixo do piso), com as preferências de `search_preferences`; descarte é gravado (`triage_engine = rules`, `discard_reason`). Sem preferências salvas, não filtra nada.
+2. **Extração** pelo modelo (elegibilidade, autorização nos EUA, contrato, fuso, senioridade, família, faixa salarial escolhida entre candidatos achados por regex) + regras em código.
+3. **Fit** pelo modelo (stack, senioridade, interesse no domínio, red flags) + score composto em código: ≥ 70 `interesting`, 30–69 `review`, < 30 `discarded`. Na dúvida, `review`.
+
+O evento SSE, o `LeadListItem` e os contadores não mudam. `TRIAGE_ENGINE` (`openai` padrão, `jev`, `ollama`) escolhe o motor; motor sem chave falha o run inteiro na largada. Falha de um lead (timeout, JSON inválido) conta como `failed` e não grava, como antes.
+
+<details><summary>Classificador antigo (Ollama), mantido só como referência</summary>
 
 - **Sem perfil salvo**: não chama o LLM. Retorna `review`, score `40`, motivo "Perfil principal ainda nao foi configurado…".
 - **Com perfil**: `callOllamaLlm` com
@@ -202,6 +214,10 @@ Com `OPENAI_FORMAT_JOB_DESCRIPTIONS=true`, descrições **sem** estrutura markdo
 - Modo `local`: descarrega o modelo após cada chamada (`unloadOllamaModelIfLocal`).
 
 Os três arrays de sinais só existem em memória (nem o log `classification-finished` os inclui); o banco guarda `decision`, `score` e `reason`.
+
+</details>
+
+Além de `decision`, `score` e `reason`, o banco guarda agora `eligibility`, `contract_types`, `salary_min_usd_annual`/`salary_max_usd_annual`, `discard_reason`, `triage_engine`, `triage_model`, `triage_confidence` e `triage_details` (JSON com todas as respostas, probabilidades e limiares; migration `0019`).
 
 ### 8. Persistência (`upsertJobLead`)
 
@@ -313,6 +329,7 @@ Limitações que continuam (detalhes em [problemas-conhecidos.md](problemas-conh
 | `networkidle` | 5 s (fallback: espera 1,2 s) | `discovery.ts` |
 | clique em "próxima" | 3 s; espera links mudarem até 12 s (fallback 8 s) | `discovery.ts` |
 | Ollama por chamada | `OLLAMA_TIMEOUT_MS` (default 240 s) | `lib/ai/ollama.ts` |
+| TypeSafe (Jev) por chamada | `TYPESAFE_TIMEOUT_MS` (default 30 s), até 3 retries em 429/529 | `lib/ai/typesafe.ts` |
 | `RUN_STALE_AFTER_MS` | 15 min sem evento → run `stale` | `run-state.ts` |
 | `SNAPSHOT_POLL_INTERVAL_MS` | 3 s (aba acompanhando sem stream) | `monitoring-progress-context.tsx` |
 

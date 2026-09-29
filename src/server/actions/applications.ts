@@ -26,7 +26,7 @@ import {
   type SourceName,
   type WorkModel,
 } from "@/lib/jobs";
-import { formatJobDescriptionWithOllama } from "@/lib/ai/ollama";
+import { formatJobDescription } from "@/lib/ai/generation";
 
 type ApplicationFormFields = {
   companyId: string;
@@ -422,7 +422,7 @@ export async function formatApplicationDescriptionWithAi(
   rawDescription: string,
 ): Promise<{ success: true; formatted: string } | { success: false; error: string }> {
   try {
-    const formatted = await formatJobDescriptionWithOllama(rawDescription);
+    const formatted = await formatJobDescription(rawDescription);
     return { success: true, formatted };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro desconhecido ao formatar.";

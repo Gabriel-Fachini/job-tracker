@@ -1,7 +1,7 @@
 import pLimit from "p-limit";
 
 import { formatJobDescriptionAsMarkdown } from "@/lib/ai/openai";
-import { classifyJobLead } from "./classification";
+import type { classifyJobLead } from "./classification";
 import { discoverJobLinks } from "./discovery";
 import { extractJobDetail, htmlToMarkdown, detectSourceName } from "./extraction";
 import { logMonitoringStep } from "./logger";
@@ -14,6 +14,9 @@ import {
   upsertJobLead,
 } from "./persistence";
 import { isSourceKind } from "./sources/types";
+import { classificationToTriageResult, triageFieldsToLead } from "./triage/adapter";
+import { triageJob } from "./triage";
+import type { TriageJob, TriageResult } from "./triage/types";
 import type {
   ClassificationContext,
   MonitoringCompany,
@@ -29,6 +32,9 @@ export async function runMonitoringForCompany(
   dependencies: {
     discoverJobLinksFn?: typeof discoverJobLinks;
     extractJobDetailFn?: typeof extractJobDetail;
+    /** Full triage (hard filters, extraction, fit). Defaults to `triageJob`. */
+    triageJobFn?: (job: TriageJob, context: ClassificationContext) => Promise<TriageResult>;
+    /** Plain classifier: when given (tests, the legacy path) it replaces the triage. */
     classifyJobLeadFn?: typeof classifyJobLead;
     upsertJobLeadFn?: typeof upsertJobLead;
     findLeadByDedupKeyFn?: typeof findLeadByDedupKey;
@@ -42,8 +48,12 @@ export async function runMonitoringForCompany(
     dependencies.discoverJobLinksFn ?? discoverJobLinks;
   const extractJobDetailFn =
     dependencies.extractJobDetailFn ?? extractJobDetail;
-  const classifyJobLeadFn =
-    dependencies.classifyJobLeadFn ?? classifyJobLead;
+  const triageJobFn =
+    dependencies.triageJobFn ??
+    (dependencies.classifyJobLeadFn
+      ? async (job: TriageJob, ctx: ClassificationContext) =>
+          classificationToTriageResult(await dependencies.classifyJobLeadFn!(job, ctx))
+      : triageJob);
   const upsertJobLeadFn = dependencies.upsertJobLeadFn ?? upsertJobLead;
   const findLeadByDedupKeyFn = dependencies.findLeadByDedupKeyFn ?? findLeadByDedupKey;
   const adoptAtsLinkFn = dependencies.adoptAtsLinkFn ?? adoptAtsLink;
@@ -243,10 +253,20 @@ export async function runMonitoringForCompany(
         }
 
         let classification;
+        let triageResult: TriageResult;
         const classifyStart = Date.now();
 
         try {
-          classification = await classifyJobLeadFn(job, context);
+          triageResult = await triageJobFn(
+            {
+              ...job,
+              companyName: company.name,
+              locationRestrictions: link.prefetched?.locationRestrictions,
+              sourceKind: "company",
+            },
+            context,
+          );
+          classification = triageResult.classification;
         } catch (error) {
           logMonitoringStep(company.name, "classification-failed", {
             url: job.sourceUrl,
@@ -287,6 +307,7 @@ export async function runMonitoringForCompany(
           classificationStatus: classification.decision,
           classificationScore: classification.score,
           classificationReason: classification.reason,
+          ...triageFieldsToLead(triageResult.fields),
         });
 
         if (classification.decision === "discarded") {

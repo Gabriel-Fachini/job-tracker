@@ -38,7 +38,12 @@ Arquivo `.env.local` (gitignored). Modelo em [`.env.example`](../.env.example).
 |---|---|---|---|
 | `DATABASE_URL` | `./job-tracker.db` | `src/lib/db/index.ts`, `drizzle.config.ts`, scripts de backup | Em produção precisa ser caminho absoluto de um arquivo existente |
 | `UPLOADS_PATH` | `./uploads` | uploads de currículo, PDFs gerados, logos | resolvido a partir do `cwd` |
-| `OLLAMA_RUNTIME_MODE` | — (obrigatória) | `src/lib/ai/ollama.ts` | `local` ou `cloud` |
+| `TRIAGE_ENGINE` | `openai` | `src/lib/job-monitoring/triage/index.ts` | `openai` \| `jev` \| `ollama`; motor sem chave falha o run na largada |
+| `OPENAI_TRIAGE_MODEL` | `gpt-5.4-nano` | `src/lib/ai/openai-runtime.ts` | modelo da triagem com `openai` |
+| `TYPESAFE_API_KEY`, `TYPESAFE_MODEL`, `TYPESAFE_TIMEOUT_MS` | —, `jev-1.13.0`, `30000` | `src/lib/ai/typesafe.ts` | só com `TRIAGE_ENGINE=jev` |
+| `GENERATION_ENGINE` | `openai` | `src/lib/ai/generation.ts` | `openai` \| `ollama` (seleção do currículo, "Formatar", cover letter) |
+| `OPENAI_GENERATION_MODEL` | `gpt-5.4-mini` | idem | modelo generativo com `openai` |
+| `OLLAMA_RUNTIME_MODE` | — (obrigatória só com Ollama) | `src/lib/ai/ollama.ts` | `local` ou `cloud` |
 | `OLLAMA_BASE_URL` | — (obrigatória) | idem | local: `http://127.0.0.1:11434` |
 | `OLLAMA_MODEL` | — (obrigatória) | idem | ex.: `gemma3:4b` |
 | `OLLAMA_API_KEY` | — | idem | obrigatória em `cloud` |
@@ -60,7 +65,8 @@ O hook de início de sessão dos agentes avisa se faltar `OLLAMA_RUNTIME_MODE`, 
 | `dev` | `next dev --turbopack` | ok |
 | `build` / `start` | `next build --turbopack` / `next start` | ok |
 | `lint` | `eslint` (config Next core-web-vitals + TypeScript) | ok |
-| `test:job-monitoring` | `node --import tsx --test src/lib/job-monitoring/*.test.ts` | 2 falhas conhecidas |
+| `triage:eval` | pontua a triagem em ~20 vagas fictícias (estágio 0 offline + motores com chave; `--engines jev,openai,ollama`) | ok |
+| `test:job-monitoring` | `node --import tsx --test "src/lib/job-monitoring/**/*.test.ts"` | ok (`npm test` é o caminho seguro) |
 | `test:escape` | só `src/lib/latex/escape.test.ts` | ok |
 | `db:generate` | `drizzle-kit generate` | ok desde `8db7fd9` (cadeia de snapshots religada; `drizzle-kit check` passa) |
 | `db:migrate` | `drizzle-kit migrate` | ok em banco já migrado; falha em banco vazio |

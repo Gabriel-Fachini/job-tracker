@@ -18,8 +18,9 @@ App pessoal (single-user, **sem autenticação**) para busca de emprego: perfil 
 - SQLite (`better-sqlite3`, síncrono) + Drizzle ORM (`src/lib/db/schema.ts`)
 - TanStack Query na página de leads (o diálogo de excluir empresa só invalida `["leads"]`); demais telas: Server Component + `router.refresh()`
 - SSE (`EventSource`) para progresso real-time do radar
-- Ollama (modo `cloud`): classificação de leads, seleção do currículo, botão "Formatar" da candidatura
-- OpenAI: extração do perfil a partir do PDF (obrigatória nesse fluxo) + formatação opcional de descrições no radar
+- OpenAI (padrão): triagem dos leads (`TRIAGE_ENGINE=openai`, modelo `OPENAI_TRIAGE_MODEL`), tarefas generativas (`GENERATION_ENGINE=openai`, `OPENAI_GENERATION_MODEL`: seleção do currículo, botão "Formatar"), extração do perfil a partir do PDF (obrigatória nesse fluxo) + formatação opcional de descrições no radar
+- TypeSafe/Jev (opcional): `TRIAGE_ENGINE=jev` (probabilidades calibradas; ver `docs/ia.md`)
+- Ollama (modo `cloud`): **fallback** (`TRIAGE_ENGINE=ollama` / `GENERATION_ENGINE=ollama`), não é mais o padrão
 - Playwright/Chromium (radar em modo `browser`), `tectonic` (currículo LaTeX → PDF)
 
 ## UI / Design System
@@ -32,13 +33,18 @@ App pessoal (single-user, **sem autenticação**) para busca de emprego: perfil 
 
 ## AI Runtime
 
-`OLLAMA_RUNTIME_MODE=cloud` — classificação roda via HTTP remoto, não local. Detalhes: `docs/ia.md`.
+Triagem e geração usam **OpenAI por padrão**; o Ollama (`OLLAMA_RUNTIME_MODE=cloud`, HTTP remoto) segue disponível como fallback. Detalhes: `docs/ia.md`.
 
 **Env vars** (`.env.local` em dev, `/etc/job-tracker/env` na VPS; modelo em `.env.example`):
 
 | Var | Descrição |
 |-----|-----------|
-| `OLLAMA_RUNTIME_MODE` | `cloud` ou `local` (obrigatória, sem default) |
+| `TRIAGE_ENGINE` | motor da triagem: `openai` (default) \| `jev` \| `ollama`. Sem a chave do motor escolhido a triagem falha na largada (fail closed) |
+| `OPENAI_TRIAGE_MODEL` | modelo da triagem com `openai` (default `gpt-5.4-nano`) |
+| `TYPESAFE_API_KEY` / `TYPESAFE_MODEL` | Jev (`TRIAGE_ENGINE=jev`); modelo default `jev-1.13.0` (versão fixa) |
+| `GENERATION_ENGINE` | tarefas generativas: `openai` (default) \| `ollama` |
+| `OPENAI_GENERATION_MODEL` | modelo generativo com `openai` (default `gpt-5.4-mini`) |
+| `OLLAMA_RUNTIME_MODE` | `cloud` ou `local` (obrigatória só se o Ollama for usado: `TRIAGE_ENGINE=ollama` ou `GENERATION_ENGINE=ollama`) |
 | `OLLAMA_BASE_URL` | URL base da API Ollama |
 | `OLLAMA_MODEL` | Nome do modelo (ex: `gemma3:4b`) |
 | `OLLAMA_API_KEY` | API key (obrigatória em `cloud`, enviada como Bearer) |
@@ -48,7 +54,7 @@ App pessoal (single-user, **sem autenticação**) para busca de emprego: perfil 
 | `OPENAI_FORMAT_JOB_DESCRIPTIONS` | `true` formata descrições do radar com `gpt-4o-mini` (default `false`) |
 | `DATABASE_URL` / `UPLOADS_PATH` | default `./job-tracker.db` / `./uploads`; em produção `DATABASE_URL` absoluto e existente (fail closed) |
 
-Ambos `extractJobDetail` (HTTP fetch ao job board) e `classifyJobLead` (HTTP ao Ollama cloud) são I/O bound: links de uma empresa rodam em paralelo com `pLimit(5)` (`LINK_PROCESSING_CONCURRENCY` em `src/lib/job-monitoring/index.ts`); empresas rodam em sequência. Ganho medido: ~2s/link → ~100s sequencial para 50 links → ~20s paralelo.
+Ambos `extractJobDetail` (HTTP fetch ao job board) e a triagem (`triageJob`, HTTP ao motor de IA) são I/O bound: links de uma empresa rodam em paralelo com `pLimit(5)` (`LINK_PROCESSING_CONCURRENCY` em `src/lib/job-monitoring/index.ts`); empresas rodam em sequência. Ganho medido: ~2s/link → ~100s sequencial para 50 links → ~20s paralelo.
 
 ## Radar de Vagas (Monitoramento)
 
@@ -64,8 +70,8 @@ Varredura em lote cobre empresas com `jobs_board_url` válido e status fora de `
 Por empresa (`runMonitoringForCompany`):
 1. Descoberta: provider ATS (`auto` detecta Greenhouse/Gupy/InHire/Ashby/Lever pela URL) com detalhes pré-carregados; fallback scraping `fetch` ou `browser` (Playwright). LinkedIn é ignorado.
 2. URLs já em `job_leads` (qualquer status) são **puladas** (`link-skipped`, só atualiza `last_viewed`): leads nunca são reclassificados.
-3. Cada link novo, dentro do mesmo callback do `pLimit`: extração → hints do texto do link → formatação OpenAI opcional → classificação → upsert. Sem Phase 2 separada.
-4. Todas as decisões são gravadas, **inclusive `discarded`** (base do skip); as telas filtram descartados. Falha de extração/classificação conta como `failed` e **não grava** (URL é tentada de novo no próximo run). Sem perfil salvo → `review`/40 sem chamar o LLM.
+3. Cada link novo, dentro do mesmo callback do `pLimit`: extração → hints do texto do link → formatação OpenAI opcional → **triagem em 3 estágios** (`triageJob`: filtros duros em código → extração de elegibilidade/contrato/salário pelo modelo → fit com score composto) → upsert. Sem Phase 2 separada. Estágio 0 usa `search_preferences` (sem preferências = filtros desligados).
+4. Todas as decisões são gravadas, **inclusive `discarded`** (base do skip; com `discard_reason`, `triage_engine`, `triage_details`); as telas filtram descartados. Falha de extração/triagem conta como `failed` e **não grava** (URL é tentada de novo no próximo run). Sem perfil salvo → `review`/40 sem chamar o modelo. Motor inexistente/sem chave (`TRIAGE_ENGINE`) para o run inteiro com mensagem clara.
 
 **SSE events:** `start`, `company-start`, `link-processing`, `link-skipped`, `link-done` (com `lead` quando não descartado), `company-done`, `all-done`, `error` (falha de uma empresa; o run continua).
 
@@ -76,7 +82,8 @@ Ciclo de vida (`src/lib/job-monitoring/bulk-run.ts` + `run-state.ts`, em memóri
 - `src/app/api/monitoring/current/route.ts` — GET snapshot do run atual (usado pelo `deploy.sh`)
 - `src/server/actions/job-monitoring.ts` — seleção de empresas, execução, aprovar/descartar/promover
 - `src/lib/job-monitoring/index.ts` — pipeline por empresa
-- `src/lib/job-monitoring/{discovery,extraction,signals,classification,persistence,source-run}.ts`, `providers/`, `sources/`
+- `src/lib/job-monitoring/{discovery,extraction,signals,persistence,source-run,run-context}.ts`, `providers/`, `sources/`, `triage/` (`hard-filters`, `salary`, `state`, `questions`, `rules`, `engines/`, `index`); `classification.ts` (Ollama) ficou só como classificador injetável nos testes
+- `src/lib/ai/{typesafe,openai-runtime,generation}.ts` — clientes Jev/OpenAI (triagem) e motor de geração
 - `src/lib/companies/{normalize,company-index,resolve,ats-discovery,yc-import}.ts` — empresa automática, dedup, descoberta de ATS, importação YC
 - `src/lib/job-monitoring/run-state.ts` — estado in-memory do run
 
@@ -116,12 +123,12 @@ Ciclo de vida (`src/lib/job-monitoring/bulk-run.ts` + `run-state.ts`, em memóri
 - Candidaturas (`/applications`): abas por status (não é kanban), troca de status otimista + `application_status_history` + status da empresa derivado. Docs: `docs/modulos/candidaturas.md`.
 - Perfil: PDF → `POST /api/profile/upload` (pdfjs) → `extractProfileDraft` (**OpenAI**) → `saveExtractedProfile`. Cada gravação apaga e reinsere as linhas filhas. Docs: `docs/modulos/perfil.md`.
 - Busca internacional: `search_preferences` (linha única) editada em Perfil → "Busca internacional"; sem linha os filtros ficam desligados e não há valores pessoais no código. Docs: `docs/modulos/perfil.md`.
-- Currículo: `generateResume` (Ollama seleciona bullets/skills → Mustache + LaTeX → `tectonic`), grava caminho absoluto em `applications.generated_resume_path`. Docs: `docs/modulos/curriculo.md`.
+- Currículo: `generateResume` (motor de geração — OpenAI por padrão — seleciona bullets/skills → Mustache + LaTeX → `tectonic`), grava caminho absoluto em `applications.generated_resume_path`. Docs: `docs/modulos/curriculo.md`.
 
 ## Job Description Formatting
 
 - Radar: `OPENAI_FORMAT_JOB_DESCRIPTIONS=true|false` (default `false`); descriptions sem estrutura markdown são reformatadas via `gpt-4o-mini` antes da classificação. Non-blocking: erro loga e mantém a description original.
-- Candidatura: botão "Formatar" usa Ollama (`formatJobDescriptionWithOllama`), não OpenAI.
+- Candidatura: botão "Formatar" usa o motor de geração (`formatJobDescription`: OpenAI por padrão, Ollama com `GENERATION_ENGINE=ollama`).
 
 ## Database
 
@@ -170,7 +177,7 @@ npm run db:backup
 ## Testes
 
 - Suíte inteira: `npm test` (`pretest` recria `tmp/test.db` só com o schema do `./job-tracker.db`; o script força `DATABASE_URL=./tmp/test.db` e zera as chaves de IA). `npm run test:job-monitoring` e `npm run test:escape` usam o `DATABASE_URL` do ambiente — sem ele, o radar consulta o banco real. Detalhes em `docs/testes-e-qualidade.md`.
-- Estado em 2026-09-27: 61/61 passam.
+- Estado: veja `docs/testes-e-qualidade.md` (a suíte roda hermética: chaves de IA e engines zerados). `npm run triage:eval` pontua a triagem em vagas fictícias.
 - Typecheck: `npm run typecheck` (`tsc --noEmit`). Lint: `npm run lint`.
 
 ## Claude Code Harness

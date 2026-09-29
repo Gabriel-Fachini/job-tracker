@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import type { LeadListItem } from "@/components/leads/types";
+import { emptyLeadTriage } from "@/lib/job-leads/defaults";
 import { runMonitoringForCompany } from "./index";
 
 function createMockLeadSnapshot(lead: { sourceUrl: string; title: string }): LeadListItem {
@@ -12,6 +13,7 @@ function createMockLeadSnapshot(lead: { sourceUrl: string; title: string }): Lea
     sourceName: "company_site",
     sourceKind: null,
     applyUrl: null,
+    ...emptyLeadTriage,
     description: null,
     workModel: "remote",
     seniority: "senior",

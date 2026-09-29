@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { LeadListItem } from "@/components/leads/types";
+import { emptyLeadTriage } from "@/lib/job-leads/defaults";
 import { runMonitoringForCompany } from "./index";
 
 function snapshot(lead: { sourceUrl: string; title: string }): LeadListItem {
@@ -12,6 +13,7 @@ function snapshot(lead: { sourceUrl: string; title: string }): LeadListItem {
     sourceName: "ashby",
     sourceKind: null,
     applyUrl: null,
+    ...emptyLeadTriage,
     description: null,
     workModel: "remote",
     seniority: null,

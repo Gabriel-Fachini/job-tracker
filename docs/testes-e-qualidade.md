@@ -25,6 +25,13 @@ Runner nativo do Node (`node:test`) com `tsx` para TypeScript e aliases `@/`. Se
 | `src/lib/job-monitoring/progress-state.test.ts` | estado de progresso do radar |
 | `src/lib/job-monitoring/run-state.test.ts` | run-state em memória |
 | `src/lib/search-preferences.test.ts` | normalização das preferências, piso anual (mensal × 12 vs anual), tolerância a JSON quebrado, linha única no banco de teste |
+| `src/lib/ai/typesafe.test.ts` | cliente Jev: config fail-closed, versão fixa, corpo, retry 429/529, erros |
+| `src/lib/ai/generation.test.ts` | `GENERATION_ENGINE`, modelos default, `formatJobDescription`, chamada estruturada da OpenAI (cliente falso) |
+| `src/lib/job-monitoring/triage/hard-filters.test.ts` | estágio 0: título, restrições, frases "US only", fuso, salário |
+| `src/lib/job-monitoring/triage/salary.test.ts` | parse de salário, candidatos, normalização para US$/ano |
+| `src/lib/job-monitoring/triage/triage.test.ts` | estados enxutos, sem dados pessoais, regras dos estágios 1 e 2, `triageJob` ponta a ponta, motores OpenAI/Jev/Ollama com clientes falsos |
+| `src/lib/job-monitoring/triage/eval.test.ts` | fixtures do `triage:eval` (estágio 0 = 100%) e pontuação por pergunta |
+| `src/lib/job-monitoring/triage-persistence.test.ts` | colunas da triagem, mapper, motivo manual no feedback, painel internacional |
 | `src/lib/ai/ollama.test.ts` | datas opcionais, config cloud, header `Authorization`, unload em cloud |
 | `src/lib/ai/resume-generation.test.ts` | seleção de projetos (máx. 2) |
 | `src/lib/latex/escape.test.ts` | escape de cada caractere especial |
@@ -46,9 +53,9 @@ npm run test:escape            # só o escape LaTeX
 
 Por que isolar: `index.test.ts` injeta extração/classificação/upsert, mas `getExistingJobLeadUrls` e `touchLastViewed` não são injetáveis e consultam o banco de `DATABASE_URL`. Por isso `test:job-monitoring` sem `DATABASE_URL` definido cai no `./job-tracker.db` real; prefira `npm test` ou prefixe `DATABASE_URL=./tmp/test.db` depois de `bash scripts/create-test-db.sh`.
 
-### Estado em 2026-09-27
+### Estado (feat/radar-internacional)
 
-**61 de 61 passam** (`npm test`).
+Baseline em 2026-09-27: 61 de 61. Com as fases 1 a 4 da branch `feat/radar-internacional`: **tudo passa** (`npm test`, ver a contagem no final da saída). A suíte roda hermética: `npm test` zera `OLLAMA_*`, `OPENAI_*`, `TYPESAFE_API_KEY`, `TRIAGE_ENGINE` e `GENERATION_ENGINE`, e nenhum teste chama a rede.
 
 Semântica do `MonitoringSummary` fixada em `index.test.ts`:
 

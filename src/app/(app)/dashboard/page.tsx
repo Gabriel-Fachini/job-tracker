@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { BacklogWidget } from "@/components/dashboard/backlog-widget";
 import { ClassifierQualityWidget } from "@/components/dashboard/classifier-quality-widget";
 import { FunnelWidget } from "@/components/dashboard/funnel-widget";
+import { InternationalRadarWidget } from "@/components/dashboard/international-radar-widget";
 import { KpiStrip } from "@/components/dashboard/kpi-strip";
 import { PeriodFilter } from "@/components/dashboard/period-filter";
 import { ClassificationWidget } from "@/components/dashboard/classification-widget";
@@ -12,6 +13,7 @@ import { RadarTimelineWidget } from "@/components/dashboard/radar-timeline-widge
 import { TopCompaniesWidget } from "@/components/dashboard/top-companies-widget";
 import { WorkModelWidget } from "@/components/dashboard/work-model-widget";
 import { buttonVariants } from "@/components/ui/button";
+import { getInternationalRadar } from "@/server/queries/international-radar";
 import {
   getBacklogData,
   getClassificationDist,
@@ -45,7 +47,7 @@ export default async function DashboardPage({
   const range: DashboardRange = isValidRange(rawRange) ? rawRange : "30d";
 
   const { from, to, prevFrom, prevTo } = resolvePeriod(range);
-  const [current, previous, backlog, timeline, classDist, scoreHist, funnel, topCompanies, workModel, classifierQuality] =
+  const [current, previous, backlog, timeline, classDist, scoreHist, funnel, topCompanies, workModel, classifierQuality, international] =
     await Promise.all([
       Promise.resolve(getKpiData(from, to)),
       Promise.resolve(prevFrom && prevTo ? getKpiData(prevFrom, prevTo) : null),
@@ -57,6 +59,7 @@ export default async function DashboardPage({
       Promise.resolve(getTopCompanies(from, to)),
       Promise.resolve(getWorkModelMatch(from, to)),
       Promise.resolve(getClassifierQuality()),
+      Promise.resolve(getInternationalRadar(from, to)),
     ]);
 
   return (
@@ -98,6 +101,7 @@ export default async function DashboardPage({
           <ClassifierQualityWidget data={classifierQuality} />
         </div>
         <TopCompaniesWidget rows={topCompanies} />
+        <InternationalRadarWidget data={international} className="lg:col-span-2" />
         <RadarTimelineWidget data={timeline} className="lg:col-span-2" />
       </div>
     </div>

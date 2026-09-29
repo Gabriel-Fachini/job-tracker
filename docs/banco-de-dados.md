@@ -128,6 +128,9 @@ Vagas encontradas pelo radar, antes de virarem candidatura.
 | `company_id` + `source_url` | **índice único** `job_leads_company_source_url_unique`: a mesma vaga numa nova varredura não duplica |
 | `title`, `description` (markdown), `source_name` (default `company_site`), `work_model`, `seniority`, `location_text`, `salary_text` | extraídos da vaga |
 | `source_kind`, `external_id`, `apply_url` | `source_kind`: `himalayas`, `remoteok`, `weworkremotely`, `jobicy`, `hn_whoishiring` ou `company` (achada no board da própria empresa); `external_id`: id da vaga na fonte; `apply_url`: link de candidatura quando difere de `source_url` (migration `0018`) |
+| `eligibility`, `contract_types`, `salary_min_usd_annual`, `salary_max_usd_annual` | saída do estágio 1 da triagem (migration `0019`): classe de elegibilidade (`worldwide`, `americas_or_latam_incl_brazil`, `brazil_explicit`, `us_only`, `us_canada_only`, `europe_uk_only`, `other_country_restricted`, `not_stated`), tipos de contrato (JSON: `employee`, `contractor`, `eor`) e salário-base normalizado para US$/ano |
+| `discard_reason`, `user_discard_reason` | motivo do descarte automático (`location_ineligible`, `salary_below_min`, `job_family_mismatch`, `seniority_mismatch`, `contract_mismatch`, `low_fit`, `other`) e do descarte manual (os mesmos + `not_interested`) |
+| `triage_engine`, `triage_model`, `triage_confidence`, `triage_details` | `rules` (filtros duros ou sem perfil), `openai`, `jev` ou `ollama` (`legacy` só em testes); modelo usado; menor confiança por trás da decisão; JSON com respostas, probabilidades e limiares |
 | `dedup_key` | hash (32 hex) de empresa normalizada + título normalizado; índice `job_leads_dedup_key_idx`. Nulo em leads anteriores à `0018` |
 | `classification_status` | `interesting`, `review`, `discarded` (default `review`) |
 | `classification_score` (0–100), `classification_reason` | saída do classificador. Os arrays `matchedSignals`/`riskSignals`/`missingSignals` **não** são persistidos. |
@@ -230,6 +233,7 @@ Consequências práticas:
 | 15 | `0015_company_logos` | `companies.logo_url`, `logo_path`, `logo_checked_at` |
 | 16 | `0016_redundant_millenium_guard` | `companies.radar_enabled` |
 | 17 | `0017_search_preferences` | cria `search_preferences` |
+| 19 | `0019_triage_fields` | `job_leads.eligibility`, `contract_types`, `salary_min_usd_annual`, `salary_max_usd_annual`, `discard_reason`, `user_discard_reason`, `triage_engine`, `triage_model`, `triage_confidence`, `triage_details` (todas nulas por padrão) |
 | 18 | `0018_job_sources_and_dedup` | cria `job_sources`; `companies.origin`; `job_leads.source_kind`, `external_id`, `apply_url`, `dedup_key` (+ índice) |
 
 A numeração dos arquivos não é a ordem do journal (dois `0013`, sem `0011`). Vale o `idx`/`when` do `_journal.json`.

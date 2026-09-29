@@ -174,6 +174,15 @@ export function upsertJobLead(
     externalId: lead.externalId ?? null,
     applyUrl: lead.applyUrl ?? null,
     dedupKey: lead.dedupKey ?? null,
+    eligibility: lead.eligibility ?? null,
+    contractTypes: lead.contractTypes ? JSON.stringify(lead.contractTypes) : null,
+    salaryMinUsdAnnual: lead.salaryMinUsdAnnual ?? null,
+    salaryMaxUsdAnnual: lead.salaryMaxUsdAnnual ?? null,
+    discardReason: lead.discardReason ?? null,
+    triageEngine: lead.triageEngine ?? null,
+    triageModel: lead.triageModel ?? null,
+    triageConfidence: lead.triageConfidence ?? null,
+    triageDetails: lead.triageDetails ? JSON.stringify(lead.triageDetails) : null,
   };
 
   if (existing) {

@@ -77,7 +77,7 @@ Painel "Busca internacional" em `/profile` ([`search-preferences-panel.tsx`](../
 |---|---|
 | Mínimo mensal/anual (US$) | piso do filtro de salário do estágio 0 (mensal × 12 vs anual, vale o menor) |
 | Contratos aceitos, elegibilidade geográfica | estágios 0/1 da triagem internacional |
-| Fuso e distância máxima (horas) | reservado para a checagem de fuso |
+| Fuso e distância máxima (horas) | estágio 0: vagas de fonte que listam os fusos aceitos (`timezoneRestrictions`) só passam se algum estiver dentro da distância do fuso configurado |
 | Senioridade e famílias de vaga alvo | estágio 0 (título) e estágio 2 |
 | Palavras que o título deve/não deve ter | filtro de título do estágio 0 |
 | Respostas padrão | kit de candidatura assistida (autorização nos EUA, sponsorship, pretensão, aviso prévio, "como conheceu", pronomes). Perguntas EEO nunca são respondidas |

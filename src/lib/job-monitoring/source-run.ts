@@ -3,7 +3,7 @@ import pLimit from "p-limit";
 import { buildDedupKey } from "@/lib/companies/normalize";
 import { createCompanyResolver, type CompanyResolver } from "@/lib/companies/resolve";
 
-import { classifyJobLead } from "./classification";
+import type { classifyJobLead } from "./classification";
 import { logMonitoringStep } from "./logger";
 import {
   findLeadByDedupKey,
@@ -14,6 +14,9 @@ import {
 import { sourceFetchers } from "./sources";
 import { sourceJobToDetail } from "./sources/format";
 import { recordSourceRun } from "./sources/store";
+import { classificationToTriageResult, triageFieldsToLead } from "./triage/adapter";
+import { triageJob } from "./triage";
+import type { TriageJob, TriageResult } from "./triage/types";
 import {
   sourceStepLabel,
   type MonitoringSource,
@@ -28,14 +31,14 @@ import type {
 
 const SOURCE_JOB_CONCURRENCY = 5;
 
-/** Why a vacancy is discarded before any model sees it (stage 0). */
-export type ScreenRejection = { reason: string };
-
 export async function runMonitoringForSource(
   source: MonitoringSource,
   context: Omit<ClassificationContext, "companyName">,
   dependencies: {
     fetchSourceFn?: (source: MonitoringSource, signal?: AbortSignal) => Promise<SourceFetchResult>;
+    /** Full triage (hard filters, extraction, fit). Defaults to `triageJob`. */
+    triageJobFn?: (job: TriageJob, context: ClassificationContext) => Promise<TriageResult>;
+    /** Plain classifier: when given (tests) it replaces the triage. */
     classifyJobLeadFn?: typeof classifyJobLead;
     upsertJobLeadFn?: typeof upsertJobLead;
     findLeadByDedupKeyFn?: typeof findLeadByDedupKey;
@@ -43,14 +46,17 @@ export async function runMonitoringForSource(
     touchUrlsFn?: (urls: string[]) => void;
     recordRunFn?: typeof recordSourceRun;
     resolver?: CompanyResolver;
-    /** Hard filters: a rejection is saved as discarded without calling a model. */
-    screenFn?: (job: SourceJob) => ScreenRejection | null;
     onEvent?: (event: MonitoringStreamEvent) => void;
     signal?: AbortSignal;
   } = {},
 ): Promise<MonitoringSummary> {
   const label = sourceStepLabel(source);
-  const classifyJobLeadFn = dependencies.classifyJobLeadFn ?? classifyJobLead;
+  const triageJobFn =
+    dependencies.triageJobFn ??
+    (dependencies.classifyJobLeadFn
+      ? async (job: TriageJob, ctx: ClassificationContext) =>
+          classificationToTriageResult(await dependencies.classifyJobLeadFn!(job, ctx))
+      : triageJob);
   const upsertJobLeadFn = dependencies.upsertJobLeadFn ?? upsertJobLead;
   const findLeadByDedupKeyFn = dependencies.findLeadByDedupKeyFn ?? findLeadByDedupKey;
   const existingUrlsFn = dependencies.existingUrlsFn ?? getExistingLeadUrlsAnyCompany;
@@ -138,7 +144,6 @@ export async function runMonitoringForSource(
 
         try {
           const detail = sourceJobToDetail(job);
-          const rejection = dependencies.screenFn?.(job) ?? null;
           const persistBase = {
             title: job.title,
             sourceUrl: job.url,
@@ -154,34 +159,22 @@ export async function runMonitoringForSource(
             salaryText: detail.salaryText,
           };
 
-          if (rejection) {
-            resolver ??= createCompanyResolver();
-            upsertJobLeadFn({
-              ...persistBase,
-              companyId: resolver.discardedSinkId(),
-              classificationStatus: "discarded",
-              classificationScore: 0,
-              classificationReason: rejection.reason,
-            });
-            summary.discarded += 1;
-            onEvent?.({
-              type: "link-done",
-              company: label,
-              title: job.title,
-              decision: "discarded",
-              processed: processed + 1,
-              total: fresh.length,
-            });
-            return;
-          }
-
           let classification;
+          let triageResult: TriageResult;
 
           try {
-            classification = await classifyJobLeadFn(detail, {
-              ...context,
-              companyName: job.companyName,
-            });
+            triageResult = await triageJobFn(
+              {
+                ...detail,
+                companyName: job.companyName,
+                locationRestrictions: job.locationRestrictions,
+                timezoneRestrictions: job.timezoneRestrictions,
+                salary: job.salary,
+                sourceKind: job.sourceKind,
+              },
+              { ...context, companyName: job.companyName },
+            );
+            classification = triageResult.classification;
           } catch (error) {
             logMonitoringStep(label, "classification-failed", {
               url: job.url,
@@ -206,6 +199,7 @@ export async function runMonitoringForSource(
             classificationStatus: classification.decision,
             classificationScore: classification.score,
             classificationReason: classification.reason,
+            ...triageFieldsToLead(triageResult.fields),
           });
 
           if (classification.decision === "discarded") {

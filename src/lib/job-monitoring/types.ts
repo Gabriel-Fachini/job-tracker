@@ -1,6 +1,7 @@
 import type { ProfileSnapshot } from "@/lib/profile/editor";
 import type { JobLeadStatus } from "@/lib/job-leads";
 import type { LeadListItem } from "@/components/leads/types";
+import type { SearchPreferences } from "@/lib/search-preferences";
 
 export type MonitoringCompany = {
   id: number;
@@ -82,6 +83,16 @@ export type PersistableLead = ExtractedJobDetail & {
   externalId?: string | null;
   applyUrl?: string | null;
   dedupKey?: string | null;
+  /** Triage fields (see `triage/types.ts`); absent for callers that only classify. */
+  eligibility?: string | null;
+  contractTypes?: string[] | null;
+  salaryMinUsdAnnual?: number | null;
+  salaryMaxUsdAnnual?: number | null;
+  discardReason?: string | null;
+  triageEngine?: string | null;
+  triageModel?: string | null;
+  triageConfidence?: number | null;
+  triageDetails?: Record<string, unknown> | null;
   classificationStatus: JobLeadStatus;
   classificationScore: number;
   classificationReason: string;
@@ -101,6 +112,8 @@ export type ClassificationContext = {
   companyName: string;
   profile: ProfileSnapshot | null;
   feedbackSummary: ClassificationFeedbackSummary;
+  /** International search preferences (stage 0 filters); null/absent = filters off. */
+  preferences?: SearchPreferences | null;
 };
 
 export type MonitoringStreamEvent =
