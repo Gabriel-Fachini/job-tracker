@@ -8,6 +8,7 @@ import { CompanyLogo } from "@/components/companies/company-logo";
 import { CompanyRadarToggle } from "@/components/companies/company-radar-toggle";
 import { CompanyStatusBadge } from "@/components/companies/company-status-badge";
 import { EditCompanySheet } from "@/components/companies/edit-company-sheet";
+import { GlassdoorSection } from "@/components/glassdoor/glassdoor-section";
 import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -46,6 +47,7 @@ import {
 import { getCompanyLogoView } from "@/lib/company-logos";
 import { db } from "@/lib/db";
 import { applications, companies, jobLeads, jobs } from "@/lib/db/schema";
+import { getGlassdoorView } from "@/lib/glassdoor/queries";
 import { cn } from "@/lib/utils";
 import { runCompanyMonitoring } from "@/server/actions/job-monitoring";
 
@@ -107,6 +109,7 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
       .get()?.count ?? 0,
   );
   const logo = getCompanyLogoView(company);
+  const glassdoorView = getGlassdoorView(company.id);
   const boundRunMonitoringAction = runCompanyMonitoring.bind(null, company.id);
 
   const sizeLabel = getCompanySizeLabel(company.size);
@@ -427,6 +430,8 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
           </PanelBody>
         </Panel>
       </div>
+
+      <GlassdoorSection view={glassdoorView} glassdoorUrl={company.glassdoorUrl} />
     </div>
   );
 }

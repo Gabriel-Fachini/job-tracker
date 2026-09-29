@@ -15,6 +15,7 @@ Documentação técnica do projeto, atualizada em **2026-09-27**. Para a apresen
 - [Leads (triagem)](modulos/leads.md)
 - [Candidaturas](modulos/candidaturas.md)
 - [Empresas](modulos/empresas.md) (inclui logos)
+- [Glassdoor](modulos/glassdoor.md) — coleta pela skill, importação, casamento de empresas, seção da página da empresa
 - [Perfil profissional](modulos/perfil.md)
 - [Geração de currículo](modulos/curriculo.md)
 - [Dashboard](modulos/dashboard.md)
@@ -51,6 +52,7 @@ Documentação técnica do projeto, atualizada em **2026-09-27**. Para a apresen
 | extração de perfil (OpenAI) | `src/lib/ai/openai.ts` |
 | template do currículo | `src/lib/latex/template.tex` |
 | métricas do dashboard | `src/server/queries/dashboard.ts` |
+| importação do Glassdoor | `src/lib/glassdoor/import.ts`, `src/app/api/glassdoor/` |
 | enums e labels | `src/lib/{applications,companies,jobs,job-leads}.ts`, `src/lib/profile/editor.ts` |
 | tokens de design | `src/app/globals.css` |
 | deploy | `deploy/deploy.sh`, `deploy/systemd/` |

@@ -61,7 +61,7 @@ Status e radar: `discarded` e `blacklist` ficam fora da varredura em lote (`rada
 `deleteCompany(id, { redirectToList? })`:
 
 1. Se existir qualquer `jobs` ligado → `{ ok: false, error: "linked-applications" }`.
-2. Senão, numa transação: apaga os `job_leads` da empresa e a empresa (FK ligada; sem cascade).
+2. Senão, numa transação: apaga os dados do Glassdoor da empresa (salários, snapshots, avaliações, entrevistas), os `job_leads` e a empresa (FK ligada; sem cascade).
 3. Remove o arquivo de logo e revalida `/companies`, `/companies/<id>`, `/applications`, `/leads`.
 4. Com `redirectToList` (usado no detalhe) → `redirect("/companies")`.
 
@@ -77,7 +77,7 @@ Como esses caminhos não usam SSE, o indicador "Radar em execução" da sidebar 
 ## Lista
 
 - Uma query ordenada por `updated_at DESC`, contagens por subquery correlacionada. Sem filtros, busca, ordenação ou paginação.
-- Cabeçalho: "N empresas · M candidaturas · K no radar", "Rodar varredura" (outline) e "Nova empresa". As tags de resumo por status (somente leitura) ficam na barra do topo do painel da lista.
+- Cabeçalho: "N empresas · M candidaturas · K no radar", "Rodar varredura" (outline), "Importar JSON do Glassdoor" (outline; só ícone abaixo de `xl`, resultado em `Notice` sob o cabeçalho) e "Nova empresa". As tags de resumo por status (somente leitura) ficam na barra do topo do painel da lista.
 - Linha: logo, nome (link que cobre a linha toda), site legível, meta (setor · porte · N candidaturas), tag de status, data (`sm:block md:hidden lg:block`: some de novo entre 768 e 1023 px), ações em `z-10`. `has-[a[data-row-link]:active]` evita que tocar numa ação acenda a linha.
 - Ações *(branch)*: a partir de `sm`, botões de ícone com tooltip; no telefone, "⋯" abre bottom sheet com Ver detalhes, Editar, Abrir site, Excluir.
 
@@ -88,6 +88,7 @@ Como esses caminhos não usam SSE, o indicador "Radar em execução" da sidebar 
 - Notas (ou placeholder).
 - "Candidaturas associadas": "X ativas de Y"; lista abaixo de `lg`, tabela a partir de `lg`; links para `/applications?applicationId=`.
 - "Ficha da empresa": Site, Setor, Porte, Job board, Navegação, Glassdoor, Status + botão Editar. Provider ATS e URL de logo não aparecem.
+- Painel "Glassdoor" (largura total, abaixo dos dois blocos): notas, avaliações, entrevistas e salários da última coleta, com upload manual do JSON. Ver [glassdoor.md](glassdoor.md).
 
 ## Logos *(branch)*
 

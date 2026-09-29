@@ -14,6 +14,11 @@ Não há API pública nem autenticação. Tudo abaixo roda no mesmo processo Nex
 | `GET /api/applications/[id]/generated-resume` | [`applications/[id]/generated-resume/route.ts`](../src/app/api/applications/[id]/generated-resume/route.ts) | `nodejs` | — | PDF inline · 404 sem currículo gerado · 500 se o arquivo sumiu |
 | `GET /api/companies/[id]/logo` | `companies/[id]/logo/route.ts` | `nodejs`, `force-dynamic` | `?v=<hash>` opcional | bytes da imagem com CSP `sandbox`; cache `immutable` quando `v` confere · 404 `no-store` |
 
+| `GET /api/glassdoor/targets` | [`glassdoor/targets/route.ts`](../src/app/api/glassdoor/targets/route.ts) | `nodejs`, `force-dynamic`, `no-store` | `Authorization: Bearer <GLASSDOOR_IMPORT_TOKEN>`; `?glassdoorId=&name=` opcionais | `{ ok: true, targets: [...] }` · 400 id inválido · 401 token errado · 503 token não configurado |
+| `POST /api/glassdoor/import` | [`glassdoor/import/route.ts`](../src/app/api/glassdoor/import/route.ts) | `nodejs`, `force-dynamic`, `no-store` | Bearer; corpo JSON schema v1 (≤ 10 MB) | `{ ok: true, companies: [...], errors: [...] }` · 400 JSON inválido · 401 · 413 · 422 payload inválido · 503 |
+
+A rota do Glassdoor é a **única com autenticação** (token Bearer); detalhes em [modulos/glassdoor.md](modulos/glassdoor.md).
+
 Convenções: `params` é `Promise<{ id: string }>` (await obrigatório); id não inteiro → 400 (na rota de logo → 404); erros de negócio em pt-BR no campo `error`.
 
 ## Server Actions
@@ -62,9 +67,15 @@ Mutações retornam `{ success: true } \| { success: false, error: "not_found" \
 |---|---|---|
 | `createCompany` | `(formData)` | valida; erro → `redirect("/companies/new?error=validation")`; ok → insere, liga jobs por nome, `redirect("/companies/<id>")` |
 | `updateCompany` | `(companyId, formData) => CompanyMutationResult` | atualiza; renomeia vínculos; limpa cache de logo se site/logo mudou |
-| `deleteCompany` | `(companyId, { redirectToList? }) => CompanyMutationResult` | bloqueia com jobs ligados; apaga leads + empresa + logo |
+| `deleteCompany` | `(companyId, { redirectToList? }) => CompanyMutationResult` | bloqueia com jobs ligados; apaga dados do Glassdoor + leads + empresa + logo |
 
 `CompanyMutationResult = { ok: true } \| { ok: false, error: "validation" \| "not-found" \| "linked-applications" }`.
+
+### Glassdoor — [`glassdoor.ts`](../src/server/actions/glassdoor.ts)
+
+| Action | Assinatura | Efeito |
+|---|---|---|
+| `importGlassdoorFile` | `(formData{file}) => { ok: true, companies, errors } \| { ok: false, error }` | upload manual do JSON (≤ 10 MB) com a mesma importação da rota; revalida `/companies` e `/companies/<id>` |
 
 ### Perfil — [`profile.ts`](../src/server/actions/profile.ts)
 

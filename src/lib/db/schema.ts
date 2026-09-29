@@ -1,6 +1,8 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  index,
   integer,
+  real,
   sqliteTable,
   text,
   uniqueIndex,
@@ -220,6 +222,107 @@ export const resumes = sqliteTable("resumes", {
   texPath: text("tex_path").notNull(),
   generationPrompt: text("generation_prompt"),
   generatedAt: integer("generated_at", { mode: "timestamp" }).notNull(),
+});
+
+export const glassdoorSnapshots = sqliteTable(
+  "glassdoor_snapshots",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    companyId: integer("company_id")
+      .notNull()
+      .references(() => companies.id),
+    /** Technical key used only to match companies; the name/url live in `dataJson`. */
+    glassdoorId: integer("glassdoor_id").notNull(),
+    collectedAt: integer("collected_at", { mode: "timestamp" }).notNull(),
+    /** Lower bound the collector used for reviews/interviews; null = full history. */
+    since: text("since"),
+    overall: real("overall"),
+    cultureValues: real("culture_values"),
+    workLifeBalance: real("work_life_balance"),
+    compensationBenefits: real("compensation_benefits"),
+    careerOpportunities: real("career_opportunities"),
+    seniorManagement: real("senior_management"),
+    diversityInclusion: real("diversity_inclusion"),
+    recommendToFriend: real("recommend_to_friend"),
+    businessOutlook: real("business_outlook"),
+    ceoApproval: real("ceo_approval"),
+    reviewCount: integer("review_count"),
+    interviewDifficulty: real("interview_difficulty"),
+    interviewPositive: integer("interview_positive"),
+    interviewNeutral: integer("interview_neutral"),
+    interviewNegative: integer("interview_negative"),
+    interviewCount: integer("interview_count"),
+    /** `{ employer, industry_benchmark, distribution, interview_channel_counts }`. */
+    dataJson: text("data_json"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("glassdoor_snapshots_company_collected_unique").on(
+      table.companyId,
+      table.collectedAt,
+    ),
+    index("glassdoor_snapshots_glassdoor_id_idx").on(table.glassdoorId),
+  ],
+);
+
+export const glassdoorReviews = sqliteTable("glassdoor_reviews", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id")
+    .notNull()
+    .references(() => companies.id),
+  glassdoorReviewId: integer("glassdoor_review_id").notNull().unique(),
+  /** ISO date-time as sent by Glassdoor. */
+  date: text("date"),
+  jobTitle: text("job_title"),
+  rating: integer("rating"),
+  summary: text("summary"),
+  pros: text("pros"),
+  cons: text("cons"),
+  advice: text("advice"),
+  isCurrent: integer("is_current", { mode: "boolean" }),
+  yearsEmployed: integer("years_employed"),
+  /** `{ location }`. */
+  extraJson: text("extra_json"),
+  firstSeenAt: integer("first_seen_at", { mode: "timestamp" }).notNull(),
+});
+
+export const glassdoorInterviews = sqliteTable("glassdoor_interviews", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  companyId: integer("company_id")
+    .notNull()
+    .references(() => companies.id),
+  glassdoorInterviewId: integer("glassdoor_interview_id").notNull().unique(),
+  date: text("date"),
+  jobTitle: text("job_title"),
+  difficulty: text("difficulty"),
+  experience: text("experience"),
+  outcome: text("outcome"),
+  durationDays: integer("duration_days"),
+  process: text("process"),
+  /** `string[]`. */
+  questionsJson: text("questions_json"),
+  firstSeenAt: integer("first_seen_at", { mode: "timestamp" }).notNull(),
+});
+
+export const glassdoorSalaries = sqliteTable("glassdoor_salaries", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  snapshotId: integer("snapshot_id")
+    .notNull()
+    .references(() => glassdoorSnapshots.id),
+  jobTitle: text("job_title").notNull(),
+  salaryCount: integer("salary_count"),
+  baseP10: real("base_p10"),
+  baseP25: real("base_p25"),
+  baseP50: real("base_p50"),
+  baseP75: real("base_p75"),
+  baseP90: real("base_p90"),
+  totalP10: real("total_p10"),
+  totalP25: real("total_p25"),
+  totalP50: real("total_p50"),
+  totalP75: real("total_p75"),
+  totalP90: real("total_p90"),
+  /** `{ most_recent }`. */
+  extraJson: text("extra_json"),
 });
 
 export const profileRelations = relations(profile, ({ many }) => ({

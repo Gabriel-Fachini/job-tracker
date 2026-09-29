@@ -19,6 +19,9 @@ Runner nativo do Node (`node:test`) com `tsx` para TypeScript e aliases `@/`. Se
 | `src/lib/latex/escape.test.ts` | escape de cada caractere especial |
 | `src/lib/latex/profile-adapter.test.ts` | projetos selecionados, match flexível |
 | `src/lib/latex/render.test.ts` | seção de projetos condicional |
+| `src/lib/glassdoor/identity.test.ts` | `parseGlassdoorId`, nome normalizado, mapa de porte, validação do schema v1 |
+| `src/lib/glassdoor/glassdoor.test.ts` | importação (cria empresa, casa por `glassdoor_url`/nome sem sobrescrever, preenche vazios, dedup de avaliações/entrevistas, snapshot duplicado), `targets`, exclusão dos dados |
+| `src/lib/glassdoor/routes.test.ts` | token das rotas (503 sem env, 401 errado) e erros 400/422 |
 
 ### Como rodar
 
@@ -35,9 +38,9 @@ npm run test:escape            # só o escape LaTeX
 
 Por que isolar: `index.test.ts` injeta extração/classificação/upsert, mas `getExistingJobLeadUrls` e `touchLastViewed` não são injetáveis e consultam o banco de `DATABASE_URL`. Por isso `test:job-monitoring` sem `DATABASE_URL` definido cai no `./job-tracker.db` real; prefira `npm test` ou prefixe `DATABASE_URL=./tmp/test.db` depois de `bash scripts/create-test-db.sh`.
 
-### Estado em 2026-09-27
+### Estado em 2026-09-28
 
-**61 de 61 passam** (`npm test`).
+**81 de 81 passam** (`npm test`; eram 61 antes do módulo Glassdoor). Os testes do Glassdoor escrevem no banco e recusam rodar se `DATABASE_URL` não terminar em `test.db`.
 
 Semântica do `MonitoringSummary` fixada em `index.test.ts`:
 
@@ -46,7 +49,8 @@ Semântica do `MonitoringSummary` fixada em `index.test.ts`:
 - `discarded`: gravados com `classification_status = discarded` (o upsert acontece antes da checagem, é a base do skip).
 - `failed`: falha de extração ou classificação; nada é gravado.
 
-Nenhum teste cobre UI, Server Actions, rotas, providers ATS (Greenhouse/Gupy/InHire) ou logos.
+Nenhum teste cobre UI, Server Actions, providers ATS (Greenhouse/Gupy/InHire) ou logos. As rotas cobertas são só as do Glassdoor.
+
 
 ## Tipos e lint
 
@@ -56,7 +60,7 @@ npm run lint              # eslint: next/core-web-vitals + next/typescript
 ```
 
 - `tsconfig`: `strict`, `moduleResolution: bundler`, alias `@/* → src/*`, exclui `tmp/`.
-- ESLint ignora `.next/`, `.claude/worktrees/**`, `out/`, `build/`.
+- ESLint ignora `.next/`, `.claude/worktrees/**`, `.claude/skills/**`, `.agents/**` (scripts de skills injetados no browser/vendorizados), `out/`, `build/`. Único aviso restante: 1 `no-unused-vars` antigo em `extraction.ts`.
 
 ## Checagens automáticas dos agentes
 

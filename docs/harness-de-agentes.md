@@ -50,6 +50,7 @@ Projeto (`.claude/skills/`, várias são symlinks para `.agents/skills/`):
 | `shadcn` | componentes UI |
 | `playwright-cli` | automação de browser |
 | `impeccable` | design, crítica e polimento de UI (gitignored) |
+| `glassdoor-collect` | coleta Glassdoor pelo Chrome logado → JSON v1 → `POST /api/glassdoor/import` (versionada) |
 | `higgsfield-*` | geração de imagem/vídeo/marca (untracked em 2026-09-27) |
 
 Globais úteis: `webapp-testing`, `frontend-design`, `vercel-composition-patterns`, `prompt-engineering-patterns` (prompts do classificador), `spec-driven-development`, `find-skills`.
