@@ -78,7 +78,7 @@ Com sucesso: campos travam, aviso de sucesso, e o modal chama **`generateResume`
 
 `createApplicationRecord` grava `jobs.status = applied` e a candidatura **sem `applied_at`** (a lista cai em `created_at`).
 
-"Formatar" chama `formatApplicationDescriptionWithAi` → `formatJobDescriptionWithOllama` (**Ollama**, `temperature 0.1`). O radar usa OpenAI para a mesma tarefa. Ver [ia.md](../ia.md).
+"Formatar" chama `formatApplicationDescriptionWithAi` → `formatJobDescription`, que usa o motor de geração (`GENERATION_ENGINE`: OpenAI `gpt-6-sol` por padrão, Ollama como fallback). Ver [ia.md](../ia.md).
 
 ## Detalhe
 
@@ -98,6 +98,29 @@ Sheet em tela cheia, até `max-w-5xl` no desktop.
 Os editores usam `key` com `updatedAt` + conteúdo: depois de um `router.refresh()`, o estado local reinicia com o valor salvo.
 
 Não aparecem na UI: `recruiter_name`, `recruiter_contact`, `tracking_channel` (só no schema) e o histórico de status (gravado, nunca exibido). O `GET /api/applications/{id}/resume` existe, mas nenhum link aponta para ele.
+
+## Candidatura assistida (kit)
+
+Rota `/applications/[id]/kit` (link no detalhe da candidatura e no modal de promoção de lead do radar internacional). **O app nunca envia candidatura**: prepara tudo e o usuário envia.
+
+| Arquivo | Papel |
+|---|---|
+| [`src/lib/apply/kit.ts`](../../src/lib/apply/kit.ts) | `prepareApplicationKit`: orquestra as partes; cada uma falha sozinha e vira aviso |
+| [`src/lib/apply/form-sources.ts`](../../src/lib/apply/form-sources.ts), [`form-extract.ts`](../../src/lib/apply/form-extract.ts) | campos do formulário: Greenhouse pela API pública (`?questions=true`), Lever pelo HTML de `/apply`, demais por Playwright headless (só leitura; login/CAPTCHA → campos desconhecidos) |
+| [`src/lib/apply/field-mapping.ts`](../../src/lib/apply/field-mapping.ts), [`field-mapping-model.ts`](../../src/lib/apply/field-mapping-model.ts) | campo → chave de resposta: heurística primeiro; o resto pelo motor da triagem (`TRIAGE_ENGINE`), enviando só rótulos e opções. Confiança baixa → `unknown` |
+| [`src/lib/apply/answers.ts`](../../src/lib/apply/answers.ts) | respostas vindas do perfil e de `search_preferences.default_answers`. Pergunta demográfica (EEO) **nunca** é respondida |
+| [`src/lib/apply/cover-letter.ts`](../../src/lib/apply/cover-letter.ts) | cover letter (120–180 palavras, inglês) e rascunhos de respostas abertas (até 5, marcados "rascunho IA"), pelo motor de geração |
+| [`src/lib/apply/kit-store.ts`](../../src/lib/apply/kit-store.ts), tabela `application_kits` | persistência; status `draft` → `ready` → `submitted_by_user` |
+| [`src/server/actions/kit.ts`](../../src/server/actions/kit.ts) | preparar/refazer, editar resposta, editar cover letter, "Marquei como enviada" (move para `applied` pelo fluxo normal de status) |
+| [`src/components/applications/kit-client.tsx`](../../src/components/applications/kit-client.tsx) | UI: respostas com copiar/editar, download do currículo em inglês, cover letter, "Abrir formulário" |
+| `GET /api/applications/[id]/kit`, `…/kit/resume` | JSON do kit e PDF, usados pelo script local |
+| [`scripts/apply-fill.ts`](../../scripts/apply-fill.ts) + [`fill-plan.ts`](../../src/lib/apply/fill-plan.ts) | `npm run apply:fill -- --app-url <url> --application <id>` |
+
+O currículo do kit sai em inglês (`generateResume(id, { language: "en" })`, ver [curriculo.md](curriculo.md)); o fluxo pt-BR segue igual.
+
+### Preenchimento local (`apply:fill`)
+
+Roda **no computador do usuário** (a VPS não tem display): Chromium visível, perfil persistente em `tmp/apply-profile` (logins feitos à mão ficam salvos), preenche os campos mapeados, anexa o currículo, destaca em laranja o que ficou para o usuário (desconhecidos, EEO, cover letter em arquivo) e **para**. Não clica, não aperta Enter e não envia; um teste proíbe `click`/`press`/`submit`/`dispatchEvent` no código do script (`FORBIDDEN_SCRIPT_CALLS`). Página com login ou CAPTCHA: não preenche nada e avisa no terminal. O `--app-url` precisa alcançar o app (na produção, pela tailnet).
 
 ## Upload do currículo usado
 

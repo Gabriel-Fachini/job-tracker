@@ -75,7 +75,7 @@ test("hasActiveSearchFilters is false without preferences or with an empty one",
 
 test("searchPreferencesFromRow tolerates broken JSON columns", () => {
   const preferences = searchPreferencesFromRow({
-    minMonthlyUsd: 4000,
+    minMonthlyUsd: 7000,
     minAnnualUsd: null,
     acceptedContracts: "not json",
     acceptedEligibility: '["worldwide"]',

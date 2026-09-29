@@ -26,7 +26,7 @@ export type EvalJob = { id: string; job: TriageJob; expected: EvalExpectation };
 
 /** Generic preferences for the eval (not anyone's real ones). */
 export const evalPreferences = normalizeSearchPreferences({
-  minMonthlyUsd: 4000,
+  minMonthlyUsd: 4500,
   acceptedContracts: ["contractor", "eor", "pj"],
   acceptedEligibility: ["worldwide", "latam", "brazil"],
   targetSeniorities: ["senior", "staff_plus"],

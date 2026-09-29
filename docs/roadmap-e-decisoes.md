@@ -19,6 +19,7 @@ Datas absolutas. Fontes: histórico do git, specs originais em [`.specs/`](../.s
 | 2026-09-25 | Preparação para servidor Linux; deploy pull-based + backup diário; fail closed sem banco em produção; app no ar na VPS com dados migrados; todas as telas adaptadas para celular (PR #3) | `b0715d4`, `cc13ca0`, `1a1d311`, `a588281` |
 | 2026-09-27 | Redesign monocromático com tema claro/escuro e marca; linguagem visual Notion (PR #4) | `6b3f78b`, `05d892a` |
 | 2026-09-27 | Snapshots do Drizzle religados (`db:generate` volta a funcionar); CRUD de empresas na lista, exclusão, logos (`0015`), status manual respeitado, radar em lote pula `discarded`/`blacklist` — branch `feat/companies-crud-logos` | `8db7fd9`, `cb455cc` |
+| 2026-09-28/29 | Radar internacional (spec [`.specs/radar-internacional/spec.md`](../.specs/radar-internacional/spec.md)): providers Ashby/Lever, preferências de busca internacional, fontes agregadas (Himalayas, Remote OK, WWR, Jobicy, HN), importação YC com descoberta de ATS, triagem em 3 estágios com motores OpenAI/Jev/Ollama, candidatura assistida (kit + `apply:fill`); modelos OpenAI atualizados para GPT-6 — branch `feat/radar-internacional` | `8eb05ed`…`9ea72ed` |
 
 ## Decisões
 
@@ -29,10 +30,16 @@ Datas absolutas. Fontes: histórico do git, specs originais em [`.specs/`](../.s
 - **Descartes automáticos são gravados** (2026-05-07, dedup). Permitem pular a URL nas próximas varreduras; a UI filtra.
 - **Classificador prefere `review` a `discarded`** na dúvida: alta cobertura vale mais que precisão.
 - **Candidaturas com aprovação humana, sem auto-submit** (2026-09-25). Nada é enviado a empresas sem o usuário.
+- **Foco em vagas remotas no exterior pagas em USD** (2026-09-28); contractor via Deel/EOR ou PJ é aceitável. Valores de salário e preferências ficam no banco (`search_preferences`), nunca no código (repo público).
+- **Wellfound e Work at a Startup não são raspados** (2026-09-28): antirrobô, login e termos de uso proíbem. A cobertura vem do ATS das empresas (Ashby/Lever/Greenhouse), da importação YC (`yc-oss`) e das fontes agregadas; o perfil nas duas plataformas é mantido à mão (o valor delas é o contato direto de fundadores).
+- **Candidatura assistida, não automática** (2026-09-28): o app prepara currículo em inglês, cover letter e respostas; `apply:fill` preenche no computador do usuário e para antes de enviar. Sem CAPTCHA, sem login automatizado, pergunta demográfica nunca respondida.
 
 ### IA
 
-- **Ollama como runtime principal**, com modo `cloud` em uso (classificação via HTTP remoto). Configuração explícita obrigatória, sem defaults silenciosos.
+- **OpenAI como padrão da triagem e da geração** (2026-09-28): os modelos fortes do Ollama Cloud exigem plano pago e o usuário tem créditos na OpenAI. Triagem com `gpt-6-luna` (`reasoning: none`), geração e extração de perfil com `gpt-6-sol`. Ollama segue como fallback; removê-lo é tarefa futura.
+- **Jev (TypeSafe) opcional; Laya rejeitada** (2026-09-29): a Jev tem probabilidades calibradas, mas não houve crédito para avaliá-la. A Laya (open source, mesmo contrato HTTP) acertou 11/30 na elegibilidade contra 28/30 do `gpt-6-luna` no eval de 30 vagas ([ia.md](ia.md#avaliação-de-motores-2026-09-29)), então não entrou no deploy.
+- **Confiança auto-relatada da OpenAI não decide nada** (2026-09-29): no eval, todo erro veio com confiança alta. Descarte automático só com resposta explícita; "não informado" vai para `review`.
+- ~~Ollama como runtime principal~~ (até 2026-09-28), com modo `cloud` (classificação via HTTP remoto). Configuração explícita obrigatória, sem defaults silenciosos.
 - **OpenAI para extração de perfil** (2026-05-07, `f18817e`). O motivo não ficou registrado; hipótese: qualidade da saída estruturada (`json_schema` estrito) em currículos longos, depois da fase de comparação Ollama × OpenAI. Formatação de descrição via OpenAI é opt-in (`OPENAI_FORMAT_JOB_DESCRIPTIONS`, default `false`).
 
 ### Engenharia
@@ -66,7 +73,8 @@ Datas absolutas. Fontes: histórico do git, specs originais em [`.specs/`](../.s
 
 ### Em andamento
 
-- Merge do branch `feat/companies-crud-logos` (CRUD de empresas, logos, filtro de status no radar) na `main`.
+- Revisão e merge do branch `feat/radar-internacional` na `main`. Depois do deploy: preencher Perfil → Busca internacional, conferir `OPENAI_API_KEY` em `/etc/job-tracker/env`, rodar `npm run companies:import-yc -- --dry-run` e então sem `--dry-run`.
+- Remover o Ollama por completo (triagem e geração já usam OpenAI por padrão).
 
 ### Dívidas técnicas conhecidas
 
