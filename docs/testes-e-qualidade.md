@@ -51,7 +51,6 @@ Semântica do `MonitoringSummary` fixada em `index.test.ts`:
 
 Nenhum teste cobre UI, Server Actions, providers ATS (Greenhouse/Gupy/InHire) ou logos. As rotas cobertas são só as do Glassdoor.
 
-O `npm run lint` da raiz também varre `.agents/` e `.claude/skills/` (scripts das skills) e reporta erros ali, inclusive no `extractor.js` do Glassdoor; o código do app (`npx eslint src`) só tem 1 warning antigo em `extraction.ts`.
 
 ## Tipos e lint
 
@@ -61,7 +60,7 @@ npm run lint              # eslint: next/core-web-vitals + next/typescript
 ```
 
 - `tsconfig`: `strict`, `moduleResolution: bundler`, alias `@/* → src/*`, exclui `tmp/`.
-- ESLint ignora `.next/`, `.claude/worktrees/**`, `out/`, `build/`.
+- ESLint ignora `.next/`, `.claude/worktrees/**`, `.claude/skills/**`, `.agents/**` (scripts de skills injetados no browser/vendorizados), `out/`, `build/`. Único aviso restante: 1 `no-unused-vars` antigo em `extraction.ts`.
 
 ## Checagens automáticas dos agentes
 
