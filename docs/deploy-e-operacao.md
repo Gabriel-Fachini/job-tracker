@@ -88,7 +88,9 @@ Instalação e reinstalação: `sudo bash deploy/install.sh` (idempotente; cria 
 - `DATABASE_URL` absoluto (`/var/lib/job-tracker/data/job-tracker.db`);
 - `UPLOADS_PATH` apontando para o diretório de uploads dentro de `/var/lib/job-tracker/data` (fora da release, senão os arquivos somem na rotação);
 - chaves reais de `OLLAMA_*` e `OPENAI_API_KEY`;
-- `GLASSDOOR_IMPORT_TOKEN=<hex de 32 bytes>` (`openssl rand -hex 32`) para a skill `glassdoor-collect` importar via `/api/glassdoor/import`; sem ele as rotas respondem 503 (ver [modulos/glassdoor.md](modulos/glassdoor.md)). Adicionar a linha e reiniciar o serviço é feito à mão pelo usuário.
+- `GLASSDOOR_IMPORT_TOKEN=<hex de 32 bytes>` (`openssl rand -hex 32`) para a skill `glassdoor-collect` importar via `/api/glassdoor/import`; sem ele as rotas respondem 503 (ver [modulos/glassdoor.md](modulos/glassdoor.md)). Adicionar a linha e reiniciar o serviço é feito à mão pelo usuário (configurado em 2026-09-29). O nome precisa ser exatamente `GLASSDOOR_IMPORT_TOKEN`: com outro nome as rotas respondem 503.
+
+Editar e aplicar: `ssh -t job-tracker 'sudo nano /etc/job-tracker/env'` e depois `ssh -t job-tracker 'sudo systemctl restart job-tracker'` (o systemd só lê o env na partida). O Tailscale SSH pode pedir uma verificação no navegador antes de abrir a sessão. Se o `systemctl` avisar `unit file ... changed on disk`, rode `sudo systemctl daemon-reload` antes do restart (visto em 2026-09-29: a unit em disco, de 2026-09-25, igual à do repo, não tinha sido recarregada).
 
 Em 2026-09-26 as chaves `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `OLLAMA_API_KEY` e `OPENAI_API_KEY` ainda estavam com placeholder literal: preencher era pendência do usuário. Confirme antes de depurar radar ou perfil em produção.
 

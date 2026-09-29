@@ -19,6 +19,7 @@ Datas absolutas. Fontes: histórico do git, specs originais em [`.specs/`](../.s
 | 2026-09-25 | Preparação para servidor Linux; deploy pull-based + backup diário; fail closed sem banco em produção; app no ar na VPS com dados migrados; todas as telas adaptadas para celular (PR #3) | `b0715d4`, `cc13ca0`, `1a1d311`, `a588281` |
 | 2026-09-27 | Redesign monocromático com tema claro/escuro e marca; linguagem visual Notion (PR #4) | `6b3f78b`, `05d892a` |
 | 2026-09-27 | Snapshots do Drizzle religados (`db:generate` volta a funcionar); CRUD de empresas na lista, exclusão, logos (`0015`), status manual respeitado, radar em lote pula `discarded`/`blacklist` — branch `feat/companies-crud-logos` | `8db7fd9`, `cb455cc` |
+| 2026-09-28 | Glassdoor: skill `glassdoor-collect` (coleta pelo Chrome logado), tabelas `glassdoor_*` (`0017`), import/targets com token, seção na página da empresa e upload manual (PR #7) | `fc2b107`, `c19355b`, `c52bd8e`, `3cc4e3a` |
 
 ## Decisões
 
@@ -34,6 +35,15 @@ Datas absolutas. Fontes: histórico do git, specs originais em [`.specs/`](../.s
 
 - **Ollama como runtime principal**, com modo `cloud` em uso (classificação via HTTP remoto). Configuração explícita obrigatória, sem defaults silenciosos.
 - **OpenAI para extração de perfil** (2026-05-07, `f18817e`). O motivo não ficou registrado; hipótese: qualidade da saída estruturada (`json_schema` estrito) em currículos longos, depois da fase de comparação Ollama × OpenAI. Formatação de descrição via OpenAI é opt-in (`OPENAI_FORMAT_JOB_DESCRIPTIONS`, default `false`).
+
+### Glassdoor (2026-09-28)
+
+- **Coleta por skill no navegador logado do usuário**, não por scraper no servidor: o Glassdoor tem login e anti-bot. A skill usa `fetch` same-origin aos endpoints internos do site (sem navegar nem raspar HTML); CAPTCHA/login ficam com o usuário.
+- **SQLite, não arquivo nem `localStorage`**: entra no backup/rollback e permite histórico. Uma linha de snapshot por coleta (notas em colunas para comparar entre coletas) + avaliações/entrevistas sem duplicar.
+- **O que guardar foi decidido campo a campo** pelo usuário numa página de revisão com a primeira coleta real (ex.: subnotas por avaliação, votos, logo e percentis extremos descartados).
+- **O import nunca sobrescreve o cadastro da empresa**; só preenche campos vazios e cria empresa desconhecida.
+- **Token Bearer** nos endpoints mesmo dentro do tailnet: o app não tem login e o endpoint grava no banco; o header customizado bloqueia requisições cross-site de páginas abertas no navegador.
+- **Frequência mensal**, manual (skill); coleta incremental automática a partir do que já existe.
 
 ### Engenharia
 

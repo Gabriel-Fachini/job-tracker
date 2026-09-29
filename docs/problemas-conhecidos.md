@@ -84,7 +84,15 @@ Levantamento feito em 2026-09-27 lendo o código (e, quando indicado, testando).
 - Hook `post-edit-typecheck.sh` usa `timeout`, que não existe no macOS sem coreutils: o `tsc` nunca roda e o hook fica mudo.
 - Scripts `test:profile-extraction` e `analyze:profile-extractions` apontam para arquivos inexistentes em `tmp/` (mantidos por decisão do usuário; também citados no `README.en.md`).
 - `npm run test:job-monitoring` usa o `DATABASE_URL` do ambiente; sem ele, os testes do radar consultam o `./job-tracker.db` real. Use `npm test`.
-- 2 testes desatualizados em `src/lib/job-monitoring/index.test.ts`.
+
+## Glassdoor
+
+- A skill depende de endpoints **internos e não documentados** do Glassdoor (`/bff/employer-profile-mono/*`, payload RSC do overview, `/searchsuggest/typeahead`). Se mudarem, a coleta quebra; `SKILL.md` explica como revalidar os argumentos pela chave SWR da página.
+- O `extractor.js` é colado inteiro no `javascript_tool` a cada execução (~4 mil tokens). O arquivo gerado vai para `~/Downloads` e a skill o move para `tmp/glassdoor/`; o Chrome pode pedir permissão para downloads múltiplos.
+- A saída do `javascript_tool` da extensão do Chrome mascara strings que parecem base64 ou query string (`[BLOCKED: ...]`); por isso o payload sai por download, não pelo retorno da ferramenta.
+- O filtro "só tecnologia" (avaliações, entrevistas, salários) é uma regex de palavras-chave: cargos com nome inesperado ficam de fora.
+- Porte vindo do Glassdoor ("201 a 500 funcionários") é convertido para o enum do app pelo limite superior; só preenche quando `companies.size` está vazio.
+- `serverActions.bodySizeLimit` foi para 10 MB em todo o app (upload manual de histórico completo).
 
 ## Documentação
 

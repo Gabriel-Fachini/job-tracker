@@ -1,6 +1,6 @@
 # Memórias do agente
 
-Conhecimento acumulado pelo Claude Code em sessões anteriores e guardado na memória persistente do agente (fora do repositório, em `~/.claude/projects/<projeto>/memory/`). Esta página é um **retrato de 2026-09-27**, trazido para o repo para ficar visível a qualquer pessoa ou agente.
+Conhecimento acumulado pelo Claude Code em sessões anteriores e guardado na memória persistente do agente (fora do repositório, em `~/.claude/projects/<projeto>/memory/`). Esta página é um **retrato de 2026-09-27, atualizado em 2026-09-29**, trazido para o repo para ficar visível a qualquer pessoa ou agente.
 
 Por o repositório ser público, os dados foram mascarados: nome do tailnet → `<TAILNET>`, domínio pessoal → `<DOMINIO_PESSOAL>`, IPs e detalhes de conta omitidos. Nenhum segredo existe nas memórias originais.
 
@@ -57,6 +57,20 @@ Aplicado em: [deploy-e-operacao.md](deploy-e-operacao.md).
 **Como aplicar:** ao fazer preview de UI numa worktree, semear dados sintéticos primeiro; se uma mudança de CSS não aparecer, suspeitar do cache do Turbopack antes do código.
 
 Aplicado em: [desenvolvimento-local.md](desenvolvimento-local.md), [testes-e-qualidade.md](testes-e-qualidade.md).
+
+## 4. Forma de trabalho preferida
+
+*Tipo: feedback · registradas em 2026-09-27 e 2026-09-29*
+
+- Responder sempre em português brasileiro no chat (código, commits e PRs seguem a convenção da tarefa).
+- Ser econômico: o trabalho operacional grande (implementar, testar, documentar) vai para um subagente com modelo mais barato; a conversa principal fica com planejamento, decisões e revisão do que o subagente entregou.
+- Para decisões com muitas opções (ex.: quais campos guardar), uma página HTML de revisão com os dados reais funcionou bem, desde que a prévia reaja na hora a cada escolha e gere um JSON de decisões para colar no chat.
+
+## 5. Glassdoor
+
+*Tipo: projeto · registrada em 2026-09-29*
+
+Feature entregue no PR `Gabriel-Fachini/job-tracker#7` (ver [modulos/glassdoor.md](modulos/glassdoor.md) e a decisão em [roadmap-e-decisoes.md](roadmap-e-decisoes.md)). Token `GLASSDOOR_IMPORT_TOKEN` configurado na VPS em 2026-09-29. As decisões campo a campo ficaram fora do repo (`tmp/glassdoor/decisoes-v1.json`, junto com a primeira coleta real).
 
 ## Fatos confirmados nesta sessão de documentação (2026-09-27)
 
