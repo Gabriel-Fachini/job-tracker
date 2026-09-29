@@ -15,6 +15,10 @@ import { toast } from "sonner";
 import type { CompanyFormValues } from "@/components/companies/company-form";
 import { CompanyLogo } from "@/components/companies/company-logo";
 import { CompanyRowActions } from "@/components/companies/company-row-actions";
+import {
+  GlassdoorImportButton,
+  GlassdoorImportNotice,
+} from "@/components/glassdoor/import-control";
 import { CompanyStatusBadge } from "@/components/companies/company-status-badge";
 import { MonitoringRunButton } from "@/components/leads/monitoring-run-button";
 import { PageHeader } from "@/components/page-header";
@@ -56,6 +60,7 @@ import {
   bulkSetCompanyRadarEnabled,
   setCompanyRadarEnabled,
 } from "@/server/actions/companies";
+import type { GlassdoorFileImportResult } from "@/server/actions/glassdoor";
 import { runAllCompaniesMonitoring } from "@/server/actions/job-monitoring";
 
 export type CompanyListItem = {
@@ -88,6 +93,7 @@ export function CompaniesClient({ rows }: { rows: CompanyListItem[] }) {
   const [pendingRadarIds, setPendingRadarIds] = useState<Set<number>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [isBulkPending, startBulk] = useTransition();
+  const [glassdoorResult, setGlassdoorResult] = useState<GlassdoorFileImportResult | null>(null);
 
   const status = normalizeStatus(searchParams.get("status"));
 
@@ -302,6 +308,7 @@ export function CompaniesClient({ rows }: { rows: CompanyListItem[] }) {
               pendingLabel="Varrendo…"
               variant="outline"
             />
+            <GlassdoorImportButton onResult={setGlassdoorResult} compact />
             <Link href="/companies/new" className={buttonVariants()}>
               <Plus data-icon="inline-start" />
               <span className="sm:hidden">Nova</span>
@@ -310,6 +317,10 @@ export function CompaniesClient({ rows }: { rows: CompanyListItem[] }) {
           </div>
         }
       />
+
+      {glassdoorResult ? (
+        <GlassdoorImportNotice result={glassdoorResult} className="-mt-1" />
+      ) : null}
 
       <section aria-label="Filtros de empresas" className="flex flex-col gap-2 md:flex-row md:items-center">
         <form
