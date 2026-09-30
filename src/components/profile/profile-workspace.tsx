@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FilePenLine, FileUp } from "lucide-react";
 
 import type { ProfileSnapshot } from "@/lib/profile/editor";
+import type { SearchPreferences } from "@/lib/search-preferences";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,12 +19,14 @@ import { Panel, PanelTitle } from "@/components/ui/panel";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ProfileSummary } from "@/components/profile/profile-summary";
 import { ProfileUploadPanel } from "@/components/profile/profile-upload-panel";
+import { SearchPreferencesPanel } from "@/components/profile/search-preferences-panel";
 
 type ProfileWorkspaceProps = {
   profileSnapshot: ProfileSnapshot | null;
+  searchPreferences: SearchPreferences | null;
 };
 
-export function ProfileWorkspace({ profileSnapshot }: ProfileWorkspaceProps) {
+export function ProfileWorkspace({ profileSnapshot, searchPreferences }: ProfileWorkspaceProps) {
   const [activeSection, setActiveSection] = useState<
     | "basics"
     | "links"
@@ -34,6 +37,9 @@ export function ProfileWorkspace({ profileSnapshot }: ProfileWorkspaceProps) {
     | "education"
     | null
   >(null);
+  // One panel in edit mode at a time: a profile section or the search preferences.
+  const [editingSearch, setEditingSearch] = useState(false);
+  const isEditing = activeSection !== null || editingSearch;
 
   return (
     <div className="flex flex-1 flex-col gap-5 sm:gap-6">
@@ -58,9 +64,10 @@ export function ProfileWorkspace({ profileSnapshot }: ProfileWorkspaceProps) {
               <ProfileUploadPanel />
               {/* While a section is being edited its Salvar is the primary action. */}
               <Button
+                disabled={editingSearch}
                 onClick={() => setActiveSection("basics")}
                 type="button"
-                variant={activeSection ? "outline" : "default"}
+                variant={isEditing ? "outline" : "default"}
               >
                 <FilePenLine data-icon="inline-start" />
                 <span className="sm:hidden">Editar</span>
@@ -95,8 +102,17 @@ export function ProfileWorkspace({ profileSnapshot }: ProfileWorkspaceProps) {
       <ProfileSummary
         activeSection={activeSection}
         key={profileSnapshot ? `${profileSnapshot.id}-${profileSnapshot.updatedAt.toISOString()}` : "empty"}
+        locked={editingSearch}
         onActiveSectionChange={setActiveSection}
         profileSnapshot={profileSnapshot}
+      />
+
+      <SearchPreferencesPanel
+        editing={editingSearch}
+        key={searchPreferences?.updatedAt?.toISOString() ?? "empty"}
+        locked={activeSection !== null}
+        onEditingChange={setEditingSearch}
+        preferences={searchPreferences}
       />
 
       {/* The sidebar holds the same control; phones only reach it here. */}

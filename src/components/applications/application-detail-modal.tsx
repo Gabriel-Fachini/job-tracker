@@ -2,6 +2,7 @@
 
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CircleSlash,
@@ -698,6 +699,24 @@ function UsedResumeSection({
                   : "Gerar currículo"}
             </Button>
           )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 border-t border-border pt-4">
+        <div>
+          <h4 className="text-[13px] font-medium text-foreground">Candidatura assistida</h4>
+          <p className="mt-1 text-[13px] leading-5 text-pretty text-muted-foreground">
+            Currículo em inglês, cover letter e respostas do formulário, prontos para copiar. O app nunca envia nada
+            por você.
+          </p>
+        </div>
+        <div>
+          <Link
+            href={`/applications/${applicationId}/kit`}
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            Preparar candidatura
+          </Link>
         </div>
       </div>
 

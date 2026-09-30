@@ -55,6 +55,8 @@ export const atsProviderOptions = [
   { value: "greenhouse", label: "Greenhouse" },
   { value: "gupy", label: "Gupy" },
   { value: "inhire", label: "InHire" },
+  { value: "ashby", label: "Ashby" },
+  { value: "lever", label: "Lever" },
   { value: "generic", label: "Genérico (HTML)" },
 ] as const;
 

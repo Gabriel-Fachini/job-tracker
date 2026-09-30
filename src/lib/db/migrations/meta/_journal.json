@@ -127,6 +127,13 @@
       "when": 1790639479265,
       "tag": "0017_glassdoor_data",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1790727212426,
+      "tag": "0018_international_radar",
+      "breakpoints": true
     }
   ]
 }

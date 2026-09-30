@@ -1,5 +1,6 @@
 import { printRadarReport, type CompanyReportEntry } from "./logger";
 import { runTracker, type RunOutcome, type RunTracker } from "./run-state";
+import { sourceStepLabel, type MonitoringSource } from "./sources/types";
 import type {
   ClassificationContext,
   MonitoringCompany,
@@ -19,9 +20,21 @@ type CompanyRunner = (
   },
 ) => Promise<MonitoringSummary>;
 
+type SourceRunner = (
+  source: MonitoringSource,
+  context: Omit<ClassificationContext, "companyName">,
+  dependencies: {
+    onEvent: (event: MonitoringStreamEvent) => void;
+    signal: AbortSignal;
+  },
+) => Promise<MonitoringSummary>;
+
 export type BulkRunOptions = {
   /** Scans one company: runMonitoringForCompany in production. */
   runCompany: CompanyRunner;
+  /** Aggregated feeds that run after the companies, one step each (runMonitoringForSource). */
+  sources?: MonitoringSource[];
+  runSource?: SourceRunner;
   /** Profile and recent feedback, loaded once the run is claimed. */
   loadContext: () => Promise<Omit<ClassificationContext, "companyName">>;
   /** Aborted when the client goes away; the run stops between links and companies. */
@@ -71,7 +84,9 @@ export async function runBulkMonitoring(
     send(event);
   }
 
-  const claim = tracker.tryStartRun(runId, companies.length);
+  const sources = options.sources ?? [];
+  const totalSteps = companies.length + sources.length;
+  const claim = tracker.tryStartRun(runId, totalSteps);
 
   if (!claim.ok) {
     console.log("[job-monitoring] [action] run-all-stream-rejected", {
@@ -91,68 +106,65 @@ export async function runBulkMonitoring(
   let outcome: RunOutcome = "failed";
   let failure: string | null = null;
 
-  async function runOneCompany(
-    company: MonitoringCompany,
+  /** One step of the run: a company board or an aggregated source. Failures are isolated per step. */
+  async function runStep(
+    step: { id: number; label: string; noun: "empresa" | "fonte" },
     index: number,
-    baseContext: Omit<ClassificationContext, "companyName">,
+    run: () => Promise<MonitoringSummary>,
   ) {
-    const companyStartedAt = Date.now();
+    const stepStartedAt = Date.now();
     console.log("[job-monitoring] [action] run-all-stream-company-start", {
-      companyId: company.id,
-      companyName: company.name,
+      companyId: step.id,
+      companyName: step.label,
       index: index + 1,
-      total: companies.length,
+      total: totalSteps,
     });
     emitEvent({
       type: "company-start",
-      company: company.name,
+      company: step.label,
       index: index + 1,
-      total: companies.length,
+      total: totalSteps,
     });
 
     try {
-      const summary = await options.runCompany(
-        company,
-        { ...baseContext, companyName: company.name },
-        { onEvent: emitEvent, signal },
-      );
+      const summary = await run();
       results.push({
-        name: company.name,
+        name: step.label,
         summary,
-        durationMs: Date.now() - companyStartedAt,
+        durationMs: Date.now() - stepStartedAt,
       });
-      emitEvent({ type: "company-done", company: company.name, summary });
+      emitEvent({ type: "company-done", company: step.label, summary });
       console.log("[job-monitoring] [action] run-all-stream-company-finished", {
-        companyId: company.id,
-        companyName: company.name,
+        companyId: step.id,
+        companyName: step.label,
         companySummary: summary,
       });
     } catch (error) {
       const message = getErrorMessage(error);
       results.push({
-        name: company.name,
+        name: step.label,
         summary: emptySummary(),
-        durationMs: Date.now() - companyStartedAt,
+        durationMs: Date.now() - stepStartedAt,
       });
       console.log("[job-monitoring] [action] run-all-stream-company-failed", {
-        companyId: company.id,
-        companyName: company.name,
+        companyId: step.id,
+        companyName: step.label,
         error: message,
       });
-      // One broken board must not end the run: report it and go to the next company.
+      // One broken board must not end the run: report it and go to the next step.
       emitEvent({
         type: "error",
-        message: `Falha ao processar empresa "${company.name}": ${message}`,
-        company: company.name,
+        message: `Falha ao processar ${step.noun} "${step.label}": ${message}`,
+        company: step.label,
         fatal: false,
       });
     }
   }
 
   try {
-    emitEvent({ type: "start", total: companies.length });
+    emitEvent({ type: "start", total: totalSteps });
 
-    if (companies.length > 0) {
+    if (totalSteps > 0) {
       const baseContext = await options.loadContext();
 
       for (const [index, company] of companies.entries()) {
@@ -160,7 +172,27 @@ export async function runBulkMonitoring(
           break;
         }
 
-        await runOneCompany(company, index, baseContext);
+        await runStep({ id: company.id, label: company.name, noun: "empresa" }, index, () =>
+          options.runCompany(
+            company,
+            { ...baseContext, companyName: company.name },
+            { onEvent: emitEvent, signal },
+          ),
+        );
+      }
+
+      const runSource = options.runSource;
+
+      for (const [offset, source] of sources.entries()) {
+        if (signal.aborted || !runSource) {
+          break;
+        }
+
+        await runStep(
+          { id: source.id, label: sourceStepLabel(source), noun: "fonte" },
+          companies.length + offset,
+          () => runSource(source, baseContext, { onEvent: emitEvent, signal }),
+        );
       }
     }
 
@@ -171,7 +203,7 @@ export async function runBulkMonitoring(
       outcome = "cancelled";
       console.log("[job-monitoring] [action] run-all-stream-cancelled", {
         companiesProcessed: results.length,
-        total: companies.length,
+        total: totalSteps,
       });
       return { status: "cancelled", summary };
     }

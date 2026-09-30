@@ -26,17 +26,18 @@
 % ---------- HEADER ----------
 \begin{center}
 {\Large\bfseries <<fullName>>}\\[4pt]
-<<location>><<#phone>> \textbf{|} <<phone>><</phone>><<#email>> \textbf{|} \href{mailto:<<email>>}{<<email>>}<</email>><<#linkedin>> \textbf{|} \href{<<linkedin>>}{Linkedin}<</linkedin>><<#github>> \textbf{|} \href{<<github>>}{Github}<</github>>
+<<#headline>>{\itshape <<headline>>}\\[4pt]
+<</headline>><<location>><<#phone>> \textbf{|} <<phone>><</phone>><<#email>> \textbf{|} \href{mailto:<<email>>}{<<email>>}<</email>><<#linkedin>> \textbf{|} \href{<<linkedin>>}{Linkedin}<</linkedin>><<#github>> \textbf{|} \href{<<github>>}{Github}<</github>>
 \end{center}
 
 <<#summary>>
-\section*{RESUMO}
+\section*{<<labels.summary>>}
 <<summary>>
 <</summary>>
 
 % ---------- EXPERIÊNCIAS ----------
 <<#experiences.length>>
-\section*{EXPERIÊNCIA}
+\section*{<<labels.experience>>}
 <</experiences.length>>
 <<#experiences>>
 \vspace{2pt}
@@ -52,7 +53,7 @@
 
 % ---------- HABILIDADES ----------
 <<#skills.length>>
-\section*{HABILIDADES}
+\section*{<<labels.skills>>}
 \vspace{2pt}
 <<#skills>>\noindent{\bfseries <<category>>:} <<items>>\\
 <</skills>>
@@ -60,30 +61,30 @@
 
 % ---------- PROJETOS ----------
 <<#projects.length>>
-\section*{PROJETOS}
+\section*{<<labels.projects>>}
 <</projects.length>>
 <<#projects>>
-\noindent{\bfseries <<name>>}<<#url>>\hfill\href{<<url>>}{link}<</url>>\\
+\noindent{\bfseries <<name>>}<<#url>>\hfill\href{<<url>>}{<<labels.link>>}<</url>>\\
 <<#stack>>{\itshape <<stack>>}\\<</stack>>
-<<#description>><<description>><</description>><<#impact>>\\{\bfseries Impacto:} <<impact>><</impact>>
+<<#description>><<description>><</description>><<#impact>>\\{\bfseries <<labels.impact>>} <<impact>><</impact>>
 \vspace{4pt}
 <</projects>>
 
 % ---------- IDIOMAS ----------
 <<#languagesLine>>
-\section*{IDIOMAS}
+\section*{<<labels.languages>>}
 \vspace{2pt}
 \noindent<<languagesLine>>\\
 <</languagesLine>>
 
 % ---------- EDUCAÇÃO ----------
 <<#education.length>>
-\section*{EDUCA\c{C}\~AO}
+\section*{<<labels.education>>}
 <</education.length>>
 <<#education>>
 \vspace{2pt}
 \noindent{\bfseries <<institution>>}\hfill{\bfseries <<location>>}\\
-{\itshape <<degree>>}<<#field>>{\itshape \ em <<field>>}<</field>>\hfill{\itshape <<period>>}
+{\itshape <<degree>>}<<#field>>{\itshape \ <<labels.inField>> <<field>>}<</field>>\hfill{\itshape <<period>>}
 \vspace{2pt}
 <</education>>
 

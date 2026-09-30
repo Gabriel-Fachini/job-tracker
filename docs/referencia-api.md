@@ -88,8 +88,25 @@ Mutações retornam `{ success: true } \| { success: false, error: "not_found" \
 
 Todas revalidam `/profile` quando gravam.
 
+### Fontes agregadas — [`sources.ts`](../src/server/actions/sources.ts)
+
+| Action | Assinatura | Efeito |
+|---|---|---|
+| `setSourceEnabledAction` | `(sourceId, enabled) => { ok }` | liga/desliga uma fonte |
+| `runSourcesMonitoring` | `() => MonitoringActionResult` | roda as fontes habilitadas em sequência (sem SSE nem tracker) |
+| `runSourceMonitoring` | `(sourceId) => MonitoringActionResult` | roda uma fonte, habilitada ou não |
+
+`discoverCompanyAts(companyId)` (em `companies.ts`) devolve `{ ok: true, provider, boardUrl, jobsCount, via } \| { ok: false, error: "not-found" \| "has-board" \| "not-discovered" }`.
+
+### Busca internacional — [`search-preferences.ts`](../src/server/actions/search-preferences.ts)
+
+| Action | Assinatura | Efeito |
+|---|---|---|
+| `saveSearchPreferencesAction` | `(input: SearchPreferencesInput) => { ok: true, updatedAt } \| { ok: false, error: "validation" }` | normaliza (enums permitidos, números não negativos, palavras em minúsculas) e grava a linha única de `search_preferences`; fuso IANA desconhecido → `validation` |
+
 ## Queries de leitura fora das actions
 
 - Páginas em `src/app/(app)/**/page.tsx` consultam o Drizzle direto.
 - [`src/server/queries/dashboard.ts`](../src/server/queries/dashboard.ts): `resolvePeriod` e uma função por widget.
 - [`src/lib/profile/queries.ts`](../src/lib/profile/queries.ts): `getProfileSnapshot()`.
+- [`src/lib/search-preferences-queries.ts`](../src/lib/search-preferences-queries.ts): `getSearchPreferences()` (null = filtros desligados).

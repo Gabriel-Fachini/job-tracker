@@ -76,12 +76,15 @@ type ProfileSummaryProps = {
   activeSection: EditableSection | null;
   onActiveSectionChange: (section: EditableSection | null) => void;
   profileSnapshot: ProfileSnapshot | null;
+  /** Another panel on the page is being edited: every "Editar" here waits for it. */
+  locked?: boolean;
 };
 
 export function ProfileSummary({
   activeSection,
   onActiveSectionChange,
   profileSnapshot,
+  locked = false,
 }: ProfileSummaryProps) {
   const router = useRouter();
   const [draft, setDraft] = useState<ProfileReviewData | null>(() =>
@@ -287,6 +290,7 @@ export function ProfileSummary({
       <SectionActionButtons
         activeSection={activeSection}
         isPending={isPending}
+        locked={locked}
         onCancel={resetToSnapshot}
         onEdit={() => onActiveSectionChange(section)}
         onSave={saveSection}
@@ -1444,6 +1448,7 @@ function SectionPanel({
 function SectionActionButtons({
   activeSection,
   isPending,
+  locked,
   onCancel,
   onEdit,
   onSave,
@@ -1451,13 +1456,14 @@ function SectionActionButtons({
 }: {
   activeSection: EditableSection | null;
   isPending: boolean;
+  locked: boolean;
   onCancel: () => void;
   onEdit: () => void;
   onSave: () => void;
   section: EditableSection;
 }) {
   const isActive = activeSection === section;
-  const isDisabled = activeSection !== null && activeSection !== section;
+  const isDisabled = locked || (activeSection !== null && activeSection !== section);
 
   if (isActive) {
     // Phones save and cancel from the pinned edit bar instead.
@@ -1576,7 +1582,7 @@ function ContactItem({
   );
 }
 
-function DefinitionItem({
+export function DefinitionItem({
   className,
   label,
   value,

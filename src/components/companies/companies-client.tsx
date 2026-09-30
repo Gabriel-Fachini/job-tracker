@@ -42,6 +42,13 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { MetaLine } from "@/components/ui/meta-line";
+import { Tag } from "@/components/ui/tag";
+import {
+  companyOriginOptions,
+  getCompanyOriginLabel,
+  isCompanyOrigin,
+  type CompanyOrigin,
+} from "@/lib/companies/company-origin";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { Switch } from "@/components/ui/switch";
 import { useSearchParamsUpdater } from "@/hooks/use-search-params-updater";
@@ -67,6 +74,7 @@ export type CompanyListItem = {
   id: number;
   name: string;
   status: string;
+  origin: string;
   sector: string | null;
   size: string | null;
   website: string | null;
@@ -80,6 +88,15 @@ export type CompanyListItem = {
 };
 
 type StatusFilter = CompanyStatus | null;
+type OriginFilter = CompanyOrigin | null;
+
+const originFilterOptions: Array<{ value: OriginFilter; label: string }> = [
+  { value: null, label: "Todas as origens" },
+  ...companyOriginOptions.map((option) => ({ value: option.value, label: option.label })),
+];
+
+// Beyond this many rows the staggered entrance would take seconds: skip it.
+const MAX_ANIMATED_ROWS = 60;
 
 const statusFilterOptions: Array<{ value: StatusFilter; label: string }> = [
   { value: null, label: "Todas" },
@@ -96,6 +113,7 @@ export function CompaniesClient({ rows }: { rows: CompanyListItem[] }) {
   const [glassdoorResult, setGlassdoorResult] = useState<GlassdoorFileImportResult | null>(null);
 
   const status = normalizeStatus(searchParams.get("status"));
+  const origin = normalizeOrigin(searchParams.get("origin"));
 
   const [query, setQuery] = useState(() => (searchParams.get("q") ?? "").trim());
   const deferredQuery = useDeferredValue(query);
@@ -162,8 +180,21 @@ export function CompaniesClient({ rows }: { rows: CompanyListItem[] }) {
     }
   }
 
-  const filteredRows = status ? searchedRows.filter((row) => row.status === status) : searchedRows;
-  const hasActiveFilters = Boolean(query.trim()) || status !== null;
+  const originCounts: Record<"all" | CompanyOrigin, number> = {
+    all: searchedRows.length,
+    manual: 0,
+    aggregator: 0,
+    yc_import: 0,
+  };
+  for (const row of searchedRows) {
+    if (isCompanyOrigin(row.origin)) {
+      originCounts[row.origin] += 1;
+    }
+  }
+
+  const statusRows = status ? searchedRows.filter((row) => row.status === status) : searchedRows;
+  const filteredRows = origin ? statusRows.filter((row) => row.origin === origin) : statusRows;
+  const hasActiveFilters = Boolean(query.trim()) || status !== null || origin !== null;
 
   const filteredIds = filteredRows.map((row) => row.id);
   const allFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => validSelectedIds.has(id));
@@ -186,7 +217,7 @@ export function CompaniesClient({ rows }: { rows: CompanyListItem[] }) {
     enter: { opacity: 1, transform: "translateY(0px)" },
     leave: { opacity: 0, transform: "translateY(-6px)" },
     config: config.gentle,
-    trail: 20,
+    trail: filteredRows.length > MAX_ANIMATED_ROWS ? 0 : 20,
   });
 
   function setStatus(value: StatusFilter) {
@@ -196,11 +227,19 @@ export function CompaniesClient({ rows }: { rows: CompanyListItem[] }) {
     }, "replace");
   }
 
+  function setOrigin(value: OriginFilter) {
+    updateSearchParams((params) => {
+      if (value) params.set("origin", value);
+      else params.delete("origin");
+    }, "replace");
+  }
+
   function clearFilters() {
     setQuery("");
     updateSearchParams((params) => {
       params.delete("q");
       params.delete("status");
+      params.delete("origin");
     }, "replace");
   }
 
@@ -374,6 +413,20 @@ export function CompaniesClient({ rows }: { rows: CompanyListItem[] }) {
               </SegmentedControlItem>
             ))}
           </SegmentedControl>
+          {originCounts.aggregator + originCounts.yc_import > 0 ? (
+            <SegmentedControl aria-label="Origem da empresa">
+              {originFilterOptions.map((option) => (
+                <SegmentedControlItem
+                  key={option.value ?? "all-origins"}
+                  pressed={origin === option.value}
+                  count={option.value === null ? originCounts.all : originCounts[option.value]}
+                  onClick={() => setOrigin(option.value)}
+                >
+                  {option.label}
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
+          ) : null}
         </div>
       </section>
 
@@ -599,6 +652,11 @@ function CompanyRow({
           >
             {item.name}
           </Link>
+          {item.origin !== "manual" ? (
+            <Tag className="ml-2 align-middle" color={item.origin === "yc_import" ? "orange" : "blue"}>
+              {item.origin === "yc_import" ? "YC" : getCompanyOriginLabel(item.origin)?.toLowerCase()}
+            </Tag>
+          ) : null}
         </h2>
 
         {/* lg:col-span-1 is the grid-column shorthand: restate the start after it. */}
@@ -677,6 +735,10 @@ function CompanyRow({
 
 function normalizeStatus(value: string | null): StatusFilter {
   return value && isCompanyStatus(value) ? value : null;
+}
+
+function normalizeOrigin(value: string | null): OriginFilter {
+  return isCompanyOrigin(value) ? value : null;
 }
 
 function readableUrl(value: string) {

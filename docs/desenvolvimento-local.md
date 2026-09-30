@@ -38,14 +38,21 @@ Arquivo `.env.local` (gitignored). Modelo em [`.env.example`](../.env.example).
 |---|---|---|---|
 | `DATABASE_URL` | `./job-tracker.db` | `src/lib/db/index.ts`, `drizzle.config.ts`, scripts de backup | Em produção precisa ser caminho absoluto de um arquivo existente |
 | `UPLOADS_PATH` | `./uploads` | uploads de currículo, PDFs gerados, logos | resolvido a partir do `cwd` |
-| `OLLAMA_RUNTIME_MODE` | — (obrigatória) | `src/lib/ai/ollama.ts` | `local` ou `cloud` |
+| `TRIAGE_ENGINE` | `openai` | `src/lib/job-monitoring/triage/index.ts` | `openai` \| `jev` \| `ollama`; motor sem chave falha o run na largada |
+| `OPENAI_TRIAGE_MODEL` | `gpt-6-luna` | `src/lib/ai/openai-runtime.ts` | modelo da triagem com `openai` (`reasoning: none`) |
+| `TYPESAFE_BASE_URL`, `TYPESAFE_API_KEY`, `TYPESAFE_MODEL`, `TYPESAFE_TIMEOUT_MS` | `https://api.typesafe.ai`, —, `jev-1.13.0`, `30000` | `src/lib/ai/typesafe.ts` | só com `TRIAGE_ENGINE=jev`; a chave só é obrigatória no host oficial |
+| `TRIAGE_MAX_STATE_TOKENS` | `6000` | `src/lib/job-monitoring/triage/state.ts` | orçamento do state (chars/4) |
+| `GENERATION_ENGINE` | `openai` | `src/lib/ai/generation.ts` | `openai` \| `ollama` (seleção do currículo, "Formatar", cover letter) |
+| `OPENAI_GENERATION_MODEL` | `gpt-6-sol` | idem | modelo generativo com `openai` (`reasoning: low`) |
+| `OLLAMA_RUNTIME_MODE` | — (obrigatória só com Ollama) | `src/lib/ai/ollama.ts` | `local` ou `cloud` |
 | `OLLAMA_BASE_URL` | — (obrigatória) | idem | local: `http://127.0.0.1:11434` |
 | `OLLAMA_MODEL` | — (obrigatória) | idem | ex.: `gemma3:4b` |
 | `OLLAMA_API_KEY` | — | idem | obrigatória em `cloud` |
 | `OLLAMA_TIMEOUT_MS` | `240000` | idem | por chamada |
 | `OPENAI_API_KEY` | — | `src/lib/ai/openai.ts` | extração de perfil; formatação opcional |
-| `OPENAI_COMPARISON_MODEL` | `gpt-5.4` | idem | modelo da extração de perfil. Não deixe definida e vazia. |
-| `OPENAI_FORMAT_JOB_DESCRIPTIONS` | `false` | `src/lib/job-monitoring/index.ts` | `true` formata descrições do radar com `gpt-4o-mini` |
+| `OPENAI_COMPARISON_MODEL` | `gpt-6-sol` | idem | modelo da extração de perfil. Não deixe definida e vazia. |
+| `OPENAI_FORMAT_JOB_DESCRIPTIONS` | `false` | `src/lib/job-monitoring/index.ts` | `true` formata descrições do radar |
+| `OPENAI_FORMAT_MODEL` | `gpt-6-luna` | `src/lib/ai/openai.ts` | modelo da formatação opcional (`reasoning: none`) |
 | `GLASSDOOR_IMPORT_TOKEN` | — (vazio = 503) | `src/lib/glassdoor/auth.ts` | token Bearer de `/api/glassdoor/*`; gere com `openssl rand -hex 32`. Ver [modulos/glassdoor.md](modulos/glassdoor.md) |
 | `SAMPLE_PROFILE_*` | nome/contatos fictícios | `src/lib/latex/__fixtures__/sample-profile.ts` | só `npm run resume:sample` e testes |
 | `NODE_ENV` | definido pelo Next | `src/lib/db/index.ts` | `production` liga o fail-closed do banco |
@@ -61,12 +68,14 @@ O hook de início de sessão dos agentes avisa se faltar `OLLAMA_RUNTIME_MODE`, 
 | `dev` | `next dev --turbopack` | ok |
 | `build` / `start` | `next build --turbopack` / `next start` | ok |
 | `lint` | `eslint` (config Next core-web-vitals + TypeScript) | ok |
-| `test:job-monitoring` | `node --import tsx --test src/lib/job-monitoring/*.test.ts` | 2 falhas conhecidas |
+| `triage:eval` | pontua a triagem em ~20 vagas fictícias (estágio 0 offline + motores com chave; `--engines jev,openai,ollama`, `--jev-base-url <url>`) | ok |
+| `test:job-monitoring` | `node --import tsx --test "src/lib/job-monitoring/**/*.test.ts"` | ok (`npm test` é o caminho seguro) |
 | `test:escape` | só `src/lib/latex/escape.test.ts` | ok |
 | `db:generate` | `drizzle-kit generate` | ok desde `8db7fd9` (cadeia de snapshots religada; `drizzle-kit check` passa) |
 | `db:migrate` | `drizzle-kit migrate` | ok em banco já migrado; falha em banco vazio |
 | `db:backup` / `db:restore` | scripts em `scripts/` | ok |
 | `resume:sample` | renderiza o currículo fictício com `tectonic` | ok (precisa de `tectonic`) |
+| `companies:import-yc` | importa empresas YC remotas e descobre o ATS (`--dry-run`, `--limit N`) | ok; grava no `DATABASE_URL`, faça `db:backup` antes |
 | `test:profile-extraction`, `analyze:profile-extractions` | apontam para `tmp/*.ts` | **mortos**: os arquivos não existem mais |
 
 Typecheck: `npm run typecheck` (`tsc --noEmit`). Testes e lint em [testes-e-qualidade.md](testes-e-qualidade.md).
@@ -122,9 +131,14 @@ O build grava em `.next/*` ao lado de `.next/dev` sem atrapalhar o dev server. E
 - Política bloqueia o agente de criar symlink para o `.env.local` do repo principal ou copiar o `job-tracker.db` real para a worktree. Não insista.
 - Funciona: rodar com `DATABASE_URL` não definido, usando o `./job-tracker.db` da própria worktree (gitignored), preenchido com seed fictício.
 - O ESLint ignora `.claude/worktrees/**`; rode o lint de dentro da worktree.
+- Preview de uma worktree (2026-09-29): o `preview_start` lê o `.claude/launch.json` do **checkout principal**. Entrada temporária que funcionou: `"runtimeExecutable": "/bin/sh"`, `"runtimeArgs": ["-c", "cd .claude/worktrees/<nome> && exec env DATABASE_URL=./tmp/preview.db UPLOADS_PATH=./tmp/preview-uploads npx next start -p 3100"]`, depois de `npm run build` com as mesmas variáveis dentro da worktree. Reverta a entrada ao terminar.
+- Banco de preview a partir do schema: `sqlite3 job-tracker.db .schema` inclui `CREATE TABLE sqlite_sequence(...)`, que o `sqlite3` recusa ("reserved for internal use"); tire essa linha antes de aplicar (o `rtk` intercepta `grep -v`, use um filtro em Python).
 
 ## Armadilhas do ambiente
 
 - **CSS velho no Turbopack**: o cache `.next/dev` pode servir um `globals.css` antigo (variáveis novas de `:root` ausentes, mesmo após reiniciar, enquanto utilitários novos aparecem). Aconteceu em worktree e também no servidor do usuário em `:3000` (o build de produção tinha os valores certos). Pare o servidor, `rm -rf .next` (ou só `.next/dev`), suba de novo; no `:3000`, só o usuário reinicia. Antes de depurar o componente, confira o valor com `getComputedStyle`.
 - **Browser pane do Claude Desktop**: `resize_window` com tamanho maior que o painel (ex.: 1440×900) gera screenshot cortado/preto. Use os presets `desktop` (tamanho do painel) ou `mobile`.
+- **Browser pane oculto** (`tabs_context` diz "hidden"; reiniciar o preview pode ocultá-lo de novo): screenshots saem pretos e a página **não termina de renderizar**. O React 19 revela os trechos em streaming (`<Suspense>`, ex.: `/leads`, `/dashboard`) no próximo frame de animação, que aba oculta não produz: o `<main>` fica com o skeleton e o conteúdo parado num `<div hidden id="S:0">`. Não é bug do app. Para ler o texto mesmo assim: `for (const t of document.querySelectorAll('template[id^="B:"]')) { const n = t.id.slice(2); window.$RC('B:'+n, 'S:'+n) }` no `javascript_tool`; cliques nessas telas continuam não confiáveis até o painel ficar visível. Páginas sem streaming (ex.: `/profile`) funcionam, inclusive interação.
+- **Sem browser do Playwright no Mac** (2026-09-29): o MCP `playwright` exige o Google Chrome instalado e o pacote `playwright` do projeto não tem Chromium baixado (`npx playwright install chromium` resolve, ~150 MB, com aprovação do usuário).
+- **Console do Browser pane acumula** entre navegações: para saber se um erro é da página atual, escreva uma marca (`console.error('MARK')`) antes de navegar.
 - **Dados pessoais em `tmp/logs/`**: a extração de perfil grava a saída bruta ali. Não anexe esses arquivos em lugar nenhum.

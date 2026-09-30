@@ -102,6 +102,8 @@ export const companies = sqliteTable("companies", {
   atsBoardToken: text("ats_board_token"),
   glassdoorUrl: text("glassdoor_url"),
   status: text("status").notNull().default("monitoring"),
+  /** `manual` (typed by the user), `aggregator` (created by a job source) or `yc_import`. */
+  origin: text("origin").notNull().default("manual"),
   notes: text("notes"),
   /** Off skips the company on the next bulk radar run without changing status. */
   radarEnabled: integer("radar_enabled", { mode: "boolean" }).notNull().default(true),
@@ -168,11 +170,36 @@ export const jobLeads = sqliteTable(
     seniority: text("seniority"),
     locationText: text("location_text"),
     salaryText: text("salary_text"),
+    /** Aggregator kind (himalayas, remoteok...) or `company` for leads found on the company's own board. */
+    sourceKind: text("source_kind"),
+    /** Id of the vacancy in its source (ATS id, aggregator guid). */
+    externalId: text("external_id"),
+    /** Direct application URL when it differs from `source_url`. */
+    applyUrl: text("apply_url"),
+    /** Hash of normalized company + title: the same vacancy from two sources shares it. */
+    dedupKey: text("dedup_key"),
     classificationStatus: text("classification_status")
       .notNull()
       .default("review"),
     classificationScore: integer("classification_score"),
     classificationReason: text("classification_reason"),
+    /** Triage stage 1: worldwide, americas_or_latam_incl_brazil, brazil_explicit, us_only, us_canada_only, europe_uk_only, other_country_restricted, not_stated. */
+    eligibility: text("eligibility"),
+    /** JSON string[]: employee, contractor, eor. */
+    contractTypes: text("contract_types"),
+    /** Base salary normalized to USD per year (from the source or extracted from the text). */
+    salaryMinUsdAnnual: integer("salary_min_usd_annual"),
+    salaryMaxUsdAnnual: integer("salary_max_usd_annual"),
+    /** Why the triage discarded it: location_ineligible, salary_below_min, job_family_mismatch, seniority_mismatch, contract_mismatch, low_fit, other. */
+    discardReason: text("discard_reason"),
+    /** Why the user discarded it by hand (the discard reasons plus not_interested). */
+    userDiscardReason: text("user_discard_reason"),
+    /** rules (hard filters / no profile), openai, jev or ollama. */
+    triageEngine: text("triage_engine"),
+    triageModel: text("triage_model"),
+    triageConfidence: real("triage_confidence"),
+    /** JSON with every answer, probability and threshold behind the decision. */
+    triageDetails: text("triage_details"),
     userDecision: text("user_decision").notNull().default("none"),
     userDecisionAt: integer("user_decision_at", { mode: "timestamp" }),
     promotedToApplicationId: integer("promoted_to_application_id").references(
@@ -187,8 +214,25 @@ export const jobLeads = sqliteTable(
       table.companyId,
       table.sourceUrl,
     ),
+    index("job_leads_dedup_key_idx").on(table.dedupKey),
   ],
 );
+
+/** Aggregated job feeds (one feed -> many companies). Seeded in code on first read. */
+export const jobSources = sqliteTable("job_sources", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  /** himalayas, remoteok, weworkremotely, jobicy or hn_whoishiring. */
+  kind: text("kind").notNull(),
+  name: text("name").notNull(),
+  /** JSON: categories/tags for the fetcher. */
+  config: text("config"),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  lastRunAt: integer("last_run_at", { mode: "timestamp" }),
+  /** Opaque marker of the newest vacancy seen (Himalayas: last pubDate). */
+  lastCursor: text("last_cursor"),
+  lastError: text("last_error"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
 
 export const applicationStages = sqliteTable("application_stages", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -213,6 +257,55 @@ export const applicationStatusHistory = sqliteTable(
     changedAt: integer("changed_at", { mode: "timestamp" }).notNull(),
   },
 );
+
+/**
+ * Assisted application kit (one per application): English resume, cover
+ * letter, the form's fields and the answers prepared for them. Nothing here is
+ * ever submitted for the user.
+ */
+export const applicationKits = sqliteTable("application_kits", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  applicationId: integer("application_id")
+    .notNull()
+    .unique()
+    .references(() => applications.id),
+  language: text("language").notNull().default("en"),
+  applyUrl: text("apply_url"),
+  /** Absolute path of the English PDF generated for this application. */
+  resumePath: text("resume_path"),
+  coverLetter: text("cover_letter"),
+  /** JSON FormField[]: label, type, required, options (see src/lib/apply/types.ts). */
+  formFields: text("form_fields"),
+  /** JSON map fieldId -> answer (value, key, source, aiDraft...). */
+  answers: text("answers"),
+  /** draft, ready or submitted_by_user. */
+  status: text("status").notNull().default("draft"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+/**
+ * International search preferences. Single row (the app has one user); no row
+ * means every preference-based filter is off. List columns hold JSON arrays.
+ */
+export const searchPreferences = sqliteTable("search_preferences", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  minMonthlyUsd: integer("min_monthly_usd"),
+  minAnnualUsd: integer("min_annual_usd"),
+  /** JSON string[]: employee, contractor, eor, pj. */
+  acceptedContracts: text("accepted_contracts"),
+  /** JSON string[]: worldwide, americas, latam, brazil. */
+  acceptedEligibility: text("accepted_eligibility"),
+  timezone: text("timezone"),
+  maxUtcOffsetDistanceHours: integer("max_utc_offset_distance_hours"),
+  targetSeniorities: text("target_seniorities"),
+  targetJobFamilies: text("target_job_families"),
+  titleIncludeKeywords: text("title_include_keywords"),
+  titleExcludeKeywords: text("title_exclude_keywords"),
+  /** JSON object with default form answers (work authorization, notice period...). */
+  defaultAnswers: text("default_answers"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
 
 export const resumes = sqliteTable("resumes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -455,7 +548,10 @@ export type Job = typeof jobs.$inferSelect;
 export type NewJob = typeof jobs.$inferInsert;
 export type Application = typeof applications.$inferSelect;
 export type NewApplication = typeof applications.$inferInsert;
+export type JobSource = typeof jobSources.$inferSelect;
 export type JobLead = typeof jobLeads.$inferSelect;
 export type NewJobLead = typeof jobLeads.$inferInsert;
+export type ApplicationKit = typeof applicationKits.$inferSelect;
+export type SearchPreferencesRow = typeof searchPreferences.$inferSelect;
 export type Resume = typeof resumes.$inferSelect;
 export type NewResume = typeof resumes.$inferInsert;

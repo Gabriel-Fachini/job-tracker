@@ -1,6 +1,7 @@
 import type { ProfileSnapshot } from "@/lib/profile/editor";
 import type { JobLeadStatus } from "@/lib/job-leads";
 import type { LeadListItem } from "@/components/leads/types";
+import type { SearchPreferences } from "@/lib/search-preferences";
 
 export type MonitoringCompany = {
   id: number;
@@ -25,6 +26,14 @@ export type DiscoveredLink = {
     offices?: string[];
     updatedAt?: string;
     externalId: string;
+    /** Compensation as shown by the ATS (e.g. "$120K - $150K", "USD 8,000-10,000 / month"). */
+    salaryText?: string;
+    /** `remote`, `hybrid` or `onsite` when the ATS says so explicitly. */
+    workModel?: "remote" | "hybrid" | "onsite";
+    /** Direct application URL when it differs from the posting URL. */
+    applyUrl?: string;
+    /** Structured geo restrictions when the source provides them (countries or regions). */
+    locationRestrictions?: string[];
   };
 };
 
@@ -69,6 +78,21 @@ export type JobLeadClassification = {
 export type PersistableLead = ExtractedJobDetail & {
   companyId: number;
   title: string;
+  /** Aggregator kind, or `company` for a vacancy found on the company's own board. */
+  sourceKind?: string | null;
+  externalId?: string | null;
+  applyUrl?: string | null;
+  dedupKey?: string | null;
+  /** Triage fields (see `triage/types.ts`); absent for callers that only classify. */
+  eligibility?: string | null;
+  contractTypes?: string[] | null;
+  salaryMinUsdAnnual?: number | null;
+  salaryMaxUsdAnnual?: number | null;
+  discardReason?: string | null;
+  triageEngine?: string | null;
+  triageModel?: string | null;
+  triageConfidence?: number | null;
+  triageDetails?: Record<string, unknown> | null;
   classificationStatus: JobLeadStatus;
   classificationScore: number;
   classificationReason: string;
@@ -88,6 +112,8 @@ export type ClassificationContext = {
   companyName: string;
   profile: ProfileSnapshot | null;
   feedbackSummary: ClassificationFeedbackSummary;
+  /** International search preferences (stage 0 filters); null/absent = filters off. */
+  preferences?: SearchPreferences | null;
 };
 
 export type MonitoringStreamEvent =

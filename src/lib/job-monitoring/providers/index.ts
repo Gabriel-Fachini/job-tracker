@@ -5,8 +5,17 @@ import {
 } from "./greenhouse";
 import { fetchInhireJobs } from "./inhire";
 import { fetchGupyJobs } from "./gupy";
+import { extractAshbyOrg, fetchAshbyJobs } from "./ashby";
+import { fetchLeverJobs, parseLeverBoardUrl } from "./lever";
 
-export type AtsProvider = "greenhouse" | "gupy" | "inhire" | "generic" | "auto";
+export type AtsProvider =
+  | "greenhouse"
+  | "gupy"
+  | "inhire"
+  | "ashby"
+  | "lever"
+  | "generic"
+  | "auto";
 
 export async function resolveAtsProvider(
   company: MonitoringCompany,
@@ -35,6 +44,14 @@ export async function resolveAtsProvider(
     return "inhire";
   }
 
+  if (extractAshbyOrg(url)) {
+    return "ashby";
+  }
+
+  if (parseLeverBoardUrl(url)) {
+    return "lever";
+  }
+
   return "generic";
 }
 
@@ -61,6 +78,18 @@ export async function discoverViaProvider(
 
   if (resolvedProvider === "gupy") {
     return fetchGupyJobs(company.jobsBoardUrl);
+  }
+
+  if (resolvedProvider === "ashby") {
+    return extractAshbyOrg(company.jobsBoardUrl)
+      ? fetchAshbyJobs(company.jobsBoardUrl, fetchImpl)
+      : null;
+  }
+
+  if (resolvedProvider === "lever") {
+    return parseLeverBoardUrl(company.jobsBoardUrl)
+      ? fetchLeverJobs(company.jobsBoardUrl, fetchImpl)
+      : null;
   }
 
   return null;

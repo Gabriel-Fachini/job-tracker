@@ -41,7 +41,7 @@ sequenceDiagram
 ```
 
 1. **Upload** (`POST /api/profile/upload`, `runtime = "nodejs"`): exige campo `file`; aceita arquivo não vazio, ≤ 10 MB, (a checagem de extensão/MIME não barra nada: `getPdfExtension` sempre devolve `.pdf`; o arquivo é salvo e só o pdfjs rejeita o que não é PDF). Salva **antes** de extrair em `<UPLOADS_PATH>/resumes/master/master-resume-<timestamp>.pdf`. Texto via `pdfjs-dist/legacy/build/pdf.mjs` (eval desligado, sem worker fetch); PDF sem texto (escaneado) → erro 400.
-2. **Extração** (`extractProfileDraft`): **OpenAI** (`extractProfileWithOpenAi`), modelo `OPENAI_COMPARISON_MODEL` (default `gpt-5.4`), `max_output_tokens: 16000`, `json_schema` estrito. `incomplete_details` vira erro. O JSON passa por `parseExtractedProfileResponse` (do módulo Ollama), que tira cercas, valida e normaliza aliases pt/en de enums e datas. Exige `OPENAI_API_KEY`.
+2. **Extração** (`extractProfileDraft`): **OpenAI** (`extractProfileWithOpenAi`), modelo `OPENAI_COMPARISON_MODEL` (default `gpt-6-sol`), `max_output_tokens: 16000`, `json_schema` estrito. `incomplete_details` vira erro. O JSON passa por `parseExtractedProfileResponse` (do módulo Ollama), que tira cercas, valida e normaliza aliases pt/en de enums e datas. Exige `OPENAI_API_KEY`.
 3. **Gravação** (`saveExtractedProfile`) com `preserveExistingPreferences: true`: mantém `company_type_preference` e `values_preference` (a extração não produz esses campos), mas sobrescreve contatos, `notes` e `work_model_preference`.
 
 O diálogo mostra três etapas temporizadas (texto → OpenAI → banco).
@@ -68,6 +68,23 @@ Não usados hoje: `extractProfile` (rascunho + gravação numa chamada), `extrac
 - Enums não são validados na escrita; valor inválido volta como `null` na leitura.
 - `stack` de projeto e `tags` de bullet viram JSON em `text`.
 - PDFs antigos em `uploads/resumes/master/` nunca são apagados.
+
+## Busca internacional (preferências)
+
+Painel "Busca internacional" em `/profile` ([`search-preferences-panel.tsx`](../../src/components/profile/search-preferences-panel.tsx)), abaixo do editor do perfil e independente dele (funciona sem perfil carregado). Grava a linha única de `search_preferences` via `saveSearchPreferencesAction`; sem linha (ou com campos vazios) os filtros correspondentes ficam **desligados**. O código não traz nenhum valor pessoal padrão.
+
+| Campo | Uso |
+|---|---|
+| Mínimo mensal/anual (US$) | piso do filtro de salário do estágio 0 (mensal × 12 vs anual, vale o menor) |
+| Contratos aceitos, elegibilidade geográfica | estágios 0/1 da triagem internacional |
+| Fuso e distância máxima (horas) | estágio 0: vagas de fonte que listam os fusos aceitos (`timezoneRestrictions`) só passam se algum estiver dentro da distância do fuso configurado |
+| Senioridade e famílias de vaga alvo | estágio 0 (título) e estágio 2 |
+| Palavras que o título deve/não deve ter | filtro de título do estágio 0 |
+| Respostas padrão | kit de candidatura assistida (autorização nos EUA, sponsorship, pretensão, aviso prévio, "como conheceu", pronomes). Perguntas EEO nunca são respondidas |
+
+Código: [`src/lib/search-preferences.ts`](../../src/lib/search-preferences.ts) (tipos, opções, normalização, piso anual), [`search-preferences-queries.ts`](../../src/lib/search-preferences-queries.ts) e [`src/server/actions/search-preferences.ts`](../../src/server/actions/search-preferences.ts).
+
+Mesmo padrão das seções do perfil (2026-09-29): **leitura por padrão** (lista rótulo/valor com o `DefinitionItem` exportado de `profile-summary.tsx`; vazio = "Não definido"), "Editar" discreto no cabeçalho, e em edição "Cancelar"/"Salvar" no cabeçalho a partir de `md` ou na barra fixada no celular. Cancelar descarta o rascunho; Salvar grava, volta à leitura e faz `router.refresh()`. `ProfileWorkspace` coordena **uma edição por vez**: editando a busca, o `ProfileSummary` recebe `locked` (todos os "Editar" desabilitados) e "Editar perfil" fica desabilitado e `outline`; editando uma seção do perfil, o "Editar" da busca fica desabilitado. Assim o "Salvar" em edição é o único botão roxo da tela.
 
 ## Onde o perfil é usado
 

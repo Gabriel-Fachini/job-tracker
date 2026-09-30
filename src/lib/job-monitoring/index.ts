@@ -1,11 +1,22 @@
 import pLimit from "p-limit";
 
 import { formatJobDescriptionAsMarkdown } from "@/lib/ai/openai";
-import { classifyJobLead } from "./classification";
+import type { classifyJobLead } from "./classification";
 import { discoverJobLinks } from "./discovery";
 import { extractJobDetail, htmlToMarkdown, detectSourceName } from "./extraction";
 import { logMonitoringStep } from "./logger";
-import { getExistingJobLeadUrls, touchLastViewed, upsertJobLead } from "./persistence";
+import { buildDedupKey } from "@/lib/companies/normalize";
+import {
+  adoptAtsLink,
+  findLeadByDedupKey,
+  getExistingJobLeadUrls,
+  touchLastViewed,
+  upsertJobLead,
+} from "./persistence";
+import { isSourceKind } from "./sources/types";
+import { classificationToTriageResult, triageFieldsToLead } from "./triage/adapter";
+import { triageJob } from "./triage";
+import type { TriageJob, TriageResult } from "./triage/types";
 import type {
   ClassificationContext,
   MonitoringCompany,
@@ -21,8 +32,13 @@ export async function runMonitoringForCompany(
   dependencies: {
     discoverJobLinksFn?: typeof discoverJobLinks;
     extractJobDetailFn?: typeof extractJobDetail;
+    /** Full triage (hard filters, extraction, fit). Defaults to `triageJob`. */
+    triageJobFn?: (job: TriageJob, context: ClassificationContext) => Promise<TriageResult>;
+    /** Plain classifier: when given (tests, the legacy path) it replaces the triage. */
     classifyJobLeadFn?: typeof classifyJobLead;
     upsertJobLeadFn?: typeof upsertJobLead;
+    findLeadByDedupKeyFn?: typeof findLeadByDedupKey;
+    adoptAtsLinkFn?: typeof adoptAtsLink;
     onEvent?: (event: MonitoringStreamEvent) => void;
     /** Aborted when the run is cancelled; links not started yet are left for the next run. */
     signal?: AbortSignal;
@@ -32,9 +48,15 @@ export async function runMonitoringForCompany(
     dependencies.discoverJobLinksFn ?? discoverJobLinks;
   const extractJobDetailFn =
     dependencies.extractJobDetailFn ?? extractJobDetail;
-  const classifyJobLeadFn =
-    dependencies.classifyJobLeadFn ?? classifyJobLead;
+  const triageJobFn =
+    dependencies.triageJobFn ??
+    (dependencies.classifyJobLeadFn
+      ? async (job: TriageJob, ctx: ClassificationContext) =>
+          classificationToTriageResult(await dependencies.classifyJobLeadFn!(job, ctx))
+      : triageJob);
   const upsertJobLeadFn = dependencies.upsertJobLeadFn ?? upsertJobLead;
+  const findLeadByDedupKeyFn = dependencies.findLeadByDedupKeyFn ?? findLeadByDedupKey;
+  const adoptAtsLinkFn = dependencies.adoptAtsLinkFn ?? adoptAtsLink;
   const onEvent = dependencies.onEvent;
   const signal = dependencies.signal;
 
@@ -64,8 +86,8 @@ export async function runMonitoringForCompany(
     company.id,
     links.map((l) => l.url),
   );
-  const newLinks = links.filter((l) => !existingUrls.has(l.url));
-  const skippedCount = links.length - newLinks.length;
+  let newLinks = links.filter((l) => !existingUrls.has(l.url));
+  let skippedCount = links.length - newLinks.length;
 
   const skippedUrls: string[] = [];
   for (const link of links) {
@@ -75,6 +97,32 @@ export async function runMonitoringForCompany(
     }
   }
   touchLastViewed(company.id, skippedUrls);
+
+  // A vacancy an aggregator already reported: the lead moves to the ATS link
+  // instead of becoming a duplicate. Only aggregator leads are merged; two
+  // postings with the same title on the company's own board stay separate.
+  const stillNew: typeof newLinks = [];
+
+  for (const link of newLinks) {
+    const title = link.prefetched?.title ?? link.text;
+    const match = title ? findLeadByDedupKeyFn(buildDedupKey(company.name, title)) : null;
+
+    if (match && match.sourceKind && isSourceKind(match.sourceKind)) {
+      adoptAtsLinkFn(match.id, {
+        sourceUrl: link.url,
+        sourceName: detectSourceName(link.url),
+        applyUrl: link.prefetched?.applyUrl ?? null,
+        externalId: link.prefetched?.externalId ?? null,
+      });
+      onEvent?.({ type: "link-skipped", url: link.url, companyId: company.id });
+      skippedCount += 1;
+      continue;
+    }
+
+    stillNew.push(link);
+  }
+
+  newLinks = stillNew;
 
   logMonitoringStep(company.name, "skip-filter-applied", {
     total: links.length,
@@ -130,10 +178,10 @@ export async function runMonitoringForCompany(
               description: descriptionMarkdown || null,
               sourceUrl: link.url,
               sourceName: detectSourceName(link.url),
-              workModel: null,
+              workModel: prefetched.workModel ?? null,
               seniority: null,
               locationText: prefetched.locationText || null,
-              salaryText: null,
+              salaryText: prefetched.salaryText ?? null,
             };
 
             logMonitoringStep(company.name, "extract-prefetched", {
@@ -205,10 +253,20 @@ export async function runMonitoringForCompany(
         }
 
         let classification;
+        let triageResult: TriageResult;
         const classifyStart = Date.now();
 
         try {
-          classification = await classifyJobLeadFn(job, context);
+          triageResult = await triageJobFn(
+            {
+              ...job,
+              companyName: company.name,
+              locationRestrictions: link.prefetched?.locationRestrictions,
+              sourceKind: "company",
+            },
+            context,
+          );
+          classification = triageResult.classification;
         } catch (error) {
           logMonitoringStep(company.name, "classification-failed", {
             url: job.sourceUrl,
@@ -237,6 +295,10 @@ export async function runMonitoringForCompany(
           title: job.title ?? link.text ?? "Vaga monitorada",
           sourceUrl: job.sourceUrl,
           sourceName: job.sourceName,
+          sourceKind: "company",
+          externalId: link.prefetched?.externalId ?? null,
+          applyUrl: link.prefetched?.applyUrl ?? null,
+          dedupKey: buildDedupKey(company.name, job.title ?? link.text ?? "Vaga monitorada"),
           description: job.description,
           workModel: job.workModel,
           seniority: job.seniority,
@@ -245,6 +307,7 @@ export async function runMonitoringForCompany(
           classificationStatus: classification.decision,
           classificationScore: classification.score,
           classificationReason: classification.reason,
+          ...triageFieldsToLead(triageResult.fields),
         });
 
         if (classification.decision === "discarded") {

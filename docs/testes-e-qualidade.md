@@ -2,7 +2,7 @@
 
 ## Testes unitários
 
-Runner nativo do Node (`node:test`) com `tsx` para TypeScript e aliases `@/`. Sem Jest/Vitest. Arquivos `*.test.ts` ao lado do código.
+Runner nativo do Node (`node:test`) com `tsx` para TypeScript e aliases `@/`. Sem Jest/Vitest. Arquivos `*.test.ts` ao lado do código; `npm test` roda o glob `src/**/*.test.ts` (subpastas incluídas).
 
 | Arquivo | Cobre |
 |---|---|
@@ -11,9 +11,27 @@ Runner nativo do Node (`node:test`) com `tsx` para TypeScript e aliases `@/`. Se
 | `src/lib/job-monitoring/classification.test.ts` | sem perfil → `review`, payload inválido, JSON cercado |
 | `src/lib/job-monitoring/signals.test.ts` | normalização pt-BR, sinais brasileiros |
 | `src/lib/job-monitoring/index.test.ts` | orquestração com dependências injetadas; contadores do `MonitoringSummary` |
+| `src/lib/job-monitoring/index-prefetched.test.ts` | `salaryText`/`workModel` do provider chegam ao lead gravado |
+| `src/lib/job-monitoring/providers/providers.test.ts` | detecção Ashby/Lever, mapeamento de vagas (salário, local, modelo, `applyUrl`), erros HTTP, despacho com `fetchImpl` injetado |
+| `src/lib/job-monitoring/sources/sources.test.ts` | fetchers Himalayas (cursor/paginação), Remote OK, We Work Remotely (RSS), Jobicy e HN (thread + cabeçalho `Empresa \| Cargo \| Local`) com `fetchImpl` falso |
+| `src/lib/job-monitoring/source-run.test.ts` | pipeline de fonte: URL conhecida, dedup no banco e no feed, sink de descartados, empresa só para lead útil, cursor só em run completo |
+| `src/lib/job-monitoring/bulk-run-sources.test.ts` | fontes como etapas do run (`total`, `index`, erro por fonte, cancelamento) |
+| `src/lib/job-monitoring/index-dedup.test.ts` | ATS "adota" o lead que um agregador já trouxe |
+| `src/lib/job-monitoring/persistence.test.ts` | campos de fonte no upsert, janela de 60 dias, `adoptAtsLink`, resolvedor de empresas, semeadura de `job_sources` (banco de teste) |
+| `src/lib/companies/normalize.test.ts` | nome/domínio/título normalizados, `dedup_key`, `CompanyIndex` |
+| `src/lib/companies/ats-discovery.test.ts` | extração de links Ashby/Lever/Greenhouse, slugs, descoberta por link e por slug |
+| `src/lib/companies/yc-import.test.ts` | filtro YC, upsert idempotente, `--dry-run` sem gravar |
 | `src/lib/job-monitoring/bulk-run.test.ts` | varredura em lote |
 | `src/lib/job-monitoring/progress-state.test.ts` | estado de progresso do radar |
 | `src/lib/job-monitoring/run-state.test.ts` | run-state em memória |
+| `src/lib/search-preferences.test.ts` | normalização das preferências, piso anual (mensal × 12 vs anual), tolerância a JSON quebrado, linha única no banco de teste |
+| `src/lib/ai/typesafe.test.ts` | cliente Jev: config fail-closed, versão fixa, corpo, retry 429/529, erros |
+| `src/lib/ai/generation.test.ts` | `GENERATION_ENGINE`, modelos default, `formatJobDescription`, chamada estruturada da OpenAI (cliente falso) |
+| `src/lib/job-monitoring/triage/hard-filters.test.ts` | estágio 0: título, restrições, frases "US only", fuso, salário |
+| `src/lib/job-monitoring/triage/salary.test.ts` | parse de salário, candidatos, normalização para US$/ano |
+| `src/lib/job-monitoring/triage/triage.test.ts` | estados enxutos, sem dados pessoais, regras dos estágios 1 e 2, `triageJob` ponta a ponta, motores OpenAI/Jev/Ollama com clientes falsos |
+| `src/lib/job-monitoring/triage/eval.test.ts` | fixtures do `triage:eval` (estágio 0 = 100%) e pontuação por pergunta |
+| `src/lib/job-monitoring/triage-persistence.test.ts` | colunas da triagem, mapper, motivo manual no feedback, painel internacional |
 | `src/lib/ai/ollama.test.ts` | datas opcionais, config cloud, header `Authorization`, unload em cloud |
 | `src/lib/ai/resume-generation.test.ts` | seleção de projetos (máx. 2) |
 | `src/lib/latex/escape.test.ts` | escape de cada caractere especial |
@@ -38,9 +56,9 @@ npm run test:escape            # só o escape LaTeX
 
 Por que isolar: `index.test.ts` injeta extração/classificação/upsert, mas `getExistingJobLeadUrls` e `touchLastViewed` não são injetáveis e consultam o banco de `DATABASE_URL`. Por isso `test:job-monitoring` sem `DATABASE_URL` definido cai no `./job-tracker.db` real; prefira `npm test` ou prefixe `DATABASE_URL=./tmp/test.db` depois de `bash scripts/create-test-db.sh`.
 
-### Estado em 2026-09-28
+### Estado em 2026-09-29
 
-**81 de 81 passam** (`npm test`; eram 61 antes do módulo Glassdoor). Os testes do Glassdoor escrevem no banco e recusam rodar se `DATABASE_URL` não terminar em `test.db`.
+**207 de 207 passam** (`npm test`; 81 na `main` com o Glassdoor, mais os do radar internacional). A suíte roda hermética: `npm test` zera `OLLAMA_*`, `OPENAI_*`, `TYPESAFE_API_KEY`, `TRIAGE_ENGINE` e `GENERATION_ENGINE`, e nenhum teste chama a rede. Os testes do Glassdoor escrevem no banco e recusam rodar se `DATABASE_URL` não terminar em `test.db`.
 
 Semântica do `MonitoringSummary` fixada em `index.test.ts`:
 
@@ -49,8 +67,7 @@ Semântica do `MonitoringSummary` fixada em `index.test.ts`:
 - `discarded`: gravados com `classification_status = discarded` (o upsert acontece antes da checagem, é a base do skip).
 - `failed`: falha de extração ou classificação; nada é gravado.
 
-Nenhum teste cobre UI, Server Actions, providers ATS (Greenhouse/Gupy/InHire) ou logos. As rotas cobertas são só as do Glassdoor.
-
+Nenhum teste cobre UI, Server Actions, providers Greenhouse/Gupy/InHire ou logos. Ashby e Lever têm testes com fixtures; as rotas cobertas são só as do Glassdoor.
 
 ## Tipos e lint
 
