@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
       "./job-tracker.db-wal",
     ],
   },
+  // Glassdoor JSON uploads (companies page and company detail) go through a
+  // Server Action; full-history files exceed the 1 MB default.
+  experimental: {
+    serverActions: { bodySizeLimit: "10mb" },
+  },
   serverExternalPackages: ["better-sqlite3", "pdfjs-dist"],
   turbopack: {
     root: projectRoot,

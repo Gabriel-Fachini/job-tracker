@@ -87,7 +87,8 @@ Instalação e reinstalação: `sudo bash deploy/install.sh` (idempotente; cria 
 - nada de `<`, `>` ou espaços soltos (o bash interpretaria); um placeholder só é tolerado entre aspas;
 - `DATABASE_URL` absoluto (`/var/lib/job-tracker/data/job-tracker.db`);
 - `UPLOADS_PATH` apontando para o diretório de uploads dentro de `/var/lib/job-tracker/data` (fora da release, senão os arquivos somem na rotação);
-- chaves reais de `OLLAMA_*` e `OPENAI_API_KEY`.
+- chaves reais de `OLLAMA_*` e `OPENAI_API_KEY`;
+- `GLASSDOOR_IMPORT_TOKEN=<hex de 32 bytes>` (`openssl rand -hex 32`) para a skill `glassdoor-collect` importar via `/api/glassdoor/import`; sem ele as rotas respondem 503 (ver [modulos/glassdoor.md](modulos/glassdoor.md)). Adicionar a linha e reiniciar o serviço é feito à mão pelo usuário.
 
 Em 2026-09-26 as chaves `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `OLLAMA_API_KEY` e `OPENAI_API_KEY` ainda estavam com placeholder literal: preencher era pendência do usuário. Confirme antes de depurar radar ou perfil em produção.
 

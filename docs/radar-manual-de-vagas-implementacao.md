@@ -60,7 +60,7 @@ Por fonte (`runMonitoringForSource`):
 
 1. Baixa o feed; falha grava `last_error` e propaga (o run mostra o erro da etapa e segue).
 2. URLs já em `job_leads` (qualquer empresa) → `link-skipped` + `last_viewed`.
-3. **Dedup**: `dedup_key` = hash de (empresa normalizada + título normalizado). Vaga com a mesma chave nos últimos **60 dias** (ou repetida no mesmo feed) → `link-skipped`. Vindo do ATS depois (pipeline da empresa), uma vaga que um agregador já trouxe **não duplica**: o lead existente passa a apontar para o link do ATS (`source_url`, `apply_url`, `source_kind = company`). Só leads de agregador são mesclados; duas vagas de mesmo título no board da própria empresa continuam separadas. Leads antigos (antes da migration `0018`) não têm `dedup_key` e ficam de fora.
+3. **Dedup**: `dedup_key` = hash de (empresa normalizada + título normalizado). Vaga com a mesma chave nos últimos **60 dias** (ou repetida no mesmo feed) → `link-skipped`. Vindo do ATS depois (pipeline da empresa), uma vaga que um agregador já trouxe **não duplica**: o lead existente passa a apontar para o link do ATS (`source_url`, `apply_url`, `source_kind = company`). Só leads de agregador são mesclados; duas vagas de mesmo título no board da própria empresa continuam separadas. Leads antigos (antes da migration `0018_international_radar`) não têm `dedup_key` e ficam de fora.
 4. Novas vagas em `pLimit(5)`: descrição HTML → markdown, salário → texto (`USD 5,000-7,000 / month`), `workModel = remote`, senioridade normalizada → filtro duro opcional (`screenFn`) → classificação → upsert.
 5. **Empresa automática**: só quando o lead **não** é descartado. O `CompanyIndex` acha a empresa por domínio do site (ignorando plataformas compartilhadas como LinkedIn/Lever) e depois por nome normalizado (minúsculas, sem acento/pontuação, sem `inc|llc|ltd|gmbh|s.a.|corp|co`, sem espaços); não achando, cria com `origin = aggregator`, `status = monitoring`, `radar_enabled = false` (sem ATS conhecido).
 6. **Descartados vão para uma empresa "sink"** (`Vagas descartadas (agregadores)`, `status = discarded`, escondida da lista): gravar um lead descartado exige `company_id`, e uma empresa por vaga lixo inundaria a lista. A chave de dedup guarda o nome real, então a mesma vaga não volta.
@@ -217,7 +217,7 @@ Os três arrays de sinais só existem em memória (nem o log `classification-fin
 
 </details>
 
-Além de `decision`, `score` e `reason`, o banco guarda agora `eligibility`, `contract_types`, `salary_min_usd_annual`/`salary_max_usd_annual`, `discard_reason`, `triage_engine`, `triage_model`, `triage_confidence` e `triage_details` (JSON com todas as respostas, probabilidades e limiares; migration `0019`).
+Além de `decision`, `score` e `reason`, o banco guarda agora `eligibility`, `contract_types`, `salary_min_usd_annual`/`salary_max_usd_annual`, `discard_reason`, `triage_engine`, `triage_model`, `triage_confidence` e `triage_details` (JSON com todas as respostas, probabilidades e limiares; migration `0018_international_radar`).
 
 ### 8. Persistência (`upsertJobLead`)
 

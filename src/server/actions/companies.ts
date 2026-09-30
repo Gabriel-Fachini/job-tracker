@@ -21,6 +21,7 @@ import {
 } from "@/lib/company-links";
 import { db } from "@/lib/db";
 import { companies, jobLeads, jobs } from "@/lib/db/schema";
+import { deleteGlassdoorDataForCompanies } from "@/lib/glassdoor/delete";
 
 export type CompanyMutationResult =
   | { ok: true }
@@ -179,9 +180,11 @@ export async function deleteCompany(
     return { ok: false, error: "linked-applications" };
   }
 
-  // Radar leads point at the company (foreign keys are on). With no jobs
-  // linked, none of them became an application, so they go with it.
+  // Radar leads and Glassdoor data point at the company (foreign keys are on).
+  // With no jobs linked, none of the leads became an application, so they go
+  // with it.
   db.transaction((tx) => {
+    deleteGlassdoorDataForCompanies(tx, [companyId]);
     tx.delete(jobLeads).where(eq(jobLeads.companyId, companyId)).run();
     tx.delete(companies).where(eq(companies.id, companyId)).run();
   });
@@ -317,6 +320,7 @@ export async function bulkDeleteCompanies(
     const deletableIds = deletable.map((row) => row.id);
 
     db.transaction((tx) => {
+      deleteGlassdoorDataForCompanies(tx, deletableIds);
       tx.delete(jobLeads).where(inArray(jobLeads.companyId, deletableIds)).run();
       tx.delete(companies).where(inArray(companies.id, deletableIds)).run();
     });

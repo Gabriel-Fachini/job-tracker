@@ -42,6 +42,10 @@ erDiagram
 
     companies ||--o{ jobs : "vagas assumidas"
     companies ||--o{ job_leads : "descobertas pelo radar"
+    companies ||--o{ glassdoor_snapshots : "coletas do Glassdoor"
+    companies ||--o{ glassdoor_reviews : "avaliações"
+    companies ||--o{ glassdoor_interviews : "entrevistas"
+    glassdoor_snapshots ||--o{ glassdoor_salaries : "faixas salariais"
     jobs ||--o{ applications : sustenta
     applications ||--o{ application_stages : etapas
     applications ||--o{ application_status_history : historico
@@ -127,8 +131,8 @@ Vagas encontradas pelo radar, antes de virarem candidatura.
 |---|---|
 | `company_id` + `source_url` | **índice único** `job_leads_company_source_url_unique`: a mesma vaga numa nova varredura não duplica |
 | `title`, `description` (markdown), `source_name` (default `company_site`), `work_model`, `seniority`, `location_text`, `salary_text` | extraídos da vaga |
-| `source_kind`, `external_id`, `apply_url` | `source_kind`: `himalayas`, `remoteok`, `weworkremotely`, `jobicy`, `hn_whoishiring` ou `company` (achada no board da própria empresa); `external_id`: id da vaga na fonte; `apply_url`: link de candidatura quando difere de `source_url` (migration `0018`) |
-| `eligibility`, `contract_types`, `salary_min_usd_annual`, `salary_max_usd_annual` | saída do estágio 1 da triagem (migration `0019`): classe de elegibilidade (`worldwide`, `americas_or_latam_incl_brazil`, `brazil_explicit`, `us_only`, `us_canada_only`, `europe_uk_only`, `other_country_restricted`, `not_stated`), tipos de contrato (JSON: `employee`, `contractor`, `eor`) e salário-base normalizado para US$/ano |
+| `source_kind`, `external_id`, `apply_url` | `source_kind`: `himalayas`, `remoteok`, `weworkremotely`, `jobicy`, `hn_whoishiring` ou `company` (achada no board da própria empresa); `external_id`: id da vaga na fonte; `apply_url`: link de candidatura quando difere de `source_url` (migration `0018_international_radar`) |
+| `eligibility`, `contract_types`, `salary_min_usd_annual`, `salary_max_usd_annual` | saída do estágio 1 da triagem (migration `0018_international_radar`): classe de elegibilidade (`worldwide`, `americas_or_latam_incl_brazil`, `brazil_explicit`, `us_only`, `us_canada_only`, `europe_uk_only`, `other_country_restricted`, `not_stated`), tipos de contrato (JSON: `employee`, `contractor`, `eor`) e salário-base normalizado para US$/ano |
 | `discard_reason`, `user_discard_reason` | motivo do descarte automático (`location_ineligible`, `salary_below_min`, `job_family_mismatch`, `seniority_mismatch`, `contract_mismatch`, `low_fit`, `other`) e do descarte manual (os mesmos + `not_interested`) |
 | `triage_engine`, `triage_model`, `triage_confidence`, `triage_details` | `rules` (filtros duros ou sem perfil), `openai`, `jev` ou `ollama` (`legacy` só em testes); modelo usado; menor confiança por trás da decisão; JSON com respostas, probabilidades e limiares |
 | `dedup_key` | hash (32 hex) de empresa normalizada + título normalizado; índice `job_leads_dedup_key_idx`. Nulo em leads anteriores à `0018` |
@@ -141,9 +145,20 @@ Vagas encontradas pelo radar, antes de virarem candidatura.
 
 Descartes automáticos **são persistidos** (`classification_status = discarded`): é isso que permite pular a URL nas próximas varreduras. As telas filtram `discarded`. Detalhes em [radar-manual-de-vagas-implementacao.md](radar-manual-de-vagas-implementacao.md).
 
+### Glassdoor
+
+Dados coletados do Glassdoor (migration `0017`). Fluxo, casamento de empresas e decisões de campo em [modulos/glassdoor.md](modulos/glassdoor.md).
+
+| Tabela | Colunas relevantes |
+|---|---|
+| `glassdoor_snapshots` | `company_id`, `glassdoor_id` (índice, só para casamento), `collected_at`, `since`, notas 1–5 (`overall` + 6 subnotas), `recommend_to_friend`/`business_outlook`/`ceo_approval` (0–1), `review_count`, `interview_*`, `data_json`. **Único** `company_id + collected_at` |
+| `glassdoor_reviews` | `company_id`, `glassdoor_review_id` (**único**), `date` (texto ISO), `job_title`, `rating`, `summary`, `pros`, `cons`, `advice`, `is_current`, `years_employed`, `extra_json`, `first_seen_at` |
+| `glassdoor_interviews` | `company_id`, `glassdoor_interview_id` (**único**), `date`, `job_title`, `difficulty`, `experience`, `outcome`, `duration_days`, `process`, `questions_json`, `first_seen_at` |
+| `glassdoor_salaries` | `snapshot_id`, `job_title`, `salary_count`, `base_p10…p90`, `total_p10…p90`, `extra_json` |
+
 ### `job_sources`
 
-Feeds agregados (migration `0018`). Semeada em código na primeira leitura (`ensureDefaultSources`); ver [radar](radar-manual-de-vagas-implementacao.md#fontes-agregadas-feeds).
+Feeds agregados (migration `0018_international_radar`). Semeada em código na primeira leitura (`ensureDefaultSources`); ver [radar](radar-manual-de-vagas-implementacao.md#fontes-agregadas-feeds).
 
 | Coluna | Observação |
 |---|---|
@@ -155,7 +170,7 @@ Feeds agregados (migration `0018`). Semeada em código na primeira leitura (`ens
 
 ### `search_preferences`
 
-Linha única com as preferências da busca internacional (migration `0017_search_preferences`). Ausência de linha = filtros desligados. Listas em JSON (`text`).
+Linha única com as preferências da busca internacional (migration `0018_international_radar`). Ausência de linha = filtros desligados. Listas em JSON (`text`).
 
 | Coluna | Observação |
 |---|---|
@@ -179,7 +194,7 @@ UI e regras: [modulos/perfil.md](modulos/perfil.md#busca-internacional-preferên
 
 Não há cascade. O que existe hoje:
 
-- `deleteCompany` ([`src/server/actions/companies.ts`](../src/server/actions/companies.ts)): recusa (`linked-applications`) se houver `jobs` ligados; senão apaga os `job_leads` e a empresa numa transação e remove o arquivo de logo.
+- `deleteCompany` e `bulkDeleteCompanies` ([`src/server/actions/companies.ts`](../src/server/actions/companies.ts)): recusam (`linked-applications`) se houver `jobs` ligados; senão apagam, numa transação, os dados do Glassdoor (`deleteGlassdoorDataForCompanies`), os `job_leads` e a empresa, e removem o arquivo de logo.
 - Etapas: `deleteApplicationStage`.
 - Não há exclusão de candidatura, job ou perfil pela UI.
 
@@ -232,9 +247,8 @@ Consequências práticas:
 | 14 | `0014_add_is_referral` | `applications.is_referral` |
 | 15 | `0015_company_logos` | `companies.logo_url`, `logo_path`, `logo_checked_at` |
 | 16 | `0016_redundant_millenium_guard` | `companies.radar_enabled` |
-| 17 | `0017_search_preferences` | cria `search_preferences` |
-| 19 | `0019_triage_fields` | `job_leads.eligibility`, `contract_types`, `salary_min_usd_annual`, `salary_max_usd_annual`, `discard_reason`, `user_discard_reason`, `triage_engine`, `triage_model`, `triage_confidence`, `triage_details` (todas nulas por padrão) |
-| 18 | `0018_job_sources_and_dedup` | cria `job_sources`; `companies.origin`; `job_leads.source_kind`, `external_id`, `apply_url`, `dedup_key` (+ índice) |
+| 17 | `0017_glassdoor_data` | tabelas `glassdoor_snapshots`, `glassdoor_reviews`, `glassdoor_interviews`, `glassdoor_salaries` |
+| 18 | `0018_international_radar` | cria `search_preferences`, `job_sources` e `application_kits`; `companies.origin`; em `job_leads`: `source_kind`, `external_id`, `apply_url`, `dedup_key` (+ índice) e os campos de triagem `eligibility`, `contract_types`, `salary_min_usd_annual`, `salary_max_usd_annual`, `discard_reason`, `user_discard_reason`, `triage_engine`, `triage_model`, `triage_confidence`, `triage_details` (todos nulos por padrão) |
 
 A numeração dos arquivos não é a ordem do journal (dois `0013`, sem `0011`). Vale o `idx`/`when` do `_journal.json`.
 
