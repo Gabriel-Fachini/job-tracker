@@ -1,8 +1,10 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { DefinitionItem } from "@/components/profile/profile-summary";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -14,7 +16,7 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Panel, PanelBody, PanelHeader, PanelMeta, PanelTitle } from "@/components/ui/panel";
+import { Panel, PanelBody, PanelHeader, PanelTitle } from "@/components/ui/panel";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -33,6 +35,11 @@ import { saveSearchPreferencesAction } from "@/server/actions/search-preferences
 type SearchPreferencesPanelProps = {
   /** Null until the user saves once. */
   preferences: SearchPreferences | null;
+  /** Read-only by default; "Editar" opens the form (one panel of the page at a time). */
+  editing: boolean;
+  /** A profile section is being edited: "Editar" waits for it. */
+  locked?: boolean;
+  onEditingChange: (editing: boolean) => void;
 };
 
 type FormState = {
@@ -87,12 +94,45 @@ function toggle(list: string[], value: string) {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
 }
 
-export function SearchPreferencesPanel({ preferences }: SearchPreferencesPanelProps) {
+const usd = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+
+function labelsOf(options: ReadonlyArray<{ value: string; label: string }>, values: string[]) {
+  return values
+    .map((value) => options.find((option) => option.value === value)?.label ?? value)
+    .join(" · ");
+}
+
+function salaryFloorText(preferences: SearchPreferencesInput) {
+  const parts = [
+    preferences.minMonthlyUsd != null ? `US$ ${usd.format(preferences.minMonthlyUsd)}/mês` : null,
+    preferences.minAnnualUsd != null ? `US$ ${usd.format(preferences.minAnnualUsd)}/ano` : null,
+  ].filter(Boolean);
+
+  return parts.join(" · ");
+}
+
+function timezoneText(preferences: SearchPreferencesInput) {
+  const parts = [
+    preferences.timezone,
+    preferences.maxUtcOffsetDistanceHours != null
+      ? `até ${preferences.maxUtcOffsetDistanceHours} h de diferença`
+      : null,
+  ].filter(Boolean);
+
+  return parts.join(" · ");
+}
+
+export function SearchPreferencesPanel({
+  preferences,
+  editing,
+  locked = false,
+  onEditingChange,
+}: SearchPreferencesPanelProps) {
+  const router = useRouter();
   const idPrefix = useId();
   const fieldId = (name: string) => `${idPrefix}-${name}`;
-  const [state, setState] = useState<FormState>(() =>
-    toFormState(preferences ?? emptySearchPreferences),
-  );
+  const saved = preferences ?? emptySearchPreferences;
+  const [state, setState] = useState<FormState>(() => toFormState(saved));
   const [error, setError] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
 
@@ -100,8 +140,19 @@ export function SearchPreferencesPanel({ preferences }: SearchPreferencesPanelPr
     setState((current) => ({ ...current, [key]: value }));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function startEditing() {
+    setState(toFormState(saved));
+    setError(null);
+    onEditingChange(true);
+  }
+
+  function cancel() {
+    setState(toFormState(saved));
+    setError(null);
+    onEditingChange(false);
+  }
+
+  function save() {
     setError(null);
 
     startSaving(async () => {
@@ -109,6 +160,8 @@ export function SearchPreferencesPanel({ preferences }: SearchPreferencesPanelPr
 
       if (result.ok) {
         toast.success("Preferências de busca salvas");
+        onEditingChange(false);
+        router.refresh();
         return;
       }
 
@@ -116,23 +169,93 @@ export function SearchPreferencesPanel({ preferences }: SearchPreferencesPanelPr
     });
   }
 
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    save();
+  }
+
+  const answeredDefaults = defaultAnswerFields.filter((answer) => saved.defaultAnswers[answer.key]?.trim());
+
   return (
-    <Panel aria-labelledby="search-preferences-title">
+    <Panel aria-labelledby="search-preferences-title" className="@container/panel overflow-hidden">
       <PanelHeader>
         <PanelTitle id="search-preferences-title">Busca internacional</PanelTitle>
-        <PanelMeta>
-          {preferences?.updatedAt
-            ? `Salvo em ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(preferences.updatedAt)}`
-            : "Filtros desligados"}
-        </PanelMeta>
+        {editing ? (
+          // Phones save and cancel from the pinned edit bar instead.
+          <div className="hidden shrink-0 items-center gap-1.5 md:flex">
+            <Button disabled={isSaving} onClick={cancel} size="sm" type="button" variant="ghost">
+              Cancelar
+            </Button>
+            <Button disabled={isSaving} onClick={save} size="sm" type="button">
+              {isSaving ? "Salvando…" : "Salvar"}
+            </Button>
+          </div>
+        ) : (
+          <Button
+            aria-label="Editar busca internacional"
+            className="-mr-1.5 shrink-0"
+            disabled={locked}
+            onClick={startEditing}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
+            Editar
+          </Button>
+        )}
       </PanelHeader>
       <PanelBody>
+        <p className="mb-5 max-w-prose text-[13px] leading-5 text-muted-foreground">
+          Critérios do radar para vagas remotas no exterior. Vagas que claramente fogem deles são
+          descartadas antes de qualquer modelo de IA. Sem valor, o filtro correspondente fica
+          desligado.
+          {preferences?.updatedAt ? (
+            <span className="text-subtle-foreground">
+              {" "}
+              Salvo em {new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(preferences.updatedAt)}.
+            </span>
+          ) : null}
+        </p>
+
+        {editing ? null : (
+          <div className="flex flex-col gap-6">
+            <dl className="grid gap-x-6 gap-y-4 @md/panel:grid-cols-2">
+              <DefinitionItem label="Salário mínimo" value={salaryFloorText(saved)} />
+              <DefinitionItem label="Fuso horário" value={timezoneText(saved)} />
+              <DefinitionItem label="Contratos aceitos" value={labelsOf(contractOptions, saved.acceptedContracts)} />
+              <DefinitionItem
+                label="Elegibilidade geográfica"
+                value={labelsOf(eligibilityOptions, saved.acceptedEligibility)}
+              />
+              <DefinitionItem
+                label="Senioridade alvo"
+                value={labelsOf(targetSeniorityOptions, saved.targetSeniorities)}
+              />
+              <DefinitionItem label="Famílias de vaga" value={labelsOf(jobFamilyOptions, saved.targetJobFamilies)} />
+              <DefinitionItem label="Título deve ter" value={saved.titleIncludeKeywords.join(", ")} />
+              <DefinitionItem label="Título descarta" value={saved.titleExcludeKeywords.join(", ")} />
+            </dl>
+
+            <div className="border-t border-border pt-5">
+              <h3 className="text-sm font-medium text-foreground">Respostas padrão de formulário</h3>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                Usadas no kit de candidatura. Perguntas demográficas (EEO) nunca são preenchidas.
+              </p>
+              {answeredDefaults.length > 0 ? (
+                <dl className="mt-4 grid gap-x-6 gap-y-4 @md/panel:grid-cols-2">
+                  {answeredDefaults.map((answer) => (
+                    <DefinitionItem key={answer.key} label={answer.label} value={saved.defaultAnswers[answer.key] ?? null} />
+                  ))}
+                </dl>
+              ) : (
+                <p className="mt-3 text-[13px] text-subtle-foreground">Nenhuma resposta padrão definida.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {editing ? (
         <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
-          <p className="max-w-prose text-[13px] leading-5 text-muted-foreground">
-            Critérios do radar para vagas remotas no exterior. Vagas que claramente fogem deles são
-            descartadas antes de qualquer modelo de IA. Sem valores preenchidos, o filtro
-            correspondente fica desligado.
-          </p>
 
           <FieldGroup>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -271,15 +394,24 @@ export function SearchPreferencesPanel({ preferences }: SearchPreferencesPanelPr
               ))}
             </div>
           </FieldSet>
+        </form>
+        ) : null}
+      </PanelBody>
 
-          <div className="flex justify-end">
-            {/* The page's single primary action is "Editar perfil"; this one stays outlined. */}
-            <Button disabled={isSaving} type="submit" variant="outline">
-              {isSaving ? "Salvando..." : "Salvar busca internacional"}
+      {/* Phones: same pinned save/cancel bar as the profile sections. */}
+      {editing ? (
+        <div className="fixed inset-x-0 bottom-0 z-(--z-action-bar) animate-in border-t border-border bg-canvas px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] duration-200 fade-in-0 slide-in-from-bottom-3 md:hidden">
+          <p className="mb-2 text-xs text-subtle-foreground">Editando busca internacional</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Button disabled={isSaving} onClick={cancel} type="button" variant="ghost">
+              Cancelar
+            </Button>
+            <Button disabled={isSaving} onClick={save} type="button">
+              {isSaving ? "Salvando…" : "Salvar"}
             </Button>
           </div>
-        </form>
-      </PanelBody>
+        </div>
+      ) : null}
     </Panel>
   );
 }
