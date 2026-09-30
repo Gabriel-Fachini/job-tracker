@@ -44,6 +44,8 @@ Levantamento feito em 2026-09-27 lendo o código (e, quando indicado, testando).
 - Link do funil para `/leads?status=promoted` não é tratado pela tela de leads.
 - Aviso do backlog diz "interessante(s)" mas conta `review` também.
 - `src/components/dashboard/chart-widgets.tsx` não é importado.
+- Um React #418 (texto diferente entre servidor e cliente na hidratação) apareceu uma vez no preview de 2026-09-29, logo após subir o servidor (primeira carga do `/dashboard` ou do `/profile`); recargas seguintes das mesmas páginas não repetiram. Não reproduzido; suspeita de texto dependente da hora. Para investigar, rodar em modo dev, que mostra o texto divergente.
+- Painel "Radar internacional": "Elegíveis" conta toda vaga sem `location_ineligible` (inclusive `not_stated` e descartes por salário), e a mediana salarial usa o ponto médio da faixa dessas vagas.
 
 ## Leads
 

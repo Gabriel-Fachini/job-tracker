@@ -82,7 +82,9 @@ Painel "Busca internacional" em `/profile` ([`search-preferences-panel.tsx`](../
 | Palavras que o título deve/não deve ter | filtro de título do estágio 0 |
 | Respostas padrão | kit de candidatura assistida (autorização nos EUA, sponsorship, pretensão, aviso prévio, "como conheceu", pronomes). Perguntas EEO nunca são respondidas |
 
-Código: [`src/lib/search-preferences.ts`](../../src/lib/search-preferences.ts) (tipos, opções, normalização, piso anual), [`search-preferences-queries.ts`](../../src/lib/search-preferences-queries.ts) e [`src/server/actions/search-preferences.ts`](../../src/server/actions/search-preferences.ts). O botão de salvar é `outline` para manter um único botão roxo na tela ("Editar perfil").
+Código: [`src/lib/search-preferences.ts`](../../src/lib/search-preferences.ts) (tipos, opções, normalização, piso anual), [`search-preferences-queries.ts`](../../src/lib/search-preferences-queries.ts) e [`src/server/actions/search-preferences.ts`](../../src/server/actions/search-preferences.ts).
+
+Mesmo padrão das seções do perfil (2026-09-29): **leitura por padrão** (lista rótulo/valor com o `DefinitionItem` exportado de `profile-summary.tsx`; vazio = "Não definido"), "Editar" discreto no cabeçalho, e em edição "Cancelar"/"Salvar" no cabeçalho a partir de `md` ou na barra fixada no celular. Cancelar descarta o rascunho; Salvar grava, volta à leitura e faz `router.refresh()`. `ProfileWorkspace` coordena **uma edição por vez**: editando a busca, o `ProfileSummary` recebe `locked` (todos os "Editar" desabilitados) e "Editar perfil" fica desabilitado e `outline`; editando uma seção do perfil, o "Editar" da busca fica desabilitado. Assim o "Salvar" em edição é o único botão roxo da tela.
 
 ## Onde o perfil é usado
 
