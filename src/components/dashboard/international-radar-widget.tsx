@@ -7,6 +7,12 @@ import type { InternationalRadarData } from "@/server/queries/international-rada
 const SOURCE_LABELS: Record<string, string> = {
   company: "Boards das empresas",
   other: "Outras origens",
+  // ATS boards of the companies (`source_kind` = provider).
+  ashby: "Ashby",
+  lever: "Lever",
+  greenhouse: "Greenhouse",
+  gupy: "Gupy",
+  inhire: "InHire",
   ...Object.fromEntries(defaultSources.map((source) => [source.kind, source.name])),
 };
 

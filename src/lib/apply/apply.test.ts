@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
+import { pickOption } from "./answers";
 import { mapFieldHeuristically } from "./field-mapping";
 import { buildFillPlan, FORBIDDEN_SCRIPT_CALLS } from "./fill-plan";
 import type { FormField, KitAnswers } from "./types";
@@ -76,6 +77,12 @@ test("heuristics map the standard application fields", () => {
   for (const [partial, expected] of cases) {
     assert.equal(mapFieldHeuristically(field(partial))?.key, expected, partial.label);
   }
+});
+
+test("pickOption turns a sentence answer into the form's option", () => {
+  assert.equal(pickOption("No, I am based in Brazil and work as a contractor.", ["Yes", "No"]), "No");
+  assert.equal(pickOption("Yes", ["Yes, I am authorized", "No, I am not"]), "Yes, I am authorized");
+  assert.equal(pickOption("2 weeks", undefined), "2 weeks");
 });
 
 test("demographic questions always map to eeo_demographic", () => {
